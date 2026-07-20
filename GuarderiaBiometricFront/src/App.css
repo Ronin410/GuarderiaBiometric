@@ -1,0 +1,101 @@
+/* --- ESTILOS BASE --- */
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+/* Puedes mantener tus animaciones de logo si las usas, 
+   pero para el sistema de gestión lo importante es lo de abajo */
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+
+@keyframes logo-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* --- CONFIGURACIÓN DE IMPRESIÓN (SOLUCIÓN DEFINITIVA) --- */
+
+@media print {
+  /* 1. FUERZA BRUTA PARA OCULTAR: 
+     Añadimos etiquetas HTML comunes que suelen ser menús o botones */
+  .no-print, 
+  header, 
+  nav, 
+  button, 
+  input, 
+  .fixed,
+  .absolute.inset-0.bg-black\/90 { 
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* 2. RESETEO DE COLORES: 
+     Quitamos el fondo oscuro de la app y ponemos todo blanco */
+  body, 
+  html, 
+  #root, 
+  main, 
+  div, 
+  section {
+    background-color: white !important;
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+    border-color: #d1d5db !important; /* Gris suave para bordes de tabla */
+  }
+
+  /* 3. TAMAÑO DE PÁGINA: 
+     Forzamos que el contenido use todo el ancho del papel */
+  .max-w-6xl, .max-w-4xl {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* 4. FORZAR TEXTOS: 
+     Asegura que el texto sea legible (Tailwind usa mucho slate-400 que no se ve en papel) */
+  p, span, td, th, h1, h2, h3 {
+    color: black !important;
+  }
+
+  /* 5. MOSTRAR EL TÍTULO OCULTO: 
+     Esto hace que el div 'hidden print:block' de tu PanelReportes aparezca */
+  .print\:block {
+    display: block !important;
+  }
+
+  .print\:flex {
+    display: flex !important;
+  }
+
+  /* 6. TABLA: 
+     Evitamos que la tabla se corte a la mitad entre dos páginas */
+  table {
+    page-break-inside: auto;
+  }
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+}
+
+body {
+  /* Asegura que el contenido respete las áreas seguras de los móviles */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  height: 100vh;
+  overflow: hidden; /* Evita rebotes innecesarios */
+}

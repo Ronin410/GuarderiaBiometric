@@ -1,0 +1,74 @@
+@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 1. CONFIGURACIÓN PARA PWA Y PANTALLA COMPLETA */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  /* Evita el rebote elástico en iOS y scrolls laterales accidentales */
+  overscroll-behavior-y: contain;
+  overflow-x: hidden;
+  background-color: #ffffff;
+}
+
+:root {
+  /* Variables para manejar el notch/muesca en modo standalone */
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
+}
+
+/* Aplicar el área segura al contenedor principal para que no se corte el contenido */
+main {
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+}
+
+/* 2. ESTILOS DE IMPRESIÓN (Mantenemos tu configuración original) */
+@media print {
+  /* OCULTAR ELEMENTOS DE NAVEGACIÓN Y FILTROS */
+  header, nav, button, input, .no-print, [class*="no-print"] {
+    display: none !important;
+  }
+
+  /* LIMPIEZA DE COLORES (FONDO BLANCO, TEXTO NEGRO) */
+  body, html, #root, main {
+    background: white !important;
+    background-color: white !important;
+    color: black !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important; /* Permitir que crezca para imprimir todas las páginas */
+  }
+
+  /* FORZAR VISIBILIDAD DE LA TABLA */
+  div, table, tr, td, th {
+    background-color: transparent !important;
+    color: black !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    border: 1px solid #000 !important;
+  }
+
+  th, td {
+    border: 1px solid #ddd !important;
+    padding: 8px !important;
+    text-align: left !important;
+  }
+
+  .print\:block {
+    display: block !important;
+  }
+
+  /* EVITAR QUE EL TEXTO SEA GRIS */
+  [class*="text-slate"], [class*="text-blue"], [class*="text-white"] {
+    color: black !important;
+  }
+}
