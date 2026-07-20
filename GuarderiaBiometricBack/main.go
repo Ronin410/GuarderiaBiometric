@@ -31,11 +31,31 @@ import (
 var db *sql.DB
 var dbAuth *sql.DB
 var rekClient *rekognition.Client
-var jwtKey = []byte("tu_clave_secreta_super_segura") // Cambiar por variable de entorno
+var jwtKey []byte
 
 func getCollectionID(guarderiaID any) string {
 	return fmt.Sprintf("guarderia-%v", guarderiaID)
 	//return fmt.Sprintf("guarderia-rostros")
+}
+
+// parseAllowedOrigins lee ALLOWED_ORIGINS (lista separada por comas) y, si no está
+// configurada, cae a orígenes de desarrollo local para no romper el flujo local con HTTPS.
+func parseAllowedOrigins(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		log.Println("ADVERTENCIA: ALLOWED_ORIGINS no configurada; usando orígenes de desarrollo por defecto (localhost). Configúrala en producción con los dominios reales del frontend.")
+		return []string{"http://localhost:5173", "https://localhost:5173"}
+	}
+
+	partes := strings.Split(raw, ",")
+	origenes := make([]string, 0, len(partes))
+	for _, p := range partes {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			origenes = append(origenes, p)
+		}
+	}
+	return origenes
 }
 
 type PinRequest struct {
@@ -106,6 +126,12 @@ func init() {
 		log.Fatal("ERROR: Credenciales de AWS no configuradas.")
 	}
 
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		log.Fatal("ERROR: JWT_SECRET no configurada. Define esta variable de entorno con una clave secreta segura antes de iniciar el servidor.")
+	}
+	jwtKey = []byte(secret)
+
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithRegion(os.Getenv("AWS_REGION")),
 	)
@@ -172,9 +198,10 @@ func AuthMiddleware() gin.HandlerFunc {
 func main() {
 	r := gin.Default()
 
+	allowedOrigins := parseAllowedOrigins(os.Getenv("ALLOWED_ORIGINS"))
+
 	r.Use(cors.New(cors.Config{
-		// Agregamos ambas variantes de localhost para evitar conflictos
-		AllowOrigins:     []string{"*"},
+		AllowOrigins:     allowedOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With", "X-Guarderia-Slug"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -183,6 +210,11 @@ func main() {
 	}))
 
 	iniciarTareasProgramadas(db)
+
+	// Limitadores para endpoints sensibles a fuerza bruta / abuso de costos (Rekognition).
+	loginLimiter := newRateLimiter(10, time.Minute)      // 10 intentos de login por IP/min
+	pinLimiter := newRateLimiter(5, time.Minute)         // 5 intentos de PIN por IP/min (solo 10,000 combinaciones)
+	identificarLimiter := newRateLimiter(30, time.Minute) // 30 escaneos faciales por IP/min
 
 	r.POST("/usuarios/registro", func(c *gin.Context) {
 		// 1. Estructura para recibir los datos (ajustada a tu tabla)
@@ -230,7 +262,7 @@ func main() {
 		c.JSON(http.StatusCreated, gin.H{"message": "Usuario creado exitosamente con hash de seguridad"})
 	})
 
-	r.POST("/login", func(c *gin.Context) {
+	r.POST("/login", loginLimiter.Middleware(), func(c *gin.Context) {
 		// 1. Estructura para recibir datos de Postman
 		var creds struct {
 			Username string `json:"username"`
@@ -243,21 +275,20 @@ func main() {
 			return
 		}
 
-		// LOG de depuración
-		fmt.Printf("Intentando login plano: Usuario[%s] Pass[%s]\n", creds.Username, creds.Password)
-
 		var id, gID int
-		var passHash, rol, pin, gNombre, gSlug string
+		var passHash, rol, pinAdmin, gNombre, gSlug string
 		// 2. Consulta a la base de datos
+		// Nota: pin_admin se consulta solo para mantener la forma de la fila; nunca se
+		// expone en la respuesta. La verificación del PIN se hace en /verificar-pin.
 		query := `
-		SELECT 
+		SELECT
             u.id, u.guarderia_id, u.password_hash, u.rol, u.pin_admin,
             g.nombre, g.slug
         FROM usuarios u
         INNER JOIN guarderias g ON u.guarderia_id = g.id
         WHERE u.username = $1`
 
-		err := dbAuth.QueryRow(query, creds.Username).Scan(&id, &gID, &passHash, &rol, &pin, &gNombre, &gSlug)
+		err := dbAuth.QueryRow(query, creds.Username).Scan(&id, &gID, &passHash, &rol, &pinAdmin, &gNombre, &gSlug)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				fmt.Printf("Usuario no encontrado: %s\n", creds.Username)
@@ -271,7 +302,7 @@ func main() {
 		err = bcrypt.CompareHashAndPassword([]byte(passHash), []byte(creds.Password))
 		if err != nil {
 			// Si el error no es nulo, la contraseña no coincide
-			fmt.Printf("FALLO: Intento de login inválido para usuario %s\n", creds.Username)
+			log.Printf("Intento de login inválido para usuario %s", creds.Username)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Contraseña incorrecta"})
 			return
 		}
@@ -295,15 +326,15 @@ func main() {
 		}
 
 		// 5. Respuesta Exitosa
-		fmt.Printf("Login exitoso (Texto Plano): %s\n", creds.Username)
+		log.Printf("Login exitoso: %s", creds.Username)
 		c.JSON(http.StatusOK, gin.H{
 			"token":            tokenStr,
+			"user_id":          id,
 			"guarderia_id":     gID,
-			"guarderia_nombre": gNombre, // Nuevo
-			"guarderia_slug":   gSlug,   // Nuevo
+			"guarderia_nombre": gNombre,
+			"guarderia_slug":   gSlug,
 			"rol":              rol,
 			"username":         creds.Username,
-			"pin_admin":        pin,
 		})
 	})
 
@@ -352,7 +383,7 @@ func main() {
 		c.JSON(200, gin.H{"status": "OK", "padre_id": nuevoPadreID})
 	})
 
-	r.POST("/identificar", AuthMiddleware(), func(c *gin.Context) {
+	r.POST("/identificar", AuthMiddleware(), identificarLimiter.Middleware(), func(c *gin.Context) {
 		gID, _ := c.Get("guarderia_id")
 		colID := getCollectionID(gID)
 
@@ -990,7 +1021,7 @@ func main() {
 		c.JSON(http.StatusOK, reportes)
 	})
 
-	r.POST("/verificar-pin", AuthMiddleware(), func(c *gin.Context) {
+	r.POST("/verificar-pin", AuthMiddleware(), pinLimiter.Middleware(), func(c *gin.Context) {
 		// 1. Obtener el ID del usuario desde el token
 		userID, _ := c.Get("user_id")
 

@@ -1,8 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  //baseURL: 'http://localhost:8099', // O tu URL de Render
-  baseURL: 'https://guarderiabiometricback.onrender.com', // Usa variable de entorno o fallback
+  baseURL: import.meta.env.VITE_API_URL || 'https://guarderiabiometricback.onrender.com',
 });
 
 // INTERCEPTOR DE PETICIÓN: Para enviar el token
@@ -21,8 +20,8 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401 && !error.config.url.includes('/verificar-pin')) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
+      localStorage.clear();
+      window.location.href = '/';
     }
     return Promise.reject(error);
   }

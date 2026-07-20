@@ -7,31 +7,14 @@ export default defineConfig({
   plugins: [
     react(),
     basicSsl(),
-    VitePWA({ 
+    VitePWA({
       registerType: 'autoUpdate',
-      injectRegister: 'auto', // Registra el Service Worker automáticamente
+      injectRegister: 'auto', // Registra el Service Worker automáticamente (única fuente de registro)
       includeAssets: ['favicon.ico', 'logo192.png', 'logo512.png'],
-      manifest: {
-        short_name: "Guardería",
-        name: "Sistema Biométrico Guardería",
-        display: "standalone",
-        theme_color: "#7c3aed",
-        background_color: "#ffffff",
-        orientation: "portrait",
-        icons: [
-          {
-            src: "logo192.png",
-            type: "image/png",
-            sizes: "192x192"
-          },
-          {
-            src: "logo512.png",
-            type: "image/png",
-            sizes: "512x512",
-            purpose: "any maskable" // Optimiza para Android
-          }
-        ]
-      }
+      // El manifest se sirve de forma estática desde public/manifest.json y se
+      // enlaza explícitamente en index.html. Desactivamos la generación/inyección
+      // propia del plugin para no terminar con dos <link rel="manifest"> distintos.
+      manifest: false
     })
   ],
   server: {

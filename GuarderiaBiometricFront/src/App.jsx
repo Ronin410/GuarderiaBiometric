@@ -80,16 +80,17 @@ function MainApp() {
       if (res.data.token) {
         localStorage.setItem('token', res.data.token);
         localStorage.setItem('role', res.data.rol);
-        localStorage.setItem('userId', res.data.userId);
+        localStorage.setItem('userId', res.data.user_id);
+        localStorage.setItem('username', res.data.username || loginUsername);
         localStorage.setItem('guarderia_nombre', res.data.guarderia_nombre || '');
         localStorage.setItem('guarderia_slug', res.data.guarderia_slug || '');
-        
+
         setIsLoggedIn(true);
         setUserRole(res.data.rol);
-        setUserId(res.data.userId);
-        setGuarderiaInfo({ 
-          nombre: res.data.guarderia_nombre || '', 
-          slug: res.data.guarderia_slug || '' 
+        setUserId(res.data.user_id);
+        setGuarderiaInfo({
+          nombre: res.data.guarderia_nombre || '',
+          slug: res.data.guarderia_slug || ''
         });
       }
     } catch (error) { 
@@ -125,7 +126,7 @@ function MainApp() {
   const verificarPinAdmin = async () => {
     try {
       const res = await api.post('/verificar-pin', { pin: adminPin });
-      if (res.data.message === "PIN válido") {
+      if (res.data.valid) {
         setTab(tabPendiente);
         setShowAdminPinModal(false);
         setAdminPin('');

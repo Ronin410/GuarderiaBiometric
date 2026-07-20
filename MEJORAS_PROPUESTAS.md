@@ -2,6 +2,15 @@
 
 > Basado en el escaneo completo del proyecto (ver `ESTADO_ACTUAL.md`). Ordenado por impacto/riesgo, no por esfuerzo.
 
+## Estado de implementación (2026-07-20)
+
+Ya implementados en esta rama:
+- Seguridad: `JWT_SECRET` por variable de entorno, eliminado el log de contraseñas en texto plano (y el `pin_admin` ya no se devuelve en `/login`), CORS restringido vía `ALLOWED_ORIGINS`, rate limiting en `/login`, `/identificar` y `/verificar-pin`.
+- Bugs: typo `'2d-digit'`, cálculo de fecha "hoy" unificado (`src/utils/fecha.js`), interceptor 401 ahora limpia todo `localStorage`, guarda null-safe en `PanelReportes.jsx`, props no usados corregidos (`DashboardPadre`, `GestionHijos`), y dos bugs adicionales encontrados durante la implementación: el login nunca devolvía `user_id` (por eso `padreId` llegaba vacío) y la verificación de PIN comparaba contra un texto que el backend nunca envía (el modal de PIN nunca desbloqueaba nada).
+- Arquitectura: URL del backend centralizada vía `VITE_API_URL` (`.env.example` en ambos proyectos), configuración PWA deduplicada (una sola fuente de manifest y un solo registro de Service Worker).
+
+Pendiente (no abordado en esta pasada, ver detalle en cada sección): separar `main.go` en paquetes, pruebas automatizadas, migrar pestañas internas a `react-router`, deduplicar `ReportePublico`/`VistaPadreDetalle`, herramienta de migraciones dedicada, CI/CD, monitoreo, revisión de accesibilidad.
+
 ## 1. Seguridad (prioridad alta)
 
 - **Clave JWT hardcodeada en el código fuente**: `jwtKey = []byte("tu_clave_secreta_super_segura")` en `main.go`. Debe moverse a una variable de entorno (`JWT_SECRET`) y rotarse, ya que al estar en el historial de git cualquiera con acceso al repo puede falsificar tokens.

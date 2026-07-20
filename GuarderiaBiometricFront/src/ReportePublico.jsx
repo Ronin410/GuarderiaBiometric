@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
-import { 
-  Utensils, Moon, Camera, Clock, Heart, CheckCircle2, 
-  ShieldCheck, Baby, Info, Calendar as CalendarIcon, X 
+import {
+  Utensils, Moon, Camera, Clock, Heart, CheckCircle2,
+  ShieldCheck, Baby, Info, Calendar as CalendarIcon, X
 } from 'lucide-react';
+import { hoyLocal } from './utils/fecha';
 
-const API_URL = 'https://guarderiabiometricback.onrender.com';
+const API_URL = import.meta.env.VITE_API_URL || 'https://guarderiabiometricback.onrender.com';
 
 const ReportePublico = () => {
   const { token } = useParams();
@@ -19,7 +20,7 @@ const ReportePublico = () => {
   const [fotoSeleccionada, setFotoSeleccionada] = useState(null);
   
   // Si la URL no trae fecha, usamos la de hoy en formato Local
-  const fechaUrl = searchParams.get("fecha") || new Date().toISOString().split('T')[0];
+  const fechaUrl = searchParams.get("fecha") || hoyLocal();
   const [fechaSeleccionada, setFechaSeleccionada] = useState(fechaUrl);
 
   const fetchPublico = async (fecha) => {

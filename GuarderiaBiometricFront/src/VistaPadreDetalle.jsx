@@ -1,18 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import api from './axiosConfig';
-import { 
-  Utensils, Moon, Camera, Clock, 
-  ChevronLeft, Heart, CheckCircle2, 
+import {
+  Utensils, Moon, Camera, Clock,
+  ChevronLeft, Heart, CheckCircle2,
   AlertCircle, ShieldCheck, Coffee,
   Baby, Info, Calendar as CalendarIcon,
   X // Importamos el icono de cerrar
 } from 'lucide-react';
+import { hoyLocal } from './utils/fecha';
 
 const VistaPadreDetalle = ({ hijoId, nombreHijo, onVolver }) => {
   const [reporte, setReporte] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
-  const [fechaSeleccionada, setFechaSeleccionada] = useState(new Date().toISOString().split('T')[0]);
+  const [fechaSeleccionada, setFechaSeleccionada] = useState(hoyLocal());
   
   // ESTADO PARA LA FOTO EN GRANDE
   const [fotoSeleccionada, setFotoSeleccionada] = useState(null);
@@ -100,7 +101,7 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, onVolver }) => {
               type="date" 
               value={fechaSeleccionada}
               onChange={handleCambioFecha}
-              max={new Date().toISOString().split('T')[0]}
+              max={hoyLocal()}
               className="w-full bg-slate-50 border-none rounded-2xl py-3 pl-12 pr-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-violet-500 transition-all uppercase"
             />
           </div>

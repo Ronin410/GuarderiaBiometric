@@ -35,16 +35,7 @@
   <body>
     <div id="root"></div>
 
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('SW registrado', reg))
-            .catch(err => console.error('Error al registrar SW', err));
-        });
-      }
-    </script>
-
+    <!-- El registro del Service Worker lo inyecta vite-plugin-pwa (injectRegister: 'auto') -->
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

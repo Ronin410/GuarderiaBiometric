@@ -1,19 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import api from './axiosConfig'; 
-import { 
-  Download, Clock, User, CheckCircle, ShieldAlert, 
+import api from './axiosConfig';
+import {
+  Download, Clock, User, CheckCircle, ShieldAlert,
   ShieldCheck, ChevronUp, ChevronDown, ArrowUpDown, Moon
 } from 'lucide-react';
+import { hoyLocal } from './utils/fecha';
 
 const PanelReportes = () => {
   const [reportes, setReportes] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // CORRECCIÓN DE FECHA: Usamos toLocaleDateString para evitar desfases de horario UTC
-  const hoyLocal = new Date().toLocaleDateString('en-CA'); 
-
-  const [fechaInicio, setFechaInicio] = useState(hoyLocal);
-  const [fechaFin, setFechaFin] = useState(hoyLocal);
+  const [fechaInicio, setFechaInicio] = useState(hoyLocal());
+  const [fechaFin, setFechaFin] = useState(hoyLocal());
   const [busquedaNombre, setBusquedaNombre] = useState(""); 
   const [sortConfig, setSortConfig] = useState({ key: 'fecha', direction: 'desc' });
 
@@ -44,8 +42,8 @@ const PanelReportes = () => {
   };
 
   const reportesProcesados = useMemo(() => {
-    let items = [...reportes].filter(reg => 
-      reg.hijo_nombre.toLowerCase().includes(busquedaNombre.toLowerCase())
+    let items = [...reportes].filter(reg =>
+      (reg.hijo_nombre || '').toLowerCase().includes(busquedaNombre.toLowerCase())
     );
 
     items.sort((a, b) => {

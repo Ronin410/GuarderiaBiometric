@@ -7,19 +7,14 @@ import {
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 import FormularioBitacora from './FormularioBitacora';
+import { hoyLocal } from './utils/fecha';
 
 const MySwal = withReactContent(Swal);
 
 const VistaBitacora = () => {
-  const getFechaLocalCuliacan = () => {
-    const fecha = new Date();
-    const offset = fecha.getTimezoneOffset() * 60000;
-    return new Date(fecha - offset).toISOString().split('T')[0];
-  };
-
   const [niños, setNiños] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [fechaFiltro, setFechaFiltro] = useState(getFechaLocalCuliacan());
+  const [fechaFiltro, setFechaFiltro] = useState(hoyLocal());
   const [busqueda, setBusqueda] = useState("");
   const [niñoSeleccionado, setNiñoSeleccionado] = useState(null);
 
@@ -42,7 +37,7 @@ const VistaBitacora = () => {
     try {
       const isoStr = fechaStr.includes(' ') ? fechaStr.replace(' ', 'T') : fechaStr;
       const date = new Date(isoStr);
-      return isNaN(date.getTime()) ? fechaStr : date.toLocaleTimeString('es-MX', { hour: '2d-digit', minute: '2d-digit', hour12: true });
+      return isNaN(date.getTime()) ? fechaStr : date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
     } catch (e) { return fechaStr; }
   };
 
@@ -83,12 +78,10 @@ const VistaBitacora = () => {
           <button onClick={() => { setNiñoSeleccionado(null); fetchEstatus(); }} className="mb-6 flex items-center gap-2 text-violet-600 font-black uppercase text-xs tracking-widest hover:opacity-70 transition-all">
             ← Volver a la lista
           </button>
-          {/* PASAMOS TODA LA DATA DEL NIÑO AL FORMULARIO */}
-          <FormularioBitacora 
-            niñoId={niñoSeleccionado.id} 
-            nombreNiño={niñoSeleccionado.hijo} 
-            datosEntrada={niñoSeleccionado} // Enviamos aseado, golpe y obs_asistencia
-            onCerrar={() => { setNiñoSeleccionado(null); fetchEstatus(); }} 
+          <FormularioBitacora
+            niñoId={niñoSeleccionado.id}
+            nombreNiño={niñoSeleccionado.hijo}
+            onCerrar={() => { setNiñoSeleccionado(null); fetchEstatus(); }}
           />
         </div>
       </div>

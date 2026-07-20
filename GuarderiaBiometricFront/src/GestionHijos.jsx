@@ -173,7 +173,11 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
         });
       }
       alert("✅ Cambios guardados");
-      cargarHijosActuales();
+      if (typeof onFinalizar === 'function') {
+        onFinalizar();
+      } else {
+        cargarHijosActuales();
+      }
     } catch (error) {
       alert("❌ Error al guardar");
     } finally {

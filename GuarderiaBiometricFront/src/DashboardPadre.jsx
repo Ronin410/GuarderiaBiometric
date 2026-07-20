@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import VistaPadreDetalle from './VistaPadreDetalle'; 
 
-const DashboardPadre = () => {
+const DashboardPadre = ({ padreId, alCerrarSesion }) => {
   const [hijos, setHijos] = useState([]);
   const [hijoSeleccionado, setHijoSeleccionado] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -21,10 +21,12 @@ const DashboardPadre = () => {
     const cargarDatosIniciales = async () => {
       try {
         setLoading(true);
-        
-        // 1. Obtener hijos desde tu endpoint de Go
-        const resHijos = await api.get('/padre/0/hijos');
-        
+
+        // 1. Obtener hijos del padre autenticado (el backend también acepta "0"
+        // como comodín para resolverlo desde el token, pero usamos el id real
+        // que ya tenemos disponible para que quede explícito).
+        const resHijos = await api.get(`/padre/${padreId || 0}/hijos`);
+
         // CORRECCIÓN DE MAPEO: Aseguramos que 'nombre' tome el valor de 'nombre_niño'
         const hijosFormateados = (resHijos.data || []).map(h => ({
           id: h.id,
@@ -47,11 +49,15 @@ const DashboardPadre = () => {
       }
     };
     cargarDatosIniciales();
-  }, []);
+  }, [padreId]);
 
   const handleLogout = () => {
-    localStorage.clear();
-    window.location.href = '/'; 
+    if (typeof alCerrarSesion === 'function') {
+      alCerrarSesion();
+    } else {
+      localStorage.clear();
+      window.location.href = '/';
+    }
   };
 
   if (loading) {
