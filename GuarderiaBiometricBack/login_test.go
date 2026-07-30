@@ -1,0 +1,108 @@
+package main
+
+import (
+	"bytes"
+	"database/sql"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"golang.org/x/crypto/bcrypt"
+)
+
+func loginRequest(username, password string) *http.Request {
+	body, _ := json.Marshal(map[string]string{"username": username, "password": password})
+	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	return req
+}
+
+func TestLogin(t *testing.T) {
+	jwtKey = []byte("clave-de-prueba-solo-para-tests")
+	hashCorrecto, err := bcrypt.GenerateFromPassword([]byte("Correcta123!"), bcrypt.DefaultCost)
+	if err != nil {
+		t.Fatalf("no se pudo generar el hash de prueba: %v", err)
+	}
+
+	columnas := []string{"id", "guarderia_id", "password_hash", "rol", "pin_admin", "nombre", "slug"}
+
+	t.Run("credenciales correctas -> 200 con token", func(t *testing.T) {
+		mockDB, mock, err := sqlmock.New()
+		if err != nil {
+			t.Fatalf("sqlmock: %v", err)
+		}
+		defer mockDB.Close()
+		dbAuth = mockDB
+
+		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.username = \\$1").
+			WithArgs("admin_demo").
+			WillReturnRows(sqlmock.NewRows(columnas).
+				AddRow(1, 1, string(hashCorrecto), "admin", "1234", "Guardería Demo", "demo"))
+
+		r := setupRouter()
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, loginRequest("admin_demo", "Correcta123!"))
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("código = %d; esperado 200 (body: %s)", w.Code, w.Body.String())
+		}
+		var resp map[string]any
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("respuesta no es JSON válido: %v", err)
+		}
+		if resp["token"] == nil || resp["token"] == "" {
+			t.Errorf("se esperaba un token en la respuesta, se obtuvo: %v", resp)
+		}
+		if resp["pin_admin"] != nil {
+			t.Errorf("el pin_admin NUNCA debe exponerse en la respuesta de /login, se encontró: %v", resp["pin_admin"])
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("expectativas de sqlmock no cumplidas: %v", err)
+		}
+	})
+
+	t.Run("contraseña incorrecta -> 401", func(t *testing.T) {
+		mockDB, mock, err := sqlmock.New()
+		if err != nil {
+			t.Fatalf("sqlmock: %v", err)
+		}
+		defer mockDB.Close()
+		dbAuth = mockDB
+
+		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.username = \\$1").
+			WithArgs("admin_demo").
+			WillReturnRows(sqlmock.NewRows(columnas).
+				AddRow(1, 1, string(hashCorrecto), "admin", "1234", "Guardería Demo", "demo"))
+
+		r := setupRouter()
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, loginRequest("admin_demo", "esta-no-es-la-contraseña"))
+
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("código = %d; esperado 401 (body: %s)", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("usuario inexistente -> 401", func(t *testing.T) {
+		mockDB, mock, err := sqlmock.New()
+		if err != nil {
+			t.Fatalf("sqlmock: %v", err)
+		}
+		defer mockDB.Close()
+		dbAuth = mockDB
+
+		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.username = \\$1").
+			WithArgs("no_existe").
+			WillReturnError(sql.ErrNoRows)
+
+		r := setupRouter()
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, loginRequest("no_existe", "cualquiera"))
+
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("código = %d; esperado 401 (body: %s)", w.Code, w.Body.String())
+		}
+	})
+}

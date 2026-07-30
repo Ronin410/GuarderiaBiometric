@@ -122,7 +122,12 @@ type ReporteData struct {
 	Observaciones string `json:"observaciones"`
 }
 
-func init() {
+// conectarServicios valida la configuración y abre las conexiones externas
+// (AWS, Postgres) antes de levantar el router. Vive fuera de init() a propósito:
+// un init() que hace I/O y puede matar el proceso (log.Fatal) se ejecuta también
+// al correr "go test" sobre este paquete, lo cual rompería cualquier prueba
+// unitaria que no tenga Postgres real disponible.
+func conectarServicios() {
 	if os.Getenv("AWS_ACCESS_KEY_ID") == "" || os.Getenv("AWS_SECRET_ACCESS_KEY") == "" {
 		log.Fatal("ERROR: Credenciales de AWS no configuradas.")
 	}
@@ -197,6 +202,16 @@ func AuthMiddleware() gin.HandlerFunc {
 }
 
 func main() {
+	conectarServicios()
+	r := setupRouter()
+	r.Run(":8099")
+}
+
+// setupRouter registra todas las rutas sobre un *gin.Engine nuevo, sin arrancar
+// el servidor HTTP. Separarlo de main() permite que las pruebas lo llamen
+// directamente (con "db"/"jwtKey" ya inyectados vía sqlmock) y lo ejerciten con
+// httptest, sin necesidad de un puerto real ni de una Postgres real.
+func setupRouter() *gin.Engine {
 	r := gin.Default()
 
 	allowedOrigins := parseAllowedOrigins(os.Getenv("ALLOWED_ORIGINS"))
@@ -896,8 +911,7 @@ func main() {
 		fechaQuery := c.Query("fecha")
 
 		if fechaQuery == "" {
-			loc, _ := time.LoadLocation("America/Mazatlan")
-			fechaQuery = time.Now().In(loc).Format("2006-01-02")
+			fechaQuery = hoyEnZonaLocal(time.Now())
 		}
 
 		// Definimos el rango del día en formato ISO para Postgres
@@ -961,8 +975,7 @@ func main() {
 		fin := c.Query("fin")
 
 		if inicio == "" || fin == "" {
-			loc, _ := time.LoadLocation("America/Mazatlan")
-			hoy := time.Now().In(loc).Format("2006-01-02")
+			hoy := hoyEnZonaLocal(time.Now())
 			inicio = hoy
 			fin = hoy
 		}
@@ -1332,9 +1345,8 @@ func main() {
 		// Si no viene en la URL, usamos la fecha de hoy
 		fechaConsulta := c.Query("fecha")
 
-		location, _ := time.LoadLocation("America/Mazatlan")
 		if fechaConsulta == "" {
-			fechaConsulta = time.Now().In(location).Format("2006-01-02")
+			fechaConsulta = hoyEnZonaLocal(time.Now())
 		}
 
 		// Estructura para la respuesta
@@ -1396,9 +1408,8 @@ func main() {
 		token := c.Param("token") // El UUID del niño
 		fechaConsulta := c.Query("fecha")
 
-		location, _ := time.LoadLocation("America/Mazatlan")
 		if fechaConsulta == "" {
-			fechaConsulta = time.Now().In(location).Format("2006-01-02")
+			fechaConsulta = hoyEnZonaLocal(time.Now())
 		}
 
 		type SeguimientoCompleto struct {
@@ -1463,7 +1474,7 @@ func main() {
 		c.JSON(http.StatusOK, s)
 	})
 
-	r.Run(":8099")
+	return r
 }
 
 func uploadToS3(fileHeader *multipart.FileHeader, fileName string) (string, error) {
