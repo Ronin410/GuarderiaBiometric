@@ -112,6 +112,9 @@ func registrarRutasPagos(r *gin.Engine) {
 			if err := rows.Scan(&p.ID, &p.HijoID, &p.Monto, &p.Concepto, &p.Periodo, &p.FechaPago, &p.MetodoPago, &p.Observaciones); err != nil {
 				continue
 			}
+			if len(p.FechaPago) >= 10 {
+				p.FechaPago = p.FechaPago[:10]
+			}
 			pagos = append(pagos, p)
 		}
 

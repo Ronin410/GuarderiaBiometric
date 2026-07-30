@@ -1329,6 +1329,9 @@ func main() {
 			})
 			return
 		}
+		if len(s.Fecha) >= 10 {
+			s.Fecha = s.Fecha[:10]
+		}
 
 		// 3. Consulta de fotos (Todas las que pertenezcan a ese ID de seguimiento)
 		rows, err := db.Query("SELECT url FROM fotos_seguimiento WHERE seguimiento_id = $1", s.ID)
@@ -1397,6 +1400,9 @@ func main() {
 				"error":       "Aún no hay reporte para la fecha seleccionada.",
 			})
 			return
+		}
+		if len(s.Fecha) >= 10 {
+			s.Fecha = s.Fecha[:10]
 		}
 
 		// 3. Consulta de fotos (se mantiene igual)
@@ -1613,6 +1619,7 @@ func RunMigrations() {
 		`ALTER TABLE hijos ADD COLUMN IF NOT EXISTS url_token UUID DEFAULT gen_random_uuid();`,
 		`ALTER TABLE padres ADD COLUMN IF NOT EXISTS celular VARCHAR(20);`,
 		`ALTER TABLE padres ADD COLUMN IF NOT EXISTS recibe_whatsapp BOOLEAN DEFAULT false;`,
+		`ALTER TABLE seguimiento_diario ADD COLUMN IF NOT EXISTS durmio BOOLEAN DEFAULT false;`,
 
 		// 9. Perfil extendido del niño (módulo de Administración)
 		`ALTER TABLE hijos ADD COLUMN IF NOT EXISTS fecha_nacimiento DATE;`,

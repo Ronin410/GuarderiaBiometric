@@ -54,6 +54,7 @@ func registrarRutasPerfiles(r *gin.Engine) {
 			); err != nil {
 				continue
 			}
+			n.FechaNacimiento = soloFecha(n.FechaNacimiento)
 			ninos = append(ninos, n)
 		}
 
@@ -116,4 +117,15 @@ func derefOrEmpty(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+// soloFecha recorta un valor de columna DATE a "YYYY-MM-DD". lib/pq entrega las
+// columnas DATE escaneadas en *string como RFC3339 (ej. "2020-05-14T00:00:00Z"),
+// que rompe el <input type="date"> del frontend si se envía tal cual.
+func soloFecha(s *string) *string {
+	if s == nil || len(*s) < 10 {
+		return s
+	}
+	recortada := (*s)[:10]
+	return &recortada
 }
