@@ -15,11 +15,19 @@ api.interceptors.request.use((config) => {
   return Promise.reject(error);
 });
 
+// Endpoints donde un 401 significa "credenciales incorrectas" (el usuario
+// todavía no tiene sesión), no "la sesión expiró" — no deben disparar el
+// logout global, o el mensaje de error nunca le da tiempo de verse antes
+// de que la página se recargue.
+const RUTAS_SIN_LOGOUT_EN_401 = ['/login', '/verificar-pin'];
+
 // INTERCEPTOR DE RESPUESTA: Para manejar el 401
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && error.response.status === 401 && !error.config.url.includes('/verificar-pin')) {
+    const url = error.config?.url || '';
+    const esRutaExcluida = RUTAS_SIN_LOGOUT_EN_401.some((ruta) => url.includes(ruta));
+    if (error.response && error.response.status === 401 && !esRutaExcluida) {
       localStorage.clear();
       window.location.href = '/';
     }

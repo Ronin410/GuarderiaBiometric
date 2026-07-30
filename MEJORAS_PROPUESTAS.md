@@ -2,14 +2,19 @@
 
 > Basado en el escaneo completo del proyecto (ver `ESTADO_ACTUAL.md`). Ordenado por impacto/riesgo, no por esfuerzo.
 
-## Estado de implementación (2026-07-20)
+## Estado de implementación (actualizado tras el módulo de Administración y notificaciones push)
 
-Ya implementados en esta rama:
-- Seguridad: `JWT_SECRET` por variable de entorno, eliminado el log de contraseñas en texto plano (y el `pin_admin` ya no se devuelve en `/login`), CORS restringido vía `ALLOWED_ORIGINS`, rate limiting en `/login`, `/identificar` y `/verificar-pin`.
-- Bugs: typo `'2d-digit'`, cálculo de fecha "hoy" unificado (`src/utils/fecha.js`), interceptor 401 ahora limpia todo `localStorage`, guarda null-safe en `PanelReportes.jsx`, props no usados corregidos (`DashboardPadre`, `GestionHijos`), y dos bugs adicionales encontrados durante la implementación: el login nunca devolvía `user_id` (por eso `padreId` llegaba vacío) y la verificación de PIN comparaba contra un texto que el backend nunca envía (el modal de PIN nunca desbloqueaba nada).
-- Arquitectura: URL del backend centralizada vía `VITE_API_URL` (`.env.example` en ambos proyectos), configuración PWA deduplicada (una sola fuente de manifest y un solo registro de Service Worker).
+**Sección 1 (Seguridad)** — hecho: JWT secret por env var, log de contraseñas eliminado, `pin_admin` ya no se devuelve en `/login`, CORS restringido vía `ALLOWED_ORIGINS`, rate limiting en `/login`/`/identificar`/`/verificar-pin`, y además `RequireStaff()` bloqueando `/admin/ninos`, editar perfil y todo `/pagos*`/`/reportes/asistencia-resumen` para cuentas rol `papa`. Pendiente: JWT en `localStorage` sin expiración/refresh, endpoint público de bitácora sin expiración, `collection_id` inconsistente entre frontend/backend.
 
-Pendiente (no abordado en esta pasada, ver detalle en cada sección): separar `main.go` en paquetes, pruebas automatizadas, migrar pestañas internas a `react-router`, deduplicar `ReportePublico`/`VistaPadreDetalle`, herramienta de migraciones dedicada, CI/CD, monitoreo, revisión de accesibilidad.
+**Sección 2 (Bugs concretos)** — hecho por completo: typo de hora, fecha "hoy" unificada, interceptor 401, guarda null-safe, props no usados, `user_id` faltante en `/login`, comparación de PIN rota. Se sumaron 3 bugs más encontrados probando con Postgres real: el `CHECK` de `usuarios.rol` no permitía crear cuentas `papa`, `DashboardPadre` mandaba su propio ID en vez del comodín `"0"` (rompía el portal del papá), y la verificación de suscripción push podía colgar el dashboard si no había Service Worker activo.
+
+**Sección 3 (Arquitectura)** — hecho: URL del backend centralizada, PWA deduplicada (y luego migrada a `injectManifest` con Service Worker propio para push). Pendiente: `main.go` sigue siendo el archivo central de rutas (se sacaron `perfiles.go`/`pagos.go`/`reportes_avanzados.go`/`push.go`/`auth.go`/`ratelimit.go` como archivos aparte, pero todo sigue en `package main`, no hay paquetes reales separados), sin pruebas automatizadas, pestañas internas siguen sin `react-router` (y crecieron: ahora son 8 pestañas en vez de 5), `ReportePublico`/`VistaPadreDetalle` siguen duplicados (y la duplicación creció porque `VistaPadreDetalle` ahora también tiene pestañas de Expediente/Pagos), colores siguen hardcodeados como clases de Tailwind.
+
+**Sección 4 (UX/errores)** — sin cambios: sigue la mezcla `alert()`/`SweetAlert2` (los paneles nuevos de Pagos/Perfiles también usan `alert()`), `loading` sin usar en `PanelReportes`, logs de depuración en `FormularioBitacora.jsx`, accesibilidad, validación de fechas, confirmación de rostro en cuadro.
+
+**Sección 5 (Multi-tenancy)** — hecho: las columnas que faltaban en las migraciones ya están todas documentadas (`padres.celular`, `hijos.activo`/`url_token`, `seguimiento_diario.durmio`, el `CHECK` de `usuarios.rol`). Pendiente: índices compuestos por `guarderia_id`, soft-delete/auditoría en `padres`/`asistencia`.
+
+**Sección 6 (Infraestructura)** — hecho parcialmente: `.env.example` completo en ambos proyectos (incluye ya las variables de `VAPID_*`). Pendiente: CI/CD, Dockerfile, README real (sigue el genérico de Vite en el frontend, y el backend no tiene ninguno), monitoreo/alertas.
 
 ## 1. Seguridad (prioridad alta)
 

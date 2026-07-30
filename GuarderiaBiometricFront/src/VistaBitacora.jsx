@@ -4,12 +4,9 @@ import {
   Calendar, User, CheckCircle, ShieldAlert, Clock, 
   Search, RefreshCw, MessageSquare
 } from 'lucide-react';
-import Swal from 'sweetalert2';
-import withReactContent from 'sweetalert2-react-content';
 import FormularioBitacora from './FormularioBitacora';
 import { hoyLocal } from './utils/fecha';
-
-const MySwal = withReactContent(Swal);
+import { MySwal } from './utils/alertas';
 
 const VistaBitacora = () => {
   const [niños, setNiños] = useState([]);
@@ -38,7 +35,7 @@ const VistaBitacora = () => {
       const isoStr = fechaStr.includes(' ') ? fechaStr.replace(' ', 'T') : fechaStr;
       const date = new Date(isoStr);
       return isNaN(date.getTime()) ? fechaStr : date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
-    } catch (e) { return fechaStr; }
+    } catch { return fechaStr; }
   };
 
   const handleCambiarEstatus = async (niño) => {

@@ -5,6 +5,7 @@ import {
   CheckCircle2, Clock, XCircle
 } from 'lucide-react';
 import { hoyLocal } from './utils/fecha';
+import { mostrarError, confirmar } from './utils/alertas';
 
 const CONCEPTOS = ['Colegiatura', 'Inscripción', 'Material', 'Otro'];
 const METODOS = ['efectivo', 'transferencia', 'tarjeta', 'otro'];
@@ -131,7 +132,7 @@ const DetallePago = ({ nino, periodo, onVolver }) => {
 
   const registrarPago = async () => {
     if (!form.monto || Number(form.monto) <= 0) {
-      alert('El monto debe ser mayor a 0');
+      mostrarError('El monto debe ser mayor a 0');
       return;
     }
     setGuardando(true);
@@ -149,20 +150,21 @@ const DetallePago = ({ nino, periodo, onVolver }) => {
       cargarHistorial();
     } catch (err) {
       console.error('Error al registrar pago:', err);
-      alert('❌ No se pudo registrar el pago');
+      mostrarError('No se pudo registrar el pago');
     } finally {
       setGuardando(false);
     }
   };
 
   const eliminarPago = async (id) => {
-    if (!window.confirm('¿Eliminar este pago? Esta acción no se puede deshacer.')) return;
+    const ok = await confirmar('¿Eliminar este pago? Esta acción no se puede deshacer.', 'Eliminar pago');
+    if (!ok) return;
     try {
       await api.delete(`/pagos/${id}`);
       cargarHistorial();
     } catch (err) {
       console.error('Error al eliminar pago:', err);
-      alert('❌ No se pudo eliminar el pago');
+      mostrarError('No se pudo eliminar el pago');
     }
   };
 

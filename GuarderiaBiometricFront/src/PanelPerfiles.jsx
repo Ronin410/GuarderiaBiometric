@@ -4,6 +4,7 @@ import {
   Search, IdCard, Eye, EyeOff, Edit3, Check, X, Loader2,
   Cake, MapPin, Phone, Wallet, Users
 } from 'lucide-react';
+import { mostrarError } from './utils/alertas';
 
 const PanelPerfiles = () => {
   const [ninos, setNinos] = useState([]);
@@ -56,7 +57,7 @@ const PanelPerfiles = () => {
       cargarNinos();
     } catch (err) {
       console.error('Error al guardar perfil:', err);
-      alert('❌ No se pudo guardar el perfil');
+      mostrarError('No se pudo guardar el perfil');
     } finally {
       setGuardando(false);
     }

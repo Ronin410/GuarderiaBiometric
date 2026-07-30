@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import api from './axiosConfig';
 import { Save, X, Image as ImageIcon, Moon, Utensils, Info, Plus, Trash2, CheckCircle2 } from 'lucide-react';
+import { mostrarError } from './utils/alertas';
 
-const ComidaSelector = ({ label, icon: Icon, value, name, onChange }) => {
+const ComidaSelector = (props) => {
+  const { label, icon: Icon, value, name, onChange } = props;
   const opciones = [
     { label: 'NADA', color: 'peer-checked:bg-rose-500 peer-checked:text-white', bg: 'bg-rose-50 text-rose-600' },
     { label: 'POCO', color: 'peer-checked:bg-orange-500 peer-checked:text-white', bg: 'bg-orange-50 text-orange-600' },
@@ -42,8 +44,7 @@ const FormularioBitacora = ({ niñoId, nombreNiño, onCerrar }) => {
     esfinter: '', observaciones: '', durmio: false
   });
   
-  const [padreInfo, setPadreInfo] = useState({ id: null, telefono: '' });
-  const [fotosExistentes, setFotosExistentes] = useState([]); 
+  const [fotosExistentes, setFotosExistentes] = useState([]);
   const [nuevasFotos, setNuevasFotos] = useState([]);       
   const [previews, setPreviews] = useState([]);             
   const [loading, setLoading] = useState(false);
@@ -54,7 +55,6 @@ const FormularioBitacora = ({ niñoId, nombreNiño, onCerrar }) => {
       try {
         setLoading(true);
         const res = await api.get(`/seguimiento/${niñoId}`);
-        console.log("🔍 Datos iniciales cargados:", res.data);
         if (res.data) {
           const datosBitacora = res.data.bitacora || res.data;
           setFormData({
@@ -66,13 +66,9 @@ const FormularioBitacora = ({ niñoId, nombreNiño, onCerrar }) => {
             durmio: datosBitacora.durmio || false
           });
           setFotosExistentes(res.data.urls || []);
-          setPadreInfo({
-            id: res.data.padre_id,
-            telefono: res.data.telefono_padre 
-          });
         }
-      } catch (err) {
-        console.warn("⚠️ No hay bitácora previa para hoy");
+      } catch {
+        // Sin bitácora previa para hoy: es un estado normal, no un error.
       } finally { setLoading(false); }
     };
     cargarDatos();
@@ -107,8 +103,7 @@ const FormularioBitacora = ({ niñoId, nombreNiño, onCerrar }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("🚀 Iniciando proceso de guardado...");
-    
+
     const data = new FormData();
     Object.keys(formData).forEach(key => data.append(key, formData[key]));
     data.append("hijo_id", niñoId);
@@ -117,44 +112,25 @@ const FormularioBitacora = ({ niñoId, nombreNiño, onCerrar }) => {
     try {
       setLoading(true);
       const response = await api.post('/seguimiento', data);
-      
-      // --- BLOQUE DE LOGS DE DIAGNÓSTICO ---
-      console.log("✅ Servidor respondió con éxito");
-      console.log("📦 Cuerpo de la respuesta (Raw):", response.data);
 
       const idToken = response.data.padre_id;
       const telf = response.data.telefono_padre;
-
-      console.log("📱 Datos extraídos para WhatsApp:");
-      console.log("   - ID del Padre (Token):", idToken);
-      console.log("   - Teléfono del Padre:", telf);
 
       if (idToken && telf) {
         const urlPublica = `${window.location.origin}/seguimiento/${idToken}`;
         const mensajeWA = `¡Hola! He actualizado la bitácora de seguimiento de ${nombreNiño}. Puedes ver el reporte y las fotos aquí: ${urlPublica}`;
         const linkWA = `https://wa.me/${telf}?text=${encodeURIComponent(mensajeWA)}`;
-        
-        console.log("🔗 LINK FINAL GENERADO:", linkWA);
-        console.log("🛰️ Intentando abrir WhatsApp en nueva pestaña...");
-        
+
         const win = window.open(linkWA, '_blank');
-        if (win) {
-            console.log("🟢 Ventana abierta satisfactoriamente.");
-        } else {
-            console.error("🔴 ERROR: El navegador bloqueó la ventana emergente (Pop-up).");
-            alert("Por favor habilita las ventanas emergentes para enviar el WhatsApp.");
+        if (!win) {
+          mostrarError("Por favor habilita las ventanas emergentes para enviar el WhatsApp.");
         }
-      } else {
-        console.warn("⚠️ No se pudo generar el envío de WhatsApp:");
-        if (!idToken) console.warn("   - 'padre_id' no llegó en la respuesta.");
-        if (!telf) console.warn("   - 'telefono_padre' no llegó en la respuesta.");
       }
-      // --------------------------------------
-      
+
       onCerrar();
-    } catch (err) { 
-      console.error("❌ Error en la petición POST:", err);
-      alert("Error al guardar la bitácora"); 
+    } catch (err) {
+      console.error("Error al guardar la bitácora:", err);
+      mostrarError("Error al guardar la bitácora");
     } finally { setLoading(false); }
   };
 

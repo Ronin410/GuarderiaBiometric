@@ -18,6 +18,7 @@ import PanelPerfiles from './PanelPerfiles';
 import PanelPagos from './PanelPagos';
 import PanelEstadisticas from './PanelEstadisticas';
 import DashboardPadre from './DashboardPadre';
+import { mostrarError, mostrarExito, confirmar as confirmarAccion } from './utils/alertas';
 import ReportePublico from './ReportePublico'; // <-- Tu nueva ruta pública
 
 const videoConstraints = {
@@ -96,8 +97,9 @@ function MainApp() {
           slug: res.data.guarderia_slug || ''
         });
       }
-    } catch (error) { 
-      alert("Credenciales incorrectas para el perfil seleccionado"); 
+    } catch (error) {
+      console.error("Error en login:", error);
+      mostrarError("Credenciales incorrectas para el perfil seleccionado");
     }
   };
 
@@ -134,20 +136,21 @@ function MainApp() {
         setShowAdminPinModal(false);
         setAdminPin('');
       }
-    } catch (error) { 
-      alert("PIN incorrecto"); 
-      setAdminPin(''); 
+    } catch (error) {
+      console.error("Error al verificar PIN:", error);
+      mostrarError("PIN incorrecto");
+      setAdminPin('');
     }
   };
 
   const procesarRostro = async (endpoint) => {
     if (endpoint === 'registrar' && !nombre.trim()) {
-      alert("⚠️ Error: No has escrito un nombre para el registro.");
+      mostrarError("No has escrito un nombre para el registro.");
       return;
     }
     if (!webcamRef.current) return;
     const imageSrc = webcamRef.current.getScreenshot();
-    if (!imageSrc) return alert("No se pudo capturar la imagen.");
+    if (!imageSrc) return mostrarError("No se pudo capturar la imagen.");
 
     setLoading(true);
     const base64Image = imageSrc.split(',')[1];
@@ -178,15 +181,15 @@ function MainApp() {
     }
   };
 
-  const manejarToggleHijo = (hijo) => {
+  const manejarToggleHijo = async (hijo) => {
     const hID = hijo.id || hijo.hijo_id;
     const estado = hijo.ultimo_estado;
     if (estado === "SALIDA") return;
 
     if (!seleccionados.includes(hID)) {
       if (estado === "ENTRADA") {
-        const confirmar = window.confirm(`¿Deseas registrar la SALIDA de ${hijo.nombre_niño || hijo.nombre}?`);
-        if (!confirmar) return;
+        const ok = await confirmarAccion(`¿Deseas registrar la SALIDA de ${hijo.nombre_niño || hijo.nombre}?`, "Confirmar salida");
+        if (!ok) return;
       }
       setSeleccionados([...seleccionados, hID]);
     } else {
@@ -212,12 +215,13 @@ function MainApp() {
         });
       });
       await Promise.all(promesas);
-      alert("Operación exitosa");
+      mostrarExito("Operación exitosa");
       resetearProcesoEscaneo();
-    } catch (error) { 
-      alert("Error al registrar"); 
-    } finally { 
-      setLoading(false); 
+    } catch (error) {
+      console.error("Error al registrar asistencia:", error);
+      mostrarError("Error al registrar");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -335,6 +339,17 @@ function MainApp() {
                )}
                <div className="relative rounded-[3.5rem] overflow-hidden border-8 border-white bg-slate-200 shadow-2xl aspect-[3/4] mx-auto w-full">
                   <Webcam audio={false} ref={webcamRef} screenshotFormat="image/jpeg" videoConstraints={videoConstraints} className="absolute inset-0 w-full h-full object-cover" mirrored={true} />
+                  {/* Guía visual de encuadre: no detecta el rostro, solo ayuda a alinearlo antes de escanear */}
+                  {!loading && (
+                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-none">
+                      <svg viewBox="0 0 200 260" className="w-[62%] h-[62%]">
+                        <ellipse cx="100" cy="130" rx="85" ry="115" fill="none" stroke="white" strokeOpacity="0.85" strokeWidth="4" strokeDasharray="14 10" />
+                      </svg>
+                      <span className="mt-3 text-white text-[10px] font-black uppercase tracking-widest drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]">
+                        Encuadra tu rostro dentro del óvalo
+                      </span>
+                    </div>
+                  )}
                   {loading && <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center z-20"><RefreshCw className="animate-spin text-violet-600" size={54} /></div>}
                </div>
                <button onClick={() => procesarRostro(tab)} disabled={loading} className="w-full py-6 bg-violet-600 hover:bg-violet-700 text-white rounded-[2rem] font-black uppercase text-xl shadow-lg active:scale-95 transition-all disabled:opacity-50">

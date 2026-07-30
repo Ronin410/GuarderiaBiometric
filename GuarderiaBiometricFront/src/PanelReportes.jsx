@@ -5,6 +5,7 @@ import {
   ShieldCheck, ChevronUp, ChevronDown, ArrowUpDown, Moon
 } from 'lucide-react';
 import { hoyLocal } from './utils/fecha';
+import { mostrarAviso } from './utils/alertas';
 
 const PanelReportes = () => {
   const [reportes, setReportes] = useState([]);
@@ -22,15 +23,19 @@ const PanelReportes = () => {
         params: { inicio: fechaInicio, fin: fechaFin }
       });
       setReportes(Array.isArray(res.data) ? res.data : []);
-    } catch (error) { 
-      console.error("Error al obtener reportes:", error); 
-    } finally { 
-      setLoading(false); 
+    } catch (error) {
+      console.error("Error al obtener reportes:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  useEffect(() => { 
-    obtenerReportes(); 
+  useEffect(() => {
+    if (fechaInicio > fechaFin) {
+      mostrarAviso('La fecha de inicio no puede ser posterior a la fecha de fin.', 'Rango de fechas inválido');
+      return;
+    }
+    obtenerReportes();
   }, [fechaInicio, fechaFin]);
 
   const handleSort = (key) => {
@@ -139,7 +144,19 @@ const PanelReportes = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {reportesProcesados.map((reg, i) => {
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="p-10 text-center text-slate-400 font-black uppercase tracking-widest text-xs">
+                    Cargando reportes...
+                  </td>
+                </tr>
+              ) : reportesProcesados.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="p-10 text-center text-slate-400 font-black uppercase tracking-widest text-xs">
+                    Sin registros para este rango
+                  </td>
+                </tr>
+              ) : reportesProcesados.map((reg, i) => {
                 const esSalida = reg.tipo === 'SALIDA';
                 const b = reg.bitacora || {};
                 return (

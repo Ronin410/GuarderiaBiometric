@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 // Cambiamos axios por la instancia personalizada
 import api from './axiosConfig'; 
-import { 
-  UserPlus, Search, Baby, Save, X, Edit3, 
+import {
+  UserPlus, Search, Baby, Save, X, Edit3,
   Loader2, Check, RotateCcw, Eye, EyeOff, UserX, Link2Off
 } from 'lucide-react';
+import { mostrarExito, mostrarError, confirmar } from './utils/alertas';
 
 const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
   const [hijosRelacionados, setHijosRelacionados] = useState([]);
@@ -48,7 +49,7 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
         try {
           const res = await api.get(`/buscar-hijos?q=${busqueda}`);
           setSugerencias(Array.isArray(res.data) ? res.data : []);
-        } catch (err) {
+        } catch {
           setSugerencias([]);
         }
       } else {
@@ -68,7 +69,8 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
       });
       setEditandoTutor(false);
     } catch (err) {
-      alert("❌ Error al actualizar tutor");
+      console.error("Error al actualizar tutor:", err);
+      mostrarError("Error al actualizar tutor");
     } finally {
       setLoading(false);
     }
@@ -83,48 +85,52 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
       setEditandoHijoId(null);
       cargarHijosActuales();
     } catch (err) {
-      alert("❌ Error al actualizar el nombre del niño");
+      console.error("Error al actualizar el nombre del niño:", err);
+      mostrarError("Error al actualizar el nombre del niño");
     }
   };
 
   const manejarBajaHijo = async (hijo) => {
-    const confirmar = window.confirm(`¿Seguro que quieres DESACTIVAR a ${hijo.nombre_niño}?`);
-    if (!confirmar) return;
+    const ok = await confirmar(`¿Seguro que quieres DESACTIVAR a ${hijo.nombre_niño}?`, "Dar de baja");
+    if (!ok) return;
     try {
       await api.patch(`/hijos/${hijo.id}/desactivar`);
       cargarHijosActuales();
     } catch (err) {
-      alert("Error al procesar la baja");
+      console.error("Error al procesar la baja:", err);
+      mostrarError("Error al procesar la baja");
     }
   };
 
   const manejarDesvincular = async (hijo) => {
-    const confirmar = window.confirm(`¿Quieres quitar a ${hijo.nombre_niño} de la lista de ${nombreTutorEdit}?`);
-    if (!confirmar) return;
+    const ok = await confirmar(`¿Quieres quitar a ${hijo.nombre_niño} de la lista de ${nombreTutorEdit}?`, "Desvincular");
+    if (!ok) return;
 
-    setLoading(true); 
+    setLoading(true);
     try {
       await api.post(`/desvincular-hijo`, {
         padre_id: parseInt(padreId),
         hijo_id: parseInt(hijo.id)
       });
-      alert("✅ Desvinculación exitosa");
+      mostrarExito("Desvinculación exitosa");
       cargarHijosActuales();
     } catch (err) {
       console.error(err);
-      alert("❌ Error al desvincular: " + (err.response?.data?.mensaje || "Error desconocido"));
+      mostrarError("Error al desvincular: " + (err.response?.data?.mensaje || "Error desconocido"));
     } finally {
       setLoading(false);
     }
   };
 
   const manejarAltaHijo = async (hijo) => {
-    if (!window.confirm(`¿Activar a ${hijo.nombre_niño}?`)) return;
+    const ok = await confirmar(`¿Activar a ${hijo.nombre_niño}?`, "Reactivar alumno");
+    if (!ok) return;
     try {
       await api.patch(`/hijos/${hijo.id}/activar`);
       cargarHijosActuales();
     } catch (err) {
-      alert("Error al reactivar");
+      console.error("Error al reactivar:", err);
+      mostrarError("Error al reactivar");
     }
   };
 
@@ -172,14 +178,15 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
           hijo_id: idHijoFinal 
         });
       }
-      alert("✅ Cambios guardados");
+      mostrarExito("Cambios guardados");
       if (typeof onFinalizar === 'function') {
         onFinalizar();
       } else {
         cargarHijosActuales();
       }
     } catch (error) {
-      alert("❌ Error al guardar");
+      console.error("Error al guardar relaciones:", error);
+      mostrarError("Error al guardar");
     } finally {
       setLoading(false);
     }
