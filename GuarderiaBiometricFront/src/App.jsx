@@ -286,7 +286,7 @@ function MainApp() {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
         <div className="bg-white border border-slate-200 p-8 rounded-[2.5rem] w-full max-w-md shadow-xl text-center">
-          <div className="inline-block bg-violet-600 p-4 rounded-3xl shadow-lg mb-6">
+          <div className="inline-block bg-brand-600 p-4 rounded-3xl shadow-lg mb-6">
             <ShieldCheck size={40} className="text-white" />
           </div>
           <h1 className="text-3xl font-black text-slate-900 uppercase mb-2">BioSafe</h1>
@@ -295,22 +295,22 @@ function MainApp() {
           <div className="flex bg-slate-100 p-1.5 rounded-2xl mb-8 border border-slate-200">
             <button 
               onClick={() => setTipoAcceso('staff')}
-              className={`flex-1 py-2.5 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase transition-all ${tipoAcceso === 'staff' ? 'bg-white text-violet-600 shadow-sm' : 'text-slate-400'}`}
+              className={`flex-1 py-2.5 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase transition-all ${tipoAcceso === 'staff' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-400'}`}
             >
               <Users size={14}/> Staff / Admin
             </button>
             <button 
               onClick={() => setTipoAcceso('papa')}
-              className={`flex-1 py-2.5 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase transition-all ${tipoAcceso === 'papa' ? 'bg-white text-violet-600 shadow-sm' : 'text-slate-400'}`}
+              className={`flex-1 py-2.5 rounded-xl flex items-center justify-center gap-2 font-black text-[10px] uppercase transition-all ${tipoAcceso === 'papa' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-400'}`}
             >
               <Baby size={14}/> Soy Papá
             </button>
           </div>
 
           <form onSubmit={manejarLoginPrincipal} className="space-y-4">
-            <input type="text" value={loginUsername} onChange={(e) => setLoginUsername(e.target.value)} className="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl text-slate-900 outline-none focus:ring-2 focus:ring-violet-500 transition-all" placeholder={tipoAcceso === 'staff' ? "Usuario" : "Correo electrónico"} />
-            <input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} className="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl text-slate-900 outline-none focus:ring-2 focus:ring-violet-500 transition-all" placeholder="••••••••" />
-            <button type="submit" className="w-full bg-violet-600 hover:bg-violet-700 text-white font-black py-4 rounded-2xl uppercase tracking-tighter shadow-lg transition-all active:scale-95">
+            <input type="text" value={loginUsername} onChange={(e) => setLoginUsername(e.target.value)} className="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl text-slate-900 outline-none focus:ring-2 focus:ring-brand-500 transition-all" placeholder={tipoAcceso === 'staff' ? "Usuario" : "Correo electrónico"} />
+            <input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} className="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl text-slate-900 outline-none focus:ring-2 focus:ring-brand-500 transition-all" placeholder="••••••••" />
+            <button type="submit" className="w-full bg-brand-600 hover:bg-brand-700 text-white font-black py-4 rounded-2xl uppercase tracking-tighter shadow-lg transition-all active:scale-95">
               Entrar al Panel
             </button>
           </form>
@@ -327,22 +327,22 @@ function MainApp() {
     <div className="min-h-screen bg-slate-50 text-slate-900 p-4 sm:p-6 lg:p-8">
       <header className="flex flex-col items-center mb-8 border-b border-slate-200 pb-6 gap-6 w-full">
         <div className="flex items-center gap-3">
-          <div className="bg-violet-600 p-2 rounded-xl shadow-md"><ShieldCheck size={20} className="text-white" /></div>
+          <div className="bg-brand-600 p-2 rounded-xl shadow-md"><ShieldCheck size={20} className="text-white" /></div>
           <div className="text-center sm:text-left">
             <h1 className="text-xl font-black uppercase leading-none text-slate-900">BioSafe</h1>
-            <p className="text-[9px] text-violet-600 font-bold uppercase tracking-widest">{guarderiaInfo.nombre || 'Kiosk'}</p>
+            <p className="text-[9px] text-brand-600 font-bold uppercase tracking-widest">{guarderiaInfo.nombre || 'Kiosk'}</p>
           </div>
         </div>
 
         <nav className="w-full max-w-full overflow-x-auto no-scrollbar">
           <div className="flex bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm min-w-max mx-auto">
-            <button onClick={() => cambiarTab('identificar')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'identificar' ? 'bg-violet-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><ScanEye size={18} /> Kiosco</button>
-            <button onClick={() => cambiarTab('registrar')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'registrar' ? 'bg-violet-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><UserPlus size={18} /> Registro</button>
-            <button onClick={() => cambiarTab('admin')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'admin' ? 'bg-violet-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><Users size={18} /> Familia</button>
-            <button onClick={() => cambiarTab('bitacora')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'bitacora' ? 'bg-violet-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><ClipboardList size={18} /> Bitácora</button>
+            <button onClick={() => cambiarTab('identificar')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'identificar' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><ScanEye size={18} /> Kiosco</button>
+            <button onClick={() => cambiarTab('registrar')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'registrar' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><UserPlus size={18} /> Registro</button>
+            <button onClick={() => cambiarTab('admin')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'admin' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><Users size={18} /> Familia</button>
+            <button onClick={() => cambiarTab('bitacora')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'bitacora' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><ClipboardList size={18} /> Bitácora</button>
             <button onClick={() => cambiarTab('reportes')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'reportes' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><TrendingUp size={18} /> Reportes</button>
-            <button onClick={() => cambiarTab('perfiles')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'perfiles' ? 'bg-violet-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><IdCard size={18} /> Perfiles</button>
-            <button onClick={() => cambiarTab('pagos')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'pagos' ? 'bg-violet-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><Wallet size={18} /> Pagos</button>
+            <button onClick={() => cambiarTab('perfiles')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'perfiles' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><IdCard size={18} /> Perfiles</button>
+            <button onClick={() => cambiarTab('pagos')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'pagos' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><Wallet size={18} /> Pagos</button>
             <button onClick={() => cambiarTab('estadisticas')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'estadisticas' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><BarChart3 size={18} /> Estadísticas</button>
             <button onClick={cerrarSesion} className="px-3 py-2 text-rose-500 hover:bg-rose-50 rounded-xl ml-2 border-l border-slate-100"><LogOut size={18} /></button>
           </div>
@@ -359,18 +359,18 @@ function MainApp() {
           <div className="animate-in fade-in duration-500">
             <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl">
               <div className="flex items-center gap-4 mb-6">
-                <div className="bg-violet-100 p-3 rounded-2xl text-violet-600"><Search size={28} /></div>
+                <div className="bg-brand-100 p-3 rounded-2xl text-brand-600"><Search size={28} /></div>
                 <h3 className="text-xl font-black uppercase text-slate-900">Directorio de Tutores</h3>
               </div>
-              <input type="text" placeholder="Buscar por nombre..." className="w-full bg-slate-50 border border-slate-200 p-5 rounded-2xl focus:ring-2 focus:ring-violet-500 outline-none text-slate-900 mb-6 transition-all" onChange={(e) => cargarTodosLosPadres(e.target.value)} />
+              <input type="text" placeholder="Buscar por nombre..." className="w-full bg-slate-50 border border-slate-200 p-5 rounded-2xl focus:ring-2 focus:ring-brand-500 outline-none text-slate-900 mb-6 transition-all" onChange={(e) => cargarTodosLosPadres(e.target.value)} />
               <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                 {tutoresEncontrados.map(tutor => (
-                  <button key={tutor.id} onClick={() => { setPadreSeleccionado(tutor); setMostrarModalGestion(true); }} className="w-full bg-slate-50 border border-slate-100 hover:bg-violet-50 p-4 rounded-xl flex justify-between items-center group transition-all text-left">
+                  <button key={tutor.id} onClick={() => { setPadreSeleccionado(tutor); setMostrarModalGestion(true); }} className="w-full bg-slate-50 border border-slate-100 hover:bg-brand-50 p-4 rounded-xl flex justify-between items-center group transition-all text-left">
                     <div>
                       <p className="font-black uppercase text-slate-900">{tutor.nombre}</p>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{tutor.hijos?.length || 0} hijos registrados</p>
                     </div>
-                    <ArrowRightCircle size={20} className="text-slate-300 group-hover:text-violet-600" />
+                    <ArrowRightCircle size={20} className="text-slate-300 group-hover:text-brand-600" />
                   </button>
                 ))}
               </div>
@@ -384,7 +384,7 @@ function MainApp() {
                {tab === 'registrar' && (
                  <div className="space-y-2">
                    <label className="text-[10px] font-black uppercase text-slate-400 ml-4 tracking-widest">Nombre Completo del Tutor</label>
-                   <input type="text" placeholder="Ej. Juan Pérez" value={nombre} onChange={(e) => setNombre(e.target.value)} className="w-full bg-white border border-slate-200 p-4 rounded-2xl text-slate-900 focus:ring-2 focus:ring-violet-500 outline-none shadow-sm" />
+                   <input type="text" placeholder="Ej. Juan Pérez" value={nombre} onChange={(e) => setNombre(e.target.value)} className="w-full bg-white border border-slate-200 p-4 rounded-2xl text-slate-900 focus:ring-2 focus:ring-brand-500 outline-none shadow-sm" />
                  </div>
                )}
                <div className="relative rounded-[3.5rem] overflow-hidden border-8 border-white bg-slate-200 shadow-2xl aspect-[3/4] mx-auto w-full">
@@ -400,9 +400,9 @@ function MainApp() {
                       </span>
                     </div>
                   )}
-                  {loading && <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center z-20"><RefreshCw className="animate-spin text-violet-600" size={54} /></div>}
+                  {loading && <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center z-20"><RefreshCw className="animate-spin text-brand-600" size={54} /></div>}
                </div>
-               <button onClick={() => procesarRostro(tab)} disabled={loading} className="w-full py-6 bg-violet-600 hover:bg-violet-700 text-white rounded-[2rem] font-black uppercase text-xl shadow-lg active:scale-95 transition-all disabled:opacity-50">
+               <button onClick={() => procesarRostro(tab)} disabled={loading} className="w-full py-6 bg-brand-600 hover:bg-brand-700 text-white rounded-[2rem] font-black uppercase text-xl shadow-lg active:scale-95 transition-all disabled:opacity-50">
                  {loading ? 'Procesando...' : (tab === 'registrar' ? 'Confirmar Registro' : 'Escanear Rostro')}
                </button>
             </div>
@@ -416,7 +416,7 @@ function MainApp() {
                     {resultado.type === 'success' ? (
                       <div className="space-y-6">
                         <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
-                          <p className="text-violet-600 text-[10px] font-black uppercase mb-1 tracking-widest">Tutor</p>
+                          <p className="text-brand-600 text-[10px] font-black uppercase mb-1 tracking-widest">Tutor</p>
                           <p className="text-xl font-bold text-slate-900 uppercase">{resultado.data.nombre}</p>
                         </div>
                         {resultado.data.hijos?.length > 0 ? (
@@ -428,16 +428,16 @@ function MainApp() {
                               const yaSalio = estado === "SALIDA";
                               const estaDentro = estado === "ENTRADA";
                               return (
-                                <div key={i} className={`p-4 rounded-2xl border transition-all ${yaSalio ? 'opacity-50 bg-slate-100' : estaSeleccionado ? 'bg-violet-50 border-violet-200 shadow-sm' : 'bg-white'}`}>
+                                <div key={i} className={`p-4 rounded-2xl border transition-all ${yaSalio ? 'opacity-50 bg-slate-100' : estaSeleccionado ? 'bg-brand-50 border-brand-200 shadow-sm' : 'bg-white'}`}>
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
-                                        <input type="checkbox" disabled={yaSalio} checked={estaSeleccionado} onChange={() => manejarToggleHijo(h)} className="w-6 h-6 rounded-lg accent-violet-600" />
+                                        <input type="checkbox" disabled={yaSalio} checked={estaSeleccionado} onChange={() => manejarToggleHijo(h)} className="w-6 h-6 rounded-lg accent-brand-600" />
                                         <span className={`font-bold uppercase text-sm ${yaSalio ? 'line-through' : 'text-slate-700'}`}>{h.nombre_niño || h.nombre}</span>
                                     </div>
                                     <span className={`text-[9px] font-black px-2 py-1 rounded-lg ${estaDentro ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}>{estado}</span>
                                   </div>
                                   {estaSeleccionado && !estaDentro && !yaSalio && (
-                                    <div className="mt-4 space-y-3 pt-4 border-t border-violet-100">
+                                    <div className="mt-4 space-y-3 pt-4 border-t border-brand-100">
                                         <div className="grid grid-cols-2 gap-2">
                                             <button onClick={() => setFormAsistencia({...formAsistencia, [hID]: {...formAsistencia[hID], aseado: !formAsistencia[hID]?.aseado}})} className={`py-3 rounded-xl text-[10px] font-black uppercase border ${formAsistencia[hID]?.aseado ? 'bg-emerald-500 text-white' : 'bg-white text-slate-400'}`}>{formAsistencia[hID]?.aseado ? 'Aseado ✓' : '¿Aseado?'}</button>
                                             <button onClick={() => setFormAsistencia({...formAsistencia, [hID]: {...formAsistencia[hID], golpes: !formAsistencia[hID]?.golpes}})} className={`py-3 rounded-xl text-[10px] font-black uppercase border ${formAsistencia[hID]?.golpes ? 'bg-rose-500 text-white' : 'bg-white text-slate-400'}`}>{formAsistencia[hID]?.golpes ? 'Golpes !' : '¿Golpes?'}</button>
@@ -481,7 +481,7 @@ function MainApp() {
 
       {mostrarModalGestion && padreSeleccionado && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <div className="bg-white w-full max-w-4xl rounded-[2.5rem] shadow-2xl overflow-hidden relative border-t-8 border-t-violet-600 max-h-[90vh] flex flex-col">
+          <div className="bg-white w-full max-w-4xl rounded-[2.5rem] shadow-2xl overflow-hidden relative border-t-8 border-t-brand-600 max-h-[90vh] flex flex-col">
             <button onClick={() => { setMostrarModalGestion(false); cargarTodosLosPadres(); }} className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 z-10 p-2"><X size={32} /></button>
             <div className="overflow-y-auto flex-1">
               <GestionHijos padreId={padreSeleccionado.id} nombrePadre={padreSeleccionado.nombre} onFinalizar={() => { setMostrarModalGestion(false); cargarTodosLosPadres(); }} />

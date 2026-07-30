@@ -72,7 +72,7 @@ const VistaBitacora = () => {
     return (
       <div className="min-h-screen bg-slate-50/50 p-8">
         <div className="max-w-4xl mx-auto">
-          <button onClick={() => { setNiñoSeleccionado(null); fetchEstatus(); }} className="mb-6 flex items-center gap-2 text-violet-600 font-black uppercase text-xs tracking-widest hover:opacity-70 transition-all">
+          <button onClick={() => { setNiñoSeleccionado(null); fetchEstatus(); }} className="mb-6 flex items-center gap-2 text-brand-600 font-black uppercase text-xs tracking-widest hover:opacity-70 transition-all">
             ← Volver a la lista
           </button>
           <FormularioBitacora
@@ -93,7 +93,7 @@ const VistaBitacora = () => {
         <div className="flex flex-col md:flex-row gap-6 items-center justify-between bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-200/60">
           <div className="flex flex-col gap-1">
             <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Bitácora</h3>
-            <div className="h-1 w-20 bg-violet-600 rounded-full"></div>
+            <div className="h-1 w-20 bg-brand-600 rounded-full"></div>
           </div>
 
           <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
@@ -103,9 +103,9 @@ const VistaBitacora = () => {
             </div>
             <div className="relative flex-1 md:w-80">
               <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20}/>
-              <input type="text" placeholder="Buscar niño..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} className="w-full bg-slate-100 border border-slate-200 pl-14 pr-6 py-4 rounded-2xl outline-none focus:ring-2 focus:ring-violet-500 font-medium" />
+              <input type="text" placeholder="Buscar niño..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} className="w-full bg-slate-100 border border-slate-200 pl-14 pr-6 py-4 rounded-2xl outline-none focus:ring-2 focus:ring-brand-500 font-medium" />
             </div>
-            <button onClick={fetchEstatus} className="p-4 bg-violet-600 text-white rounded-2xl hover:bg-violet-700 shadow-lg">
+            <button onClick={fetchEstatus} className="p-4 bg-brand-600 text-white rounded-2xl hover:bg-brand-700 shadow-lg">
               <RefreshCw size={24} className={loading ? "animate-spin" : ""} />
             </button>
           </div>
@@ -124,11 +124,11 @@ const VistaBitacora = () => {
                   key={niño.id} 
                   onClick={() => puedeLlenar && setNiñoSeleccionado(niño)}
                   className={`bg-white border border-slate-100 p-6 rounded-[2.5rem] shadow-md transition-all group flex flex-col justify-between border-b-4 
-                    ${puedeLlenar ? 'hover:shadow-xl hover:border-b-violet-500 cursor-pointer active:scale-[0.98]' : 'cursor-default opacity-60'}`}
+                    ${puedeLlenar ? 'hover:shadow-xl hover:border-b-brand-500 cursor-pointer active:scale-[0.98]' : 'cursor-default opacity-60'}`}
                 >
                   <div>
                     <div className="flex items-start gap-4 mb-4">
-                      <div className={`p-4 rounded-2xl transition-all shrink-0 bg-slate-100 text-slate-600 ${puedeLlenar ? 'group-hover:bg-violet-600 group-hover:text-white' : ''}`}>
+                      <div className={`p-4 rounded-2xl transition-all shrink-0 bg-slate-100 text-slate-600 ${puedeLlenar ? 'group-hover:bg-brand-600 group-hover:text-white' : ''}`}>
                         <User size={24} />
                       </div>
                       <div className="flex-1 min-w-0 self-center">
@@ -171,7 +171,7 @@ const VistaBitacora = () => {
                   </div>
 
                   <div className="pt-4 border-t border-slate-100 flex items-center justify-center gap-2 mt-auto">
-                    <Clock size={14} className="text-violet-500"/>
+                    <Clock size={14} className="text-brand-500"/>
                     <span className="text-xs font-bold text-slate-500">{formatearHora(niño.fecha_hora)}</span>
                   </div>
                 </div>

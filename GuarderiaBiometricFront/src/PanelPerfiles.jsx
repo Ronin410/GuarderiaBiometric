@@ -72,7 +72,7 @@ const PanelPerfiles = () => {
       <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div className="flex items-center gap-4">
-            <div className="bg-violet-100 p-3 rounded-2xl text-violet-600"><IdCard size={28} /></div>
+            <div className="bg-brand-100 p-3 rounded-2xl text-brand-600"><IdCard size={28} /></div>
             <div>
               <h3 className="text-xl font-black uppercase text-slate-900">Perfiles de Alumnos</h3>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Expediente administrativo</p>
@@ -94,7 +94,7 @@ const PanelPerfiles = () => {
             placeholder="Buscar niño por nombre..."
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 pl-14 pr-6 py-4 rounded-2xl outline-none focus:ring-2 focus:ring-violet-500 font-medium text-slate-900"
+            className="w-full bg-slate-50 border border-slate-200 pl-14 pr-6 py-4 rounded-2xl outline-none focus:ring-2 focus:ring-brand-500 font-medium text-slate-900"
           />
         </div>
 
@@ -109,14 +109,14 @@ const PanelPerfiles = () => {
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <div>
                     <p className="font-black text-lg uppercase tracking-tight text-slate-900">{nino.nombre}</p>
-                    <p className="text-[10px] text-violet-500 font-bold uppercase flex items-center gap-1 mt-1">
+                    <p className="text-[10px] text-brand-500 font-bold uppercase flex items-center gap-1 mt-1">
                       <Users size={12} /> {nino.tutores || 'Sin tutor vinculado'}
                     </p>
                   </div>
                   {editandoId !== nino.id && (
                     <button
                       onClick={() => iniciarEdicion(nino)}
-                      className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white text-[10px] font-black uppercase px-4 py-2.5 rounded-xl shadow-md transition-all active:scale-95"
+                      className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white text-[10px] font-black uppercase px-4 py-2.5 rounded-xl shadow-md transition-all active:scale-95"
                     >
                       <Edit3 size={14} /> Editar Perfil
                     </button>
@@ -127,23 +127,23 @@ const PanelPerfiles = () => {
                   <div className="mt-6 pt-6 border-t border-slate-200 grid sm:grid-cols-2 gap-4">
                     <div>
                       <label className="text-[10px] font-black text-slate-400 uppercase ml-1 mb-1 block">Fecha de nacimiento</label>
-                      <input type="date" value={form.fecha_nacimiento} onChange={(e) => setForm({ ...form, fecha_nacimiento: e.target.value })} className="w-full bg-white border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-violet-500 text-sm font-bold" />
+                      <input type="date" value={form.fecha_nacimiento} onChange={(e) => setForm({ ...form, fecha_nacimiento: e.target.value })} className="w-full bg-white border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-brand-500 text-sm font-bold" />
                     </div>
                     <div>
                       <label className="text-[10px] font-black text-slate-400 uppercase ml-1 mb-1 block">Colegiatura mensual (MXN)</label>
-                      <input type="number" min="0" step="0.01" value={form.colegiatura_mensual} onChange={(e) => setForm({ ...form, colegiatura_mensual: e.target.value })} className="w-full bg-white border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-violet-500 text-sm font-bold" />
+                      <input type="number" min="0" step="0.01" value={form.colegiatura_mensual} onChange={(e) => setForm({ ...form, colegiatura_mensual: e.target.value })} className="w-full bg-white border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-brand-500 text-sm font-bold" />
                     </div>
                     <div className="sm:col-span-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase ml-1 mb-1 block">Dirección</label>
-                      <textarea rows={2} value={form.direccion} onChange={(e) => setForm({ ...form, direccion: e.target.value })} className="w-full bg-white border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-violet-500 text-sm font-medium resize-none" />
+                      <textarea rows={2} value={form.direccion} onChange={(e) => setForm({ ...form, direccion: e.target.value })} className="w-full bg-white border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-brand-500 text-sm font-medium resize-none" />
                     </div>
                     <div>
                       <label className="text-[10px] font-black text-slate-400 uppercase ml-1 mb-1 block">Contacto de emergencia</label>
-                      <input type="text" placeholder="Nombre" value={form.contacto_emergencia_nombre} onChange={(e) => setForm({ ...form, contacto_emergencia_nombre: e.target.value })} className="w-full bg-white border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-violet-500 text-sm font-medium" />
+                      <input type="text" placeholder="Nombre" value={form.contacto_emergencia_nombre} onChange={(e) => setForm({ ...form, contacto_emergencia_nombre: e.target.value })} className="w-full bg-white border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-brand-500 text-sm font-medium" />
                     </div>
                     <div>
                       <label className="text-[10px] font-black text-slate-400 uppercase ml-1 mb-1 block">Teléfono de emergencia</label>
-                      <input type="tel" placeholder="Teléfono" value={form.contacto_emergencia_telefono} onChange={(e) => setForm({ ...form, contacto_emergencia_telefono: e.target.value })} className="w-full bg-white border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-violet-500 text-sm font-medium" />
+                      <input type="tel" placeholder="Teléfono" value={form.contacto_emergencia_telefono} onChange={(e) => setForm({ ...form, contacto_emergencia_telefono: e.target.value })} className="w-full bg-white border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-brand-500 text-sm font-medium" />
                     </div>
 
                     <div className="sm:col-span-2 flex gap-3 justify-end pt-2">
@@ -155,10 +155,10 @@ const PanelPerfiles = () => {
                   </div>
                 ) : (
                   <div className="mt-4 flex flex-wrap gap-4 text-[11px] text-slate-500 font-medium">
-                    <span className="flex items-center gap-1.5"><Cake size={14} className="text-violet-400" /> {nino.fecha_nacimiento || 'Sin fecha de nacimiento'}</span>
-                    <span className="flex items-center gap-1.5"><MapPin size={14} className="text-violet-400" /> {nino.direccion || 'Sin dirección'}</span>
-                    <span className="flex items-center gap-1.5"><Phone size={14} className="text-violet-400" /> {nino.contacto_emergencia_nombre ? `${nino.contacto_emergencia_nombre} · ${nino.contacto_emergencia_telefono || 's/n'}` : 'Sin contacto de emergencia'}</span>
-                    <span className="flex items-center gap-1.5"><Wallet size={14} className="text-violet-400" /> ${Number(nino.colegiatura_mensual || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })} / mes</span>
+                    <span className="flex items-center gap-1.5"><Cake size={14} className="text-brand-400" /> {nino.fecha_nacimiento || 'Sin fecha de nacimiento'}</span>
+                    <span className="flex items-center gap-1.5"><MapPin size={14} className="text-brand-400" /> {nino.direccion || 'Sin dirección'}</span>
+                    <span className="flex items-center gap-1.5"><Phone size={14} className="text-brand-400" /> {nino.contacto_emergencia_nombre ? `${nino.contacto_emergencia_nombre} · ${nino.contacto_emergencia_telefono || 's/n'}` : 'Sin contacto de emergencia'}</span>
+                    <span className="flex items-center gap-1.5"><Wallet size={14} className="text-brand-400" /> ${Number(nino.colegiatura_mensual || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })} / mes</span>
                   </div>
                 )}
               </div>

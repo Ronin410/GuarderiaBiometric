@@ -6,7 +6,7 @@ import withReactContent from 'sweetalert2-react-content';
 // en vez de crear su propio withReactContent(Swal) por separado en cada archivo.
 export const MySwal = withReactContent(Swal);
 
-const COLOR_CONFIRMAR = '#7c3aed'; // violet-600, mismo acento del resto de la app
+const COLOR_CONFIRMAR = '#7c3aed'; // brand-600, mismo acento del resto de la app
 const COLOR_CANCELAR = '#64748b'; // slate-500
 
 export function mostrarExito(mensaje, titulo = '¡Listo!') {

@@ -53,7 +53,7 @@ const ReportePublico = () => {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-10">
         <div className="text-center space-y-4">
-          <div className="w-12 h-12 border-4 border-violet-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <div className="w-12 h-12 border-4 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cargando Seguimiento...</p>
         </div>
       </div>
@@ -79,12 +79,12 @@ const ReportePublico = () => {
         <div className="max-w-md mx-auto space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="bg-violet-600 p-2.5 rounded-xl shadow-lg shadow-violet-200">
+              <div className="bg-brand-600 p-2.5 rounded-xl shadow-lg shadow-brand-200">
                 <ShieldCheck size={24} className="text-white" />
               </div>
               <div>
                 <h1 className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">BioSafe</h1>
-                <p className="text-[9px] font-bold text-violet-500 uppercase tracking-widest">Reporte Diario</p>
+                <p className="text-[9px] font-bold text-brand-500 uppercase tracking-widest">Reporte Diario</p>
               </div>
             </div>
             <div className="text-rose-500 bg-rose-50 p-2 rounded-full"><Heart size={20} fill="currentColor" /></div>
@@ -95,12 +95,12 @@ const ReportePublico = () => {
               {reporte?.hijo_nombre || "Alumno"}
             </h2>
             <div className="relative">
-              <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-violet-600" size={18} />
+              <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-600" size={18} />
               <input 
                 type="date" 
                 value={fechaSeleccionada}
                 onChange={handleCambioFecha}
-                className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-12 pr-4 text-sm font-black text-slate-700 focus:ring-2 focus:ring-violet-500 transition-all uppercase"
+                className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-12 pr-4 text-sm font-black text-slate-700 focus:ring-2 focus:ring-brand-500 transition-all uppercase"
               />
             </div>
           </div>

@@ -52,7 +52,7 @@ const PanelPagos = () => {
       <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div className="flex items-center gap-4">
-            <div className="bg-violet-100 p-3 rounded-2xl text-violet-600"><Wallet size={28} /></div>
+            <div className="bg-brand-100 p-3 rounded-2xl text-brand-600"><Wallet size={28} /></div>
             <div>
               <h3 className="text-xl font-black uppercase text-slate-900">Control de Pagos</h3>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Colegiaturas mensuales</p>
@@ -78,7 +78,7 @@ const PanelPagos = () => {
                 <button
                   key={e.hijo_id}
                   onClick={() => setNinoSeleccionado(e)}
-                  className="text-left bg-slate-50 border border-slate-100 hover:border-violet-300 hover:shadow-md p-5 rounded-[1.75rem] transition-all active:scale-[0.98]"
+                  className="text-left bg-slate-50 border border-slate-100 hover:border-brand-300 hover:shadow-md p-5 rounded-[1.75rem] transition-all active:scale-[0.98]"
                 >
                   <div className="flex justify-between items-start gap-2 mb-4">
                     <p className="font-black uppercase text-sm text-slate-900 leading-tight">{e.nombre}</p>
@@ -170,7 +170,7 @@ const DetallePago = ({ nino, periodo, onVolver }) => {
 
   return (
     <div className="animate-in fade-in duration-500">
-      <button onClick={onVolver} className="mb-6 flex items-center gap-2 text-violet-600 font-black uppercase text-xs tracking-widest hover:opacity-70 transition-all">
+      <button onClick={onVolver} className="mb-6 flex items-center gap-2 text-brand-600 font-black uppercase text-xs tracking-widest hover:opacity-70 transition-all">
         <ArrowLeft size={16} /> Volver al listado
       </button>
 
@@ -186,30 +186,30 @@ const DetallePago = ({ nino, periodo, onVolver }) => {
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase ml-1 mb-1 block">Monto (MXN)</label>
-              <input type="number" min="0" step="0.01" value={form.monto} onChange={(e) => setForm({ ...form, monto: e.target.value })} className="w-full bg-white border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-violet-500 text-sm font-bold" />
+              <input type="number" min="0" step="0.01" value={form.monto} onChange={(e) => setForm({ ...form, monto: e.target.value })} className="w-full bg-white border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-brand-500 text-sm font-bold" />
             </div>
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase ml-1 mb-1 block">Fecha de pago</label>
-              <input type="date" value={form.fecha_pago} onChange={(e) => setForm({ ...form, fecha_pago: e.target.value })} className="w-full bg-white border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-violet-500 text-sm font-bold" />
+              <input type="date" value={form.fecha_pago} onChange={(e) => setForm({ ...form, fecha_pago: e.target.value })} className="w-full bg-white border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-brand-500 text-sm font-bold" />
             </div>
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase ml-1 mb-1 block">Concepto</label>
-              <select value={form.concepto} onChange={(e) => setForm({ ...form, concepto: e.target.value })} className="w-full bg-white border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-violet-500 text-sm font-bold">
+              <select value={form.concepto} onChange={(e) => setForm({ ...form, concepto: e.target.value })} className="w-full bg-white border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-brand-500 text-sm font-bold">
                 {CONCEPTOS.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div>
               <label className="text-[10px] font-black text-slate-400 uppercase ml-1 mb-1 block">Método de pago</label>
-              <select value={form.metodo_pago} onChange={(e) => setForm({ ...form, metodo_pago: e.target.value })} className="w-full bg-white border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-violet-500 text-sm font-bold capitalize">
+              <select value={form.metodo_pago} onChange={(e) => setForm({ ...form, metodo_pago: e.target.value })} className="w-full bg-white border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-brand-500 text-sm font-bold capitalize">
                 {METODOS.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
             </div>
             <div className="sm:col-span-2">
               <label className="text-[10px] font-black text-slate-400 uppercase ml-1 mb-1 block">Observaciones (opcional)</label>
-              <input type="text" value={form.observaciones} onChange={(e) => setForm({ ...form, observaciones: e.target.value })} className="w-full bg-white border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-violet-500 text-sm font-medium" />
+              <input type="text" value={form.observaciones} onChange={(e) => setForm({ ...form, observaciones: e.target.value })} className="w-full bg-white border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-brand-500 text-sm font-medium" />
             </div>
           </div>
-          <button onClick={registrarPago} disabled={guardando} className="w-full mt-5 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-black uppercase text-xs py-4 rounded-xl shadow-md flex items-center justify-center gap-2 transition-all active:scale-95">
+          <button onClick={registrarPago} disabled={guardando} className="w-full mt-5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-black uppercase text-xs py-4 rounded-xl shadow-md flex items-center justify-center gap-2 transition-all active:scale-95">
             {guardando ? <Loader2 className="animate-spin" size={18} /> : <Plus size={18} />} Registrar Pago
           </button>
         </div>

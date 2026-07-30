@@ -213,14 +213,14 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
       {/* SECCIÓN TUTOR */}
       <div className="flex justify-between items-start mb-10 border-b border-slate-100 pb-8 pr-2 md:pr-12">
         <div className="flex-1 w-full">
-          <p className="text-violet-600 font-black uppercase text-[10px] tracking-[0.2em] mb-2">Tutor Registrado</p>
+          <p className="text-brand-600 font-black uppercase text-[10px] tracking-[0.2em] mb-2">Tutor Registrado</p>
           {editandoTutor ? (
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <input 
                 autoFocus
                 value={nombreTutorEdit}
                 onChange={(e) => setNombreTutorEdit(e.target.value)}
-                className="bg-slate-50 border-2 border-violet-500 rounded-2xl px-5 py-4 text-xl md:text-2xl font-black uppercase outline-none w-full max-w-md shadow-sm"
+                className="bg-slate-50 border-2 border-brand-500 rounded-2xl px-5 py-4 text-xl md:text-2xl font-black uppercase outline-none w-full max-w-md shadow-sm"
               />
               <div className="flex gap-2">
                 <button onClick={manejarActualizarTutor} className="flex-1 sm:flex-none bg-emerald-500 p-4 rounded-xl text-white hover:bg-emerald-600 shadow-md flex justify-center"><Check size={24}/></button>
@@ -230,7 +230,7 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
           ) : (
             <div className="flex items-center gap-5 group">
               <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter text-slate-900 leading-none">{nombreTutorEdit}</h2>
-              <button onClick={() => setEditandoTutor(true)} className="p-2.5 bg-violet-50 rounded-xl text-violet-600 hover:bg-violet-100 transition-all md:opacity-0 group-hover:opacity-100">
+              <button onClick={() => setEditandoTutor(true)} className="p-2.5 bg-brand-50 rounded-xl text-brand-600 hover:bg-brand-100 transition-all md:opacity-0 group-hover:opacity-100">
                 <Edit3 size={20} />
               </button>
             </div>
@@ -250,14 +250,14 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
                 placeholder="Buscar niño..."
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-[1.5rem] py-5 pl-14 pr-6 outline-none focus:ring-2 focus:ring-violet-500 transition-all text-slate-900 font-medium shadow-sm"
+                className="w-full bg-white border border-slate-200 rounded-[1.5rem] py-5 pl-14 pr-6 outline-none focus:ring-2 focus:ring-brand-500 transition-all text-slate-900 font-medium shadow-sm"
               />
               {sugerencias.length > 0 && (
                 <div className="absolute z-50 w-full mt-3 bg-white border border-slate-200 rounded-[2rem] overflow-hidden shadow-2xl">
                   {sugerencias.map(s => (
-                    <button key={s.id} onClick={() => agregarSugerencia(s)} className="w-full p-5 text-left hover:bg-violet-50 flex justify-between items-center border-b border-slate-50 last:border-0 group transition-colors">
-                      <span className="font-bold uppercase text-slate-700 group-hover:text-violet-700">{s.nombre_niño}</span>
-                      <UserPlus size={20} className="text-violet-400 group-hover:text-violet-600"/>
+                    <button key={s.id} onClick={() => agregarSugerencia(s)} className="w-full p-5 text-left hover:bg-brand-50 flex justify-between items-center border-b border-slate-50 last:border-0 group transition-colors">
+                      <span className="font-bold uppercase text-slate-700 group-hover:text-brand-700">{s.nombre_niño}</span>
+                      <UserPlus size={20} className="text-brand-400 group-hover:text-brand-600"/>
                     </button>
                   ))}
                 </div>
@@ -300,7 +300,7 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
               <div key={h.id} className={`flex flex-col sm:flex-row items-center justify-between p-5 rounded-[1.5rem] border transition-all gap-4 ${!h.activo ? 'bg-slate-100 opacity-60 grayscale border-dashed border-slate-300' : 'bg-slate-50 border-slate-100'}`}>
                 
                 <div className="flex items-center gap-4 w-full flex-1">
-                  <div className={`hidden xs:block p-4 rounded-2xl shadow-sm ${!h.activo ? 'bg-slate-200 text-slate-400' : h.persistente ? 'bg-violet-100 text-violet-600' : 'bg-amber-100 text-amber-600 animate-pulse'}`}>
+                  <div className={`hidden xs:block p-4 rounded-2xl shadow-sm ${!h.activo ? 'bg-slate-200 text-slate-400' : h.persistente ? 'bg-brand-100 text-brand-600' : 'bg-amber-100 text-amber-600 animate-pulse'}`}>
                     <Baby size={24}/>
                   </div>
                   
@@ -311,7 +311,7 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
                           autoFocus
                           value={nombreHijoEdit}
                           onChange={(e) => setNombreHijoEdit(e.target.value)}
-                          className="bg-white border-2 border-violet-400 rounded-xl px-4 py-3 text-base font-bold uppercase outline-none w-full shadow-inner"
+                          className="bg-white border-2 border-brand-400 rounded-xl px-4 py-3 text-base font-bold uppercase outline-none w-full shadow-inner"
                         />
                         <div className="flex justify-end gap-2">
                           <button onClick={() => manejarActualizarNombreHijo(h.id)} className="bg-emerald-500 text-white p-3 rounded-xl shadow-sm active:scale-90"><Check size={20}/></button>
@@ -326,7 +326,7 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
                         {h.activo && h.persistente && (
                           <button 
                             onClick={() => { setEditandoHijoId(h.id); setNombreHijoEdit(h.nombre_niño); }}
-                            className="md:opacity-0 group-hover/name:opacity-100 text-violet-400 transition-opacity p-1"
+                            className="md:opacity-0 group-hover/name:opacity-100 text-brand-400 transition-opacity p-1"
                           >
                             <Edit3 size={16} />
                           </button>
@@ -338,7 +338,7 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
                        {!h.activo ? (
                          <span className="text-[9px] bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full font-black uppercase">Desactivado</span>
                        ) : (
-                         <span className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase ${h.persistente ? 'bg-violet-100 text-violet-600' : 'bg-amber-100 text-amber-600'}`}>
+                         <span className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase ${h.persistente ? 'bg-brand-100 text-brand-600' : 'bg-amber-100 text-amber-600'}`}>
                            {h.persistente ? 'Activo' : 'Por Guardar'}
                          </span>
                        )}
@@ -352,7 +352,7 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
                     {h.persistente && (
                       h.activo ? (
                         <>
-                          <button onClick={() => manejarRegenerarToken(h)} title="Regenerar enlace de bitácora" className="flex-1 sm:flex-none text-slate-400 hover:text-violet-600 hover:bg-violet-50 p-3 rounded-xl border border-slate-200 sm:border-none flex justify-center"><RefreshCw size={22}/></button>
+                          <button onClick={() => manejarRegenerarToken(h)} title="Regenerar enlace de bitácora" className="flex-1 sm:flex-none text-slate-400 hover:text-brand-600 hover:bg-brand-50 p-3 rounded-xl border border-slate-200 sm:border-none flex justify-center"><RefreshCw size={22}/></button>
                           <button onClick={() => manejarBajaHijo(h)} title="Baja del sistema" className="flex-1 sm:flex-none text-slate-400 hover:text-rose-500 hover:bg-rose-50 p-3 rounded-xl border border-slate-200 sm:border-none flex justify-center"><UserX size={22}/></button>
                           <button onClick={() => manejarDesvincular(h)} title="Desvincular tutor" className="flex-1 sm:flex-none text-slate-400 hover:text-amber-600 hover:bg-amber-50 p-3 rounded-xl border border-slate-200 sm:border-none flex justify-center"><Link2Off size={22}/></button>
                         </>
@@ -372,7 +372,7 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
           <button 
             onClick={guardarRelaciones} 
             disabled={loading || hijosRelacionados.every(h => h.persistente)}
-            className="w-full mt-10 bg-violet-600 hover:bg-violet-700 disabled:bg-slate-100 disabled:text-slate-300 py-6 rounded-[1.5rem] font-black uppercase text-white shadow-xl flex items-center justify-center gap-4 transition-all active:scale-95"
+            className="w-full mt-10 bg-brand-600 hover:bg-brand-700 disabled:bg-slate-100 disabled:text-slate-300 py-6 rounded-[1.5rem] font-black uppercase text-white shadow-xl flex items-center justify-center gap-4 transition-all active:scale-95"
           >
             {loading ? <Loader2 className="animate-spin" size={24}/> : <Save size={24}/>}
             {loading ? 'Guardando...' : 'Guardar Cambios'}

@@ -3,6 +3,26 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Color de marca: antes se usaba la clase violet-* literal de Tailwind en
+   cientos de lugares del código, así que cambiar el color de marca hubiera
+   significado editar cada componente uno por uno. Se define aquí como un
+   token con nombre propio (mismos valores hex que el violet por defecto de
+   Tailwind, así que este cambio no altera nada visualmente) — cambiar el
+   color de marca en el futuro solo requiere editar estos valores. */
+@theme {
+  --color-brand-50: #f5f3ff;
+  --color-brand-100: #ede9fe;
+  --color-brand-200: #ddd6fe;
+  --color-brand-300: #c4b5fd;
+  --color-brand-400: #a78bfa;
+  --color-brand-500: #8b5cf6;
+  --color-brand-600: #7c3aed;
+  --color-brand-700: #6d28d9;
+  --color-brand-800: #5b21b6;
+  --color-brand-900: #4c1d95;
+  --color-brand-950: #2e1065;
+}
+
 /* 1. CONFIGURACIÓN PARA PWA Y PANTALLA COMPLETA */
 html, body, #root {
   height: 100%;

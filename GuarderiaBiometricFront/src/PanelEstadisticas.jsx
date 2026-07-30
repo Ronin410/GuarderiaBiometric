@@ -69,7 +69,7 @@ const PanelEstadisticas = () => {
       <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div className="flex items-center gap-4">
-            <div className="bg-violet-100 p-3 rounded-2xl text-violet-600"><BarChart3 size={28} /></div>
+            <div className="bg-brand-100 p-3 rounded-2xl text-brand-600"><BarChart3 size={28} /></div>
             <div>
               <h3 className="text-xl font-black uppercase text-slate-900">Estadísticas de Asistencia</h3>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Faltas y llegadas tarde por alumno</p>
@@ -81,7 +81,7 @@ const PanelEstadisticas = () => {
               <button
                 key={r.key}
                 onClick={() => aplicarRango(r)}
-                className={`px-4 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all ${rangoActivo === r.key ? 'bg-violet-600 text-white shadow-md' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                className={`px-4 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all ${rangoActivo === r.key ? 'bg-brand-600 text-white shadow-md' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
               >
                 {r.label}
               </button>

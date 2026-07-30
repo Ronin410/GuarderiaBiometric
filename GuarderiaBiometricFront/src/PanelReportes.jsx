@@ -87,17 +87,17 @@ const PanelReportes = () => {
       {/* CABECERA */}
       <div className="print-container w-full max-w-[1400px] mb-6 flex flex-col md:flex-row justify-between items-center px-4">
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-violet-600 rounded-2xl text-white shadow-lg">
+          <div className="p-3 bg-brand-600 rounded-2xl text-white shadow-lg">
             <ShieldCheck size={32} />
           </div>
           <div>
             <h1 className="text-2xl font-black text-slate-900 tracking-tighter uppercase leading-none">BIOSAFE</h1>
-            <p className="text-[10px] font-bold text-violet-600 uppercase tracking-[0.2em] mt-1">SISTEMA DE CONTROL DIARIO</p>
+            <p className="text-[10px] font-bold text-brand-600 uppercase tracking-[0.2em] mt-1">SISTEMA DE CONTROL DIARIO</p>
           </div>
         </div>
         <div className="bg-white px-6 py-3 rounded-2xl border border-slate-200 shadow-sm text-right mt-4 md:mt-0">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Reporte de Asistencia</p>
-          <div className="text-sm font-black text-slate-800">{fechaInicio} <span className="text-violet-400">/</span> {fechaFin}</div>
+          <div className="text-sm font-black text-slate-800">{fechaInicio} <span className="text-brand-400">/</span> {fechaFin}</div>
         </div>
       </div>
 
@@ -106,17 +106,17 @@ const PanelReportes = () => {
         <div className="bg-white p-4 rounded-[2rem] shadow-sm flex flex-wrap lg:flex-nowrap items-end gap-4 border border-slate-200/60">
           <div className="flex-1 min-w-[140px]">
             <label className="text-[10px] font-black text-slate-400 uppercase ml-2 block mb-1">Inicio</label>
-            <input type="date" value={fechaInicio} onChange={(e)=>setFechaInicio(e.target.value)} className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl font-bold text-sm outline-none focus:border-violet-400 transition-colors" />
+            <input type="date" value={fechaInicio} onChange={(e)=>setFechaInicio(e.target.value)} className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl font-bold text-sm outline-none focus:border-brand-400 transition-colors" />
           </div>
           <div className="flex-1 min-w-[140px]">
             <label className="text-[10px] font-black text-slate-400 uppercase ml-2 block mb-1">Fin</label>
-            <input type="date" value={fechaFin} onChange={(e)=>setFechaFin(e.target.value)} className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl font-bold text-sm outline-none focus:border-violet-400 transition-colors" />
+            <input type="date" value={fechaFin} onChange={(e)=>setFechaFin(e.target.value)} className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl font-bold text-sm outline-none focus:border-brand-400 transition-colors" />
           </div>
           <div className="flex-[2] min-w-[200px]">
             <label className="text-[10px] font-black text-slate-400 uppercase ml-2 block mb-1">Filtrar Alumno</label>
-            <input type="text" placeholder="BUSCAR POR NOMBRE..." value={busquedaNombre} onChange={(e)=>setBusquedaNombre(e.target.value)} className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl font-bold text-sm outline-none focus:border-violet-400 transition-colors uppercase" />
+            <input type="text" placeholder="BUSCAR POR NOMBRE..." value={busquedaNombre} onChange={(e)=>setBusquedaNombre(e.target.value)} className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl font-bold text-sm outline-none focus:border-brand-400 transition-colors uppercase" />
           </div>
-          <button onClick={() => window.print()} className="bg-violet-600 hover:bg-violet-700 text-white font-black px-6 py-3 rounded-xl flex items-center gap-2 shadow-lg text-xs uppercase transition-all active:scale-95">
+          <button onClick={() => window.print()} className="bg-brand-600 hover:bg-brand-700 text-white font-black px-6 py-3 rounded-xl flex items-center gap-2 shadow-lg text-xs uppercase transition-all active:scale-95">
             <Download size={18}/> Imprimir Reporte
           </button>
         </div>
@@ -164,12 +164,12 @@ const PanelReportes = () => {
                     <td className="p-4 border-r border-slate-50 align-top">
                       <div className="text-[10px] font-bold text-slate-400">{reg.fecha.split(' ')[0]}</div>
                       <div className="text-[11px] font-black text-slate-800 mt-1 flex items-center gap-1">
-                        <Clock size={12} className="text-violet-500"/> {reg.fecha.split(' ')[1]}
+                        <Clock size={12} className="text-brand-500"/> {reg.fecha.split(' ')[1]}
                       </div>
                     </td>
                     <td className="p-4 border-r border-slate-50 align-top">
                       <div className="font-black text-slate-900 uppercase text-[11px] leading-tight mb-1">{reg.hijo_nombre}</div>
-                      <div className="text-[9px] text-violet-500 font-bold uppercase flex items-center gap-1">
+                      <div className="text-[9px] text-brand-500 font-bold uppercase flex items-center gap-1">
                         <User size={10} className="opacity-70"/>{reg.tutor_nombre}
                       </div>
                     </td>
@@ -223,8 +223,8 @@ const PanelReportes = () => {
                           )}
                         </div>
                       ) : (
-                        <div className="bg-violet-50/40 p-3 rounded-xl border border-violet-100 border-dashed">
-                          <span className="text-[8px] font-black text-violet-600 block mb-1 uppercase tracking-widest">Nota de Ingreso</span>
+                        <div className="bg-brand-50/40 p-3 rounded-xl border border-brand-100 border-dashed">
+                          <span className="text-[8px] font-black text-brand-600 block mb-1 uppercase tracking-widest">Nota de Ingreso</span>
                           <p className="text-[11px] font-bold text-slate-600 italic">
                             "{reg.obs_asistencia || "Sin novedades reportadas."}"
                           </p>

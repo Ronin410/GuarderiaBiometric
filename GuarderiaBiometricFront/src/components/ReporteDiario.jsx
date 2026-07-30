@@ -41,7 +41,7 @@ const ReporteDiario = ({ reporte, onFotoClick, tituloObservaciones = 'Observacio
         </div>
       </div>
 
-      <div className={`rounded-[2.5rem] p-6 border transition-all ${reporte.durmio ? 'bg-violet-600 border-violet-500 text-white shadow-xl shadow-violet-100' : 'bg-white border-slate-100 text-slate-400'}`}>
+      <div className={`rounded-[2.5rem] p-6 border transition-all ${reporte.durmio ? 'bg-brand-600 border-brand-500 text-white shadow-xl shadow-brand-100' : 'bg-white border-slate-100 text-slate-400'}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className={`p-3 rounded-2xl ${reporte.durmio ? 'bg-white/20' : 'bg-slate-50 text-slate-300'}`}><Moon size={28} /></div>
@@ -86,7 +86,7 @@ const ReporteDiario = ({ reporte, onFotoClick, tituloObservaciones = 'Observacio
         <div className="bg-slate-900 text-white rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 p-4 opacity-10"><Info size={80} /></div>
           <div className="relative z-10">
-            <div className="flex items-center gap-2 mb-4 text-violet-400">
+            <div className="flex items-center gap-2 mb-4 text-brand-400">
               <h3 className="font-black uppercase text-[10px] tracking-[0.2em]">{tituloObservaciones}</h3>
             </div>
             <p className="text-base leading-relaxed italic font-medium opacity-95">"{reporte.observaciones}"</p>

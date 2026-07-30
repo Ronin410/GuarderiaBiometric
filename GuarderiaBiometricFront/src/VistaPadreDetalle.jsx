@@ -76,7 +76,7 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-10 text-center">
         <div className="space-y-4">
-          <div className="w-12 h-12 border-4 border-violet-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <div className="w-12 h-12 border-4 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Buscando información...</p>
         </div>
       </div>
@@ -111,7 +111,7 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
       <div className="bg-white p-6 pb-8 rounded-b-[3rem] shadow-sm border-b border-slate-100 sticky top-0 z-30">
         <button 
           onClick={onVolver}
-          className="flex items-center gap-2 text-slate-400 font-black uppercase text-[10px] tracking-widest mb-6 hover:text-violet-600 transition-colors"
+          className="flex items-center gap-2 text-slate-400 font-black uppercase text-[10px] tracking-widest mb-6 hover:text-brand-600 transition-colors"
         >
           <ChevronLeft size={16} /> Volver
         </button>
@@ -119,7 +119,7 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">{nombreHijo}</h2>
-            <div className="bg-violet-600 p-3 rounded-2xl text-white shadow-lg shadow-violet-200">
+            <div className="bg-brand-600 p-3 rounded-2xl text-white shadow-lg shadow-brand-200">
               <Heart size={20} fill="currentColor" />
             </div>
           </div>
@@ -136,7 +136,7 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
                 <button
                   key={tab.key}
                   onClick={() => setVista(tab.key)}
-                  className={`flex-1 py-2.5 rounded-xl flex items-center justify-center gap-1.5 font-black text-[10px] uppercase transition-all ${vista === tab.key ? 'bg-white text-violet-600 shadow-sm' : 'text-slate-400'}`}
+                  className={`flex-1 py-2.5 rounded-xl flex items-center justify-center gap-1.5 font-black text-[10px] uppercase transition-all ${vista === tab.key ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-400'}`}
                 >
                   <Icono size={13} /> {tab.label}
                 </button>
@@ -146,7 +146,7 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
 
           {vista === 'bitacora' && (
             <div className="relative">
-              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-violet-600">
+              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-brand-600">
                 <CalendarIcon size={16} />
               </div>
               <input
@@ -154,7 +154,7 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
                 value={fechaSeleccionada}
                 onChange={handleCambioFecha}
                 max={hoyLocal()}
-                className="w-full bg-slate-50 border-none rounded-2xl py-3 pl-12 pr-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-violet-500 transition-all uppercase"
+                className="w-full bg-slate-50 border-none rounded-2xl py-3 pl-12 pr-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-brand-500 transition-all uppercase"
               />
             </div>
           )}
@@ -165,7 +165,7 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
         <div className="max-w-md mx-auto p-4 space-y-4">
           <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-slate-100 space-y-5">
             <div className="flex items-center gap-2">
-              <div className="p-2 bg-violet-100 text-violet-600 rounded-lg"><IdCard size={18} /></div>
+              <div className="p-2 bg-brand-100 text-brand-600 rounded-lg"><IdCard size={18} /></div>
               <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest">Expediente</h3>
             </div>
             <div className="flex items-center gap-4">

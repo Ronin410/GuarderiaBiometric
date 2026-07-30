@@ -110,7 +110,7 @@ const DashboardPadre = ({ padreId, alCerrarSesion }) => {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-10 text-center">
-        <div className="w-16 h-16 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin mb-4"></div>
+        <div className="w-16 h-16 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mb-4"></div>
         <p className="font-black text-slate-400 uppercase tracking-[0.2em] text-xs">Sincronizando Familia...</p>
       </div>
     );
@@ -133,10 +133,10 @@ const DashboardPadre = ({ padreId, alCerrarSesion }) => {
       {/* NAVBAR */}
       <div className="bg-white px-6 py-4 flex justify-between items-center border-b border-slate-100 sticky top-0 z-10 shadow-sm">
         <div className="flex items-center gap-2">
-          <div className="bg-violet-600 p-2 rounded-xl text-white">
+          <div className="bg-brand-600 p-2 rounded-xl text-white">
             <LayoutDashboard size={18} />
           </div>
-          <span className="font-black text-slate-900 uppercase tracking-tighter text-sm">BIOSAFE <span className="text-violet-600">FAMILIA</span></span>
+          <span className="font-black text-slate-900 uppercase tracking-tighter text-sm">BIOSAFE <span className="text-brand-600">FAMILIA</span></span>
         </div>
         <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-rose-500 transition-colors">
           <LogOut size={20} />
@@ -148,7 +148,7 @@ const DashboardPadre = ({ padreId, alCerrarSesion }) => {
         {/* SALUDO - Ahora dinámico */}
         <div className="space-y-2 text-center pt-4">
           <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter leading-none">
-            Hola, <br/><span className="text-violet-600">{usuarioNombre}</span>
+            Hola, <br/><span className="text-brand-600">{usuarioNombre}</span>
           </h2>
           <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.15em]">
             ¿De quién deseas ver el reporte hoy?
@@ -156,11 +156,11 @@ const DashboardPadre = ({ padreId, alCerrarSesion }) => {
         </div>
 
         {/* INFO CARD */}
-        <div className="bg-violet-50 border border-violet-100 p-4 rounded-[2rem] flex items-center gap-4">
-          <div className="bg-white p-3 rounded-2xl text-violet-600 shadow-sm">
+        <div className="bg-brand-50 border border-brand-100 p-4 rounded-[2rem] flex items-center gap-4">
+          <div className="bg-white p-3 rounded-2xl text-brand-600 shadow-sm">
             <Bell size={20} />
           </div>
-          <p className="text-[10px] font-black text-violet-800 uppercase leading-tight tracking-tight">
+          <p className="text-[10px] font-black text-brand-800 uppercase leading-tight tracking-tight">
             Las bitácoras se actualizan en tiempo real por las maestras.
           </p>
         </div>
@@ -183,7 +183,7 @@ const DashboardPadre = ({ padreId, alCerrarSesion }) => {
               <button
                 onClick={handleActivarNotificaciones}
                 disabled={notifEstado === 'activando'}
-                className="bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white text-[10px] font-black uppercase px-4 py-2.5 rounded-xl shadow-md transition-all active:scale-95"
+                className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white text-[10px] font-black uppercase px-4 py-2.5 rounded-xl shadow-md transition-all active:scale-95"
               >
                 {notifEstado === 'activando' ? '...' : 'Activar'}
               </button>
@@ -228,22 +228,22 @@ const DashboardPadre = ({ padreId, alCerrarSesion }) => {
                 className="w-full bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-md hover:shadow-xl transition-all flex items-center justify-between group active:scale-95"
               >
                 <div className="flex items-center gap-5">
-                  <div className="w-16 h-16 bg-slate-50 rounded-[1.5rem] flex items-center justify-center text-slate-300 group-hover:bg-violet-100 group-hover:text-violet-600 transition-all border border-slate-100">
+                  <div className="w-16 h-16 bg-slate-50 rounded-[1.5rem] flex items-center justify-center text-slate-300 group-hover:bg-brand-100 group-hover:text-brand-600 transition-all border border-slate-100">
                     <User size={32} />
                   </div>
 
                   <div className="text-left">
-                    <h4 className="font-black text-slate-900 uppercase text-lg tracking-tight group-hover:text-violet-600 transition-colors">
+                    <h4 className="font-black text-slate-900 uppercase text-lg tracking-tight group-hover:text-brand-600 transition-colors">
                       {hijo.nombre}
                     </h4>
-                    <div className="flex items-center gap-1 text-violet-500">
+                    <div className="flex items-center gap-1 text-brand-500">
                       <Heart size={10} fill="currentColor" />
                       <p className="text-[9px] font-black uppercase tracking-widest">Ver Bitácora Diaria</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-slate-50 p-3 rounded-2xl text-slate-300 group-hover:bg-violet-600 group-hover:text-white transition-all shadow-sm">
+                <div className="bg-slate-50 p-3 rounded-2xl text-slate-300 group-hover:bg-brand-600 group-hover:text-white transition-all shadow-sm">
                   <ChevronRight size={20} />
                 </div>
               </button>
