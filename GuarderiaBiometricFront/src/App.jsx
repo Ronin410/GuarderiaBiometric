@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Webcam from 'react-webcam';
 import api from './axiosConfig'; 
 // Importar componentes de rutas
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import {
   UserPlus, ScanEye, Baby, AlertCircle, Users, Search,
   ClipboardList, TrendingUp, ShieldCheck, ArrowRightCircle,
@@ -38,13 +38,23 @@ function MainApp() {
   const [guarderiaInfo, setGuarderiaInfo] = useState({ nombre: '', slug: '' });
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
-  const [tipoAcceso, setTipoAcceso] = useState('staff'); 
-  
-  const [tab, setTab] = useState('identificar');
+  const [tipoAcceso, setTipoAcceso] = useState('staff');
+
+  // La pestaña activa vive en la URL (/panel/:tab) en vez de en estado local:
+  // así sobrevive a un refresh y el botón "atrás" del navegador funciona.
+  const { tab: tabDeUrl } = useParams();
+  const tab = tabDeUrl || 'identificar';
+  const navigate = useNavigate();
+  const TABS_PROTEGIDAS = ['admin', 'bitacora', 'reportes', 'perfiles', 'pagos', 'estadisticas'];
+
   const [loading, setLoading] = useState(false);
   const [showAdminPinModal, setShowAdminPinModal] = useState(false);
   const [adminPin, setAdminPin] = useState('');
   const [tabPendiente, setTabPendiente] = useState(null);
+  // Una vez validado el PIN en esta sesión, no se vuelve a pedir al cambiar de
+  // pestaña (mismo comportamiento que antes, cuando el PIN solo se pedía una
+  // vez y el estado de la pestaña activa ya no se volvía a revisar).
+  const [pinVerificado, setPinVerificado] = useState(false);
 
   const avisoExpiracionMostrado = useRef(false);
   const webcamRef = useRef(null);
@@ -73,6 +83,19 @@ function MainApp() {
   useEffect(() => {
     if (tab === 'admin' && isLoggedIn) cargarTodosLosPadres();
   }, [tab, isLoggedIn]);
+
+  // Guard de la pestaña de admin: cambiarTab() ya pedía el PIN al hacer clic en
+  // el menú, pero con rutas reales alguien podría escribir /panel/pagos
+  // directamente en la URL (o recargar ahí) sin pasar por ese clic. Este efecto
+  // cubre ese caso: si la pestaña activa (derivada de la URL) es protegida y
+  // el PIN no se ha validado en esta sesión, regresa al kiosco y pide el PIN.
+  useEffect(() => {
+    if (isLoggedIn && TABS_PROTEGIDAS.includes(tab) && userRole !== 'admin' && !pinVerificado) {
+      setTabPendiente(tab);
+      setShowAdminPinModal(true);
+      navigate('/panel/identificar', { replace: true });
+    }
+  }, [tab, userRole, isLoggedIn, pinVerificado]);
 
   const manejarLoginPrincipal = async (e) => {
     if (e) e.preventDefault();
@@ -139,12 +162,11 @@ function MainApp() {
   }, [isLoggedIn]);
 
   const cambiarTab = (targetTab) => {
-    const tabsProtegidas = ['admin', 'bitacora', 'reportes', 'perfiles', 'pagos', 'estadisticas'];
-    if (tabsProtegidas.includes(targetTab) && userRole !== 'admin') {
+    if (TABS_PROTEGIDAS.includes(targetTab) && userRole !== 'admin' && !pinVerificado) {
       setTabPendiente(targetTab);
       setShowAdminPinModal(true);
     } else {
-      setTab(targetTab);
+      navigate('/panel/' + targetTab);
       resetearProcesoEscaneo();
     }
   };
@@ -160,7 +182,8 @@ function MainApp() {
     try {
       const res = await api.post('/verificar-pin', { pin: adminPin });
       if (res.data.valid) {
-        setTab(tabPendiente);
+        setPinVerificado(true);
+        navigate('/panel/' + tabPendiente);
         setShowAdminPinModal(false);
         setAdminPin('');
       }
@@ -492,11 +515,15 @@ function App() {
         {/* Ruta para el reporte del padre (pública) */}
         <Route path="/seguimiento/:token" element={<ReportePublico />} />
 
-        {/* Todas las demás rutas cargan tu app administrativa original */}
-        <Route path="/*" element={<MainApp />} />
+        {/* Panel de personal: la pestaña activa vive en la URL, así sobrevive
+            a un refresh y el botón "atrás" del navegador funciona. */}
+        <Route path="/panel/:tab" element={<MainApp />} />
+
+        {/* Entrada por defecto (login si no hay sesión, kiosco si ya la hay) */}
+        <Route path="/" element={<Navigate to="/panel/identificar" replace />} />
 
         {/* Redirección por defecto si algo sale mal */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/panel/identificar" replace />} />
       </Routes>
     </Router>
   );
