@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import api from './axiosConfig';
 import {
-  Utensils, Moon, Camera, Clock,
+  Clock,
   ChevronLeft, Heart, CheckCircle2,
-  AlertCircle, ShieldCheck, Coffee,
-  Baby, Info, Calendar as CalendarIcon,
+  Calendar as CalendarIcon,
   X, // Importamos el icono de cerrar
   ClipboardList, IdCard, Wallet,
   Cake, MapPin, Phone, XCircle
 } from 'lucide-react';
 import { hoyLocal } from './utils/fecha';
+import ReporteDiario from './components/ReporteDiario';
 
 const ESTADO_PAGO_INFO = {
   pagado: { label: 'Pagado', color: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: CheckCircle2 },
@@ -229,94 +229,16 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
             <p className="font-black text-slate-400 uppercase text-[10px] tracking-widest">{errorMsg}</p>
           </div>
         ) : (
-          <>
-            {/* ... SECCIONES DE ALIMENTACIÓN, SUEÑO Y ESFÍNTER (Igual que antes) ... */}
-            <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-slate-100">
-              <div className="flex items-center gap-2 mb-6">
-                <div className="p-2 bg-amber-100 text-amber-600 rounded-lg"><Utensils size={18} /></div>
-                <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest">Alimentación</h3>
-              </div>
-              <div className="space-y-4">
-                <ComidaItem label="Desayuno" valor={reporte.desayuno} />
-                <ComidaItem label="Comida" valor={reporte.comida} />
-                <ComidaItem label="Merienda" valor={reporte.merienda} />
-              </div>
-            </div>
-
-            <div className={`rounded-[2.5rem] p-6 border transition-all ${reporte.durmio ? 'bg-violet-600 border-violet-500 text-white shadow-lg shadow-violet-200' : 'bg-white border-slate-100 text-slate-400'}`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className={`p-3 rounded-2xl ${reporte.durmio ? 'bg-violet-500' : 'bg-slate-50 text-slate-300'}`}><Moon size={24} /></div>
-                  <div>
-                    <p className="font-black uppercase text-xs tracking-widest">Descanso</p>
-                    <p className="text-[10px] font-bold uppercase opacity-80">{reporte.durmio ? 'Siesta completada' : 'No reportan siesta'}</p>
-                  </div>
-                </div>
-                {reporte.durmio && <CheckCircle2 size={24} />}
-              </div>
-            </div>
-
-            <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-slate-100 flex items-center gap-4">
-              <div className="p-3 bg-blue-50 text-blue-500 rounded-2xl"><Baby size={24} /></div>
-              <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Esfínter</p>
-                <p className="text-sm font-bold text-slate-700">{reporte.esfinter || 'Sin datos'}</p>
-              </div>
-            </div>
-
-            {/* SECCIÓN DE FOTOS ACTUALIZADA CON CLIC */}
-            {reporte.fotos?.length > 0 && (
-              <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-slate-100">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="p-2 bg-rose-100 text-rose-600 rounded-lg"><Camera size={18} /></div>
-                  <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest">Fotos de la fecha</h3>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  {reporte.fotos.map((url, index) => (
-                    <div 
-                      key={index} 
-                      className="aspect-square rounded-3xl overflow-hidden border border-slate-100 shadow-inner bg-slate-50 cursor-zoom-in group relative"
-                      onClick={() => setFotoSeleccionada(url)}
-                    >
-                      <img src={url} alt="Evidencia" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                         <Camera className="text-white opacity-0 group-hover:opacity-100" size={24} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* OBSERVACIONES */}
-            {reporte.observaciones && (
-              <div className="bg-slate-900 text-white rounded-[2.5rem] p-7 shadow-xl">
-                <div className="flex items-center gap-2 mb-3 text-violet-400">
-                  <Info size={18} />
-                  <h3 className="font-black uppercase text-[10px] tracking-[0.2em]">Nota de la Maestra</h3>
-                </div>
-                <p className="text-sm leading-relaxed italic opacity-90">"{reporte.observaciones}"</p>
-              </div>
-            )}
-          </>
+          <ReporteDiario
+            reporte={reporte}
+            onFotoClick={setFotoSeleccionada}
+            tituloObservaciones="Nota de la Maestra"
+          />
         )}
       </div>
       )}
     </div>
   );
 };
-
-const ComidaItem = ({ label, valor }) => (
-  <div className="flex gap-4">
-    <div className="flex flex-col items-center">
-      <div className={`w-3 h-3 rounded-full ${valor ? 'bg-emerald-500' : 'bg-slate-200'}`}></div>
-      <div className="w-0.5 h-full bg-slate-100 mt-1"></div>
-    </div>
-    <div className="pb-2">
-      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
-      <p className="text-sm font-bold text-slate-700">{valor || 'Pendiente'}</p>
-    </div>
-  </div>
-);
 
 export default VistaPadreDetalle;

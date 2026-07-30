@@ -2,10 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import {
-  Utensils, Moon, Camera, Clock, Heart, CheckCircle2,
-  ShieldCheck, Baby, Info, Calendar as CalendarIcon, X
+  Clock, Heart, ShieldCheck, Calendar as CalendarIcon, X
 } from 'lucide-react';
 import { hoyLocal } from './utils/fecha';
+import ReporteDiario from './components/ReporteDiario';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://guarderiabiometricback.onrender.com';
 
@@ -118,77 +118,11 @@ const ReportePublico = () => {
             </p>
           </div>
         ) : (
-          <>
-            {/* ALIMENTACIÓN */}
-            <div className="bg-white rounded-[2.5rem] p-7 shadow-sm border border-slate-100">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-amber-100 text-amber-600 rounded-xl"><Utensils size={20} /></div>
-                <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest">Alimentación</h3>
-              </div>
-              <div className="space-y-5">
-                <ItemReporte label="Desayuno" valor={reporte.desayuno} color="bg-blue-500" />
-                <ItemReporte label="Comida" valor={reporte.comida} color="bg-orange-500" />
-                <ItemReporte label="Merienda" valor={reporte.merienda} color="bg-pink-500" />
-              </div>
-            </div>
-
-            {/* DESCANSO */}
-            <div className={`rounded-[2.5rem] p-7 border transition-all ${reporte.durmio ? 'bg-violet-600 border-violet-500 text-white shadow-xl shadow-violet-100' : 'bg-white border-slate-100 text-slate-400'}`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className={`p-3 rounded-2xl ${reporte.durmio ? 'bg-white/20' : 'bg-slate-50 text-slate-300'}`}><Moon size={28} /></div>
-                  <div>
-                    <p className="font-black uppercase text-xs tracking-widest">Descanso</p>
-                    <p className="text-[10px] font-bold uppercase opacity-80">{reporte.durmio ? 'Tomó su siesta' : 'No hubo siesta'}</p>
-                  </div>
-                </div>
-                {reporte.durmio && <CheckCircle2 size={28} />}
-              </div>
-            </div>
-
-            {/* ESFÍNTER */}
-            <div className="bg-white rounded-[2.5rem] p-7 shadow-sm border border-slate-100 flex items-center gap-4">
-              <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl"><Baby size={28} /></div>
-              <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Control de Esfínter</p>
-                <p className="text-base font-bold text-slate-800">{reporte.esfinter || 'Sin reporte'}</p>
-              </div>
-            </div>
-
-            {/* FOTOS DE AWS */}
-            {reporte.fotos?.length > 0 && (
-              <div className="bg-white rounded-[2.5rem] p-7 shadow-sm border border-slate-100">
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="p-2 bg-rose-100 text-rose-600 rounded-xl"><Camera size={20} /></div>
-                  <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest">Evidencia del Día</h3>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  {reporte.fotos.map((url, idx) => (
-                    <div 
-                      key={idx} 
-                      className="aspect-square rounded-[2rem] overflow-hidden bg-slate-100 border border-slate-100 cursor-zoom-in"
-                      onClick={() => setFotoSeleccionada(url)}
-                    >
-                      <img src={url} alt="Evidencia" className="w-full h-full object-cover" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* NOTAS DE LA MAESTRA */}
-            {reporte.observaciones && (
-              <div className="bg-slate-900 text-white rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-10"><Info size={80} /></div>
-                <div className="relative z-10">
-                  <div className="flex items-center gap-2 mb-4 text-violet-400">
-                    <h3 className="font-black uppercase text-[10px] tracking-[0.2em]">Observaciones Diarias</h3>
-                  </div>
-                  <p className="text-base leading-relaxed italic font-medium opacity-95">"{reporte.observaciones}"</p>
-                </div>
-              </div>
-            )}
-          </>
+          <ReporteDiario
+            reporte={reporte}
+            onFotoClick={setFotoSeleccionada}
+            tituloObservaciones="Observaciones Diarias"
+          />
         )}
       </div>
       
@@ -199,20 +133,5 @@ const ReportePublico = () => {
     </div>
   );
 };
-
-const ItemReporte = ({ label, valor, color }) => (
-  <div className="flex gap-5">
-    <div className="flex flex-col items-center">
-      <div className={`w-3.5 h-3.5 rounded-full border-2 border-white shadow-sm ${valor ? color : 'bg-slate-200'}`}></div>
-      <div className="w-0.5 h-full bg-slate-100 mt-1"></div>
-    </div>
-    <div className="pb-2">
-      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">{label}</p>
-      <p className={`text-sm font-black uppercase ${valor ? 'text-slate-800' : 'text-slate-300 italic'}`}>
-        {valor || 'Pendiente'}
-      </p>
-    </div>
-  </div>
-);
 
 export default ReportePublico;
