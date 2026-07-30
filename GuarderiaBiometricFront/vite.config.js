@@ -14,7 +14,12 @@ export default defineConfig({
       // El manifest se sirve de forma estática desde public/manifest.json y se
       // enlaza explícitamente en index.html. Desactivamos la generación/inyección
       // propia del plugin para no terminar con dos <link rel="manifest"> distintos.
-      manifest: false
+      manifest: false,
+      // Service Worker propio (src/sw.js) en vez de uno autogenerado, para poder
+      // escuchar los eventos "push" y "notificationclick" de las notificaciones.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js'
     })
   ],
   server: {

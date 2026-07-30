@@ -11,6 +11,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -220,6 +221,12 @@ func main() {
 	registrarRutasPerfiles(r)
 	registrarRutasPagos(r)
 	registrarRutasReportesAvanzados(r)
+	registrarRutasMisPagos(r)
+	registrarRutasPush(r)
+
+	if !pushConfigurado() {
+		log.Println("ADVERTENCIA: VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY no configuradas; las notificaciones push quedan deshabilitadas.")
+	}
 
 	r.POST("/usuarios/registro", func(c *gin.Context) {
 		// 1. Estructura para recibir los datos (ajustada a tu tabla)
@@ -554,11 +561,13 @@ func main() {
 			}
 		}
 		// 3. Consulta con DOBLE FILTRO:
-		// Filtramos por padre_id Y por guarderia_id para asegurar que pertenezcan a la misma sede
+		// Filtramos por padre_id Y por guarderia_id para asegurar que pertenezcan a la misma sede.
+		// Incluimos el expediente extendido para que el portal del papá no necesite otra llamada.
 		query := `
-        SELECT h.id, h.nombre_niño, h.activo 
+        SELECT h.id, h.nombre_niño, h.activo, h.fecha_nacimiento, h.direccion,
+               h.contacto_emergencia_nombre, h.contacto_emergencia_telefono, h.colegiatura_mensual
 		FROM hijos h
-		JOIN tutor_hijos th ON h.id = th.hijo_id 
+		JOIN tutor_hijos th ON h.id = th.hijo_id
 		WHERE th.padre_id = $1 AND th.guarderia_id = $2`
 
 		rows, err := db.Query(query, padreID, gID)
@@ -569,14 +578,17 @@ func main() {
 		defer rows.Close()
 
 		// Inicializamos como slice vacío para evitar que devuelva 'null' al frontend
-		listaHijos := []Hijo{}
+		listaHijos := []NinoPerfil{}
 
 		for rows.Next() {
-			var h Hijo
-			// Solo escaneamos ID y Nombre según nuestro SELECT
-			if err := rows.Scan(&h.ID, &h.Nombre, &h.Activo); err != nil {
+			var h NinoPerfil
+			if err := rows.Scan(
+				&h.ID, &h.Nombre, &h.Activo, &h.FechaNacimiento, &h.Direccion,
+				&h.ContactoEmergenciaNombre, &h.ContactoEmergenciaTelefono, &h.ColegiaturaMensual,
+			); err != nil {
 				continue
 			}
+			h.FechaNacimiento = soloFecha(h.FechaNacimiento)
 			listaHijos = append(listaHijos, h)
 		}
 
@@ -633,6 +645,8 @@ func main() {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo guardar"})
 			return
 		}
+
+		go notificarEvento(req.HijoID, tipoFinal, "")
 
 		c.JSON(http.StatusOK, gin.H{
 			"status":  "Registro guardado",
@@ -1180,6 +1194,8 @@ func main() {
 			return
 		}
 
+		go notificarEvento(req.HijoID, req.Movimiento, "")
+
 		c.JSON(http.StatusOK, gin.H{
 			"message": "Estatus actualizado correctamente",
 			"detalles": gin.H{
@@ -1230,6 +1246,11 @@ func main() {
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo actualizar la bitácora"})
 			return
+		}
+
+		if hijoIDNum, errConv := strconv.Atoi(hijoID); errConv == nil {
+			detalle := fmt.Sprintf("Desayuno %s, Comida %s, Merienda %s", desayuno, comida, merienda)
+			go notificarEvento(hijoIDNum, "BITACORA", detalle)
 		}
 
 		// --- ACTUALIZADO: OBTENER EL TUTOR CONFIGURADO PARA WHATSAPP ---
@@ -1547,7 +1568,7 @@ func RunMigrations() {
 			username VARCHAR(50) UNIQUE NOT NULL,
 			password_hash TEXT NOT NULL,
 			pin_admin VARCHAR(4) NOT NULL,
-			rol VARCHAR(20) DEFAULT 'staff' CHECK (rol IN ('admin', 'staff')),
+			rol VARCHAR(20) DEFAULT 'staff' CHECK (rol IN ('admin', 'staff', 'papa')),
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		);`,
 
@@ -1620,6 +1641,12 @@ func RunMigrations() {
 		`ALTER TABLE padres ADD COLUMN IF NOT EXISTS celular VARCHAR(20);`,
 		`ALTER TABLE padres ADD COLUMN IF NOT EXISTS recibe_whatsapp BOOLEAN DEFAULT false;`,
 		`ALTER TABLE seguimiento_diario ADD COLUMN IF NOT EXISTS durmio BOOLEAN DEFAULT false;`,
+		// El CHECK original de "usuarios.rol" no incluía 'papa', a pesar de que todo
+		// el portal del padre depende de ese rol. En una base ya existente (creada
+		// antes de este fix) el CREATE TABLE de arriba es un no-op, así que se
+		// corrige el constraint explícitamente aquí.
+		`ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS usuarios_rol_check;`,
+		`ALTER TABLE usuarios ADD CONSTRAINT usuarios_rol_check CHECK (rol IN ('admin', 'staff', 'papa'));`,
 
 		// 9. Perfil extendido del niño (módulo de Administración)
 		`ALTER TABLE hijos ADD COLUMN IF NOT EXISTS fecha_nacimiento DATE;`,
@@ -1645,6 +1672,20 @@ func RunMigrations() {
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		);`,
 		`CREATE INDEX IF NOT EXISTS idx_pagos_hijo_periodo ON pagos (hijo_id, periodo);`,
+
+		// 11. Suscripciones de notificaciones push (Web Push, sin servicios de terceros).
+		// padre_id guarda el mismo valor que ya usa /padre/:id/hijos (user_id del token
+		// para cuentas rol "papa"), por eso no lleva FK a padres(id) — ver plan.
+		`CREATE TABLE IF NOT EXISTS push_subscripciones (
+			id SERIAL PRIMARY KEY,
+			padre_id INTEGER NOT NULL,
+			guarderia_id INTEGER REFERENCES guarderias(id) ON DELETE CASCADE,
+			endpoint TEXT NOT NULL UNIQUE,
+			p256dh TEXT NOT NULL,
+			auth TEXT NOT NULL,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_push_padre ON push_subscripciones(padre_id);`,
 	}
 
 	for _, q := range queries {

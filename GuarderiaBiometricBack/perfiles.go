@@ -22,7 +22,7 @@ type NinoPerfil struct {
 
 func registrarRutasPerfiles(r *gin.Engine) {
 	// --- LISTA COMPLETA DE NIÑOS CON DATOS EXTENDIDOS (Panel de Administración) ---
-	r.GET("/admin/ninos", AuthMiddleware(), func(c *gin.Context) {
+	r.GET("/admin/ninos", AuthMiddleware(), RequireStaff(), func(c *gin.Context) {
 		gID, _ := c.Get("guarderia_id")
 
 		query := `
@@ -62,7 +62,7 @@ func registrarRutasPerfiles(r *gin.Engine) {
 	})
 
 	// --- ACTUALIZAR PERFIL EXTENDIDO DE UN NIÑO ---
-	r.PUT("/hijos/:id/perfil", AuthMiddleware(), func(c *gin.Context) {
+	r.PUT("/hijos/:id/perfil", AuthMiddleware(), RequireStaff(), func(c *gin.Context) {
 		gID, _ := c.Get("guarderia_id")
 		hijoID := c.Param("id")
 

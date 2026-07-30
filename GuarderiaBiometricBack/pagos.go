@@ -29,7 +29,7 @@ type EstadoPagoNino struct {
 
 func registrarRutasPagos(r *gin.Engine) {
 	// --- REGISTRAR UN PAGO ---
-	r.POST("/pagos", AuthMiddleware(), func(c *gin.Context) {
+	r.POST("/pagos", AuthMiddleware(), RequireStaff(), func(c *gin.Context) {
 		gID, _ := c.Get("guarderia_id")
 		userID, _ := c.Get("user_id")
 
@@ -86,7 +86,7 @@ func registrarRutasPagos(r *gin.Engine) {
 	})
 
 	// --- HISTORIAL DE PAGOS (por niño y/o periodo) ---
-	r.GET("/pagos", AuthMiddleware(), func(c *gin.Context) {
+	r.GET("/pagos", AuthMiddleware(), RequireStaff(), func(c *gin.Context) {
 		gID, _ := c.Get("guarderia_id")
 		hijoID := c.Query("hijo_id")
 		periodo := c.Query("periodo")
@@ -122,7 +122,7 @@ func registrarRutasPagos(r *gin.Engine) {
 	})
 
 	// --- ESTADO DE PAGO DE TODOS LOS NIÑOS ACTIVOS EN UN PERIODO ---
-	r.GET("/pagos/estado", AuthMiddleware(), func(c *gin.Context) {
+	r.GET("/pagos/estado", AuthMiddleware(), RequireStaff(), func(c *gin.Context) {
 		gID, _ := c.Get("guarderia_id")
 		periodo := c.Query("periodo")
 		if len(periodo) != 7 {
@@ -169,7 +169,7 @@ func registrarRutasPagos(r *gin.Engine) {
 	})
 
 	// --- ELIMINAR UN PAGO (corrección de captura) ---
-	r.DELETE("/pagos/:id", AuthMiddleware(), func(c *gin.Context) {
+	r.DELETE("/pagos/:id", AuthMiddleware(), RequireStaff(), func(c *gin.Context) {
 		gID, _ := c.Get("guarderia_id")
 		pagoID := c.Param("id")
 
@@ -186,6 +186,103 @@ func registrarRutasPagos(r *gin.Engine) {
 		}
 
 		c.JSON(http.StatusOK, gin.H{"status": "Pago eliminado"})
+	})
+}
+
+// registrarRutasMisPagos expone el estado de pago SOLO de los hijos del padre
+// autenticado (a diferencia de /pagos* que es para el staff y ve toda la guardería).
+// padre_id se resuelve igual que en /padre/:id/hijos: el user_id del token.
+func registrarRutasMisPagos(r *gin.Engine) {
+	r.GET("/padre/mis-pagos", AuthMiddleware(), func(c *gin.Context) {
+		gID, _ := c.Get("guarderia_id")
+		tokenUsuarioID, _ := c.Get("user_id")
+
+		loc, err := time.LoadLocation("America/Mazatlan")
+		if err != nil {
+			loc = time.UTC
+		}
+		periodo := c.Query("periodo")
+		if len(periodo) != 7 {
+			periodo = time.Now().In(loc).Format("2006-01")
+		}
+
+		query := `
+        SELECT h.id, h.nombre_niño, h.colegiatura_mensual, COALESCE(SUM(p.monto), 0) as total_pagado
+        FROM hijos h
+        INNER JOIN tutor_hijos th ON th.hijo_id = h.id
+        LEFT JOIN pagos p ON p.hijo_id = h.id AND p.periodo = $3
+        WHERE th.padre_id = $1 AND h.guarderia_id = $2 AND h.activo = true
+        GROUP BY h.id, h.nombre_niño, h.colegiatura_mensual
+        ORDER BY h.nombre_niño ASC`
+
+		rows, err := db.Query(query, tokenUsuarioID, gID, periodo)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar tus pagos"})
+			return
+		}
+		defer rows.Close()
+
+		periodoActual := time.Now().In(loc).Format("2006-01")
+
+		estados := []EstadoPagoNino{}
+		for rows.Next() {
+			var e EstadoPagoNino
+			if err := rows.Scan(&e.HijoID, &e.Nombre, &e.ColegiaturaMensual, &e.TotalPagado); err != nil {
+				continue
+			}
+			e.Estado = calcularEstadoPago(e.ColegiaturaMensual, e.TotalPagado, periodo, periodoActual)
+			estados = append(estados, e)
+		}
+
+		c.JSON(http.StatusOK, estados)
+	})
+
+	r.GET("/padre/mis-pagos/historial", AuthMiddleware(), func(c *gin.Context) {
+		gID, _ := c.Get("guarderia_id")
+		tokenUsuarioID, _ := c.Get("user_id")
+		hijoID := c.Query("hijo_id")
+
+		if hijoID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "hijo_id requerido"})
+			return
+		}
+
+		var esPropio bool
+		err := db.QueryRow(
+			"SELECT EXISTS(SELECT 1 FROM tutor_hijos WHERE hijo_id = $1 AND padre_id = $2)",
+			hijoID, tokenUsuarioID,
+		).Scan(&esPropio)
+		if err != nil || !esPropio {
+			c.JSON(http.StatusForbidden, gin.H{"error": "No tienes permiso para consultar este historial"})
+			return
+		}
+
+		query := `
+        SELECT id, hijo_id, monto, concepto, periodo, fecha_pago, metodo_pago, COALESCE(observaciones, '')
+        FROM pagos
+        WHERE guarderia_id = $1 AND hijo_id::text = $2
+        ORDER BY fecha_pago DESC, id DESC`
+
+		rows, err := db.Query(query, gID, hijoID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar el historial"})
+			return
+		}
+		defer rows.Close()
+
+		pagos := []Pago{}
+		for rows.Next() {
+			var p Pago
+			if err := rows.Scan(&p.ID, &p.HijoID, &p.Monto, &p.Concepto, &p.Periodo, &p.FechaPago, &p.MetodoPago, &p.Observaciones); err != nil {
+				continue
+			}
+			if len(p.FechaPago) >= 10 {
+				p.FechaPago = p.FechaPago[:10]
+			}
+			pagos = append(pagos, p)
+		}
+
+		c.JSON(http.StatusOK, pagos)
 	})
 }
 

@@ -25,7 +25,7 @@ type ResumenAsistenciaNino struct {
 }
 
 func registrarRutasReportesAvanzados(r *gin.Engine) {
-	r.GET("/reportes/asistencia-resumen", AuthMiddleware(), func(c *gin.Context) {
+	r.GET("/reportes/asistencia-resumen", AuthMiddleware(), RequireStaff(), func(c *gin.Context) {
 		gID, _ := c.Get("guarderia_id")
 
 		loc, err := time.LoadLocation("America/Mazatlan")

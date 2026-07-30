@@ -1,46 +1,72 @@
 import React, { useEffect, useState } from 'react';
 import api from './axiosConfig';
-import { 
-  User, 
-  ChevronRight, 
-  Heart, 
-  LogOut, 
-  Baby, 
+import {
+  User,
+  ChevronRight,
+  Heart,
+  LogOut,
+  Baby,
   Bell,
+  BellRing,
+  Wallet,
+  CheckCircle2,
+  Clock,
+  XCircle,
   LayoutDashboard
 } from 'lucide-react';
-import VistaPadreDetalle from './VistaPadreDetalle'; 
+import VistaPadreDetalle from './VistaPadreDetalle';
+import { suscribirseAPush, suscripcionActiva, pushSoportado } from './utils/push';
+
+const ESTADO_PAGO_INFO = {
+  pagado: { label: 'Pagado', color: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: CheckCircle2 },
+  parcial: { label: 'Parcial', color: 'bg-amber-100 text-amber-700 border-amber-200', icon: Clock },
+  pendiente: { label: 'Pendiente', color: 'bg-slate-100 text-slate-500 border-slate-200', icon: Clock },
+  vencido: { label: 'Vencido', color: 'bg-rose-100 text-rose-700 border-rose-200', icon: XCircle },
+};
 
 const DashboardPadre = ({ padreId, alCerrarSesion }) => {
   const [hijos, setHijos] = useState([]);
   const [hijoSeleccionado, setHijoSeleccionado] = useState(null);
   const [loading, setLoading] = useState(true);
   const [usuarioNombre, setUsuarioNombre] = useState('');
+  const [pagos, setPagos] = useState([]);
+  const [notifEstado, setNotifEstado] = useState('default');
 
   useEffect(() => {
     const cargarDatosIniciales = async () => {
       try {
         setLoading(true);
 
-        // 1. Obtener hijos del padre autenticado (el backend también acepta "0"
-        // como comodín para resolverlo desde el token, pero usamos el id real
-        // que ya tenemos disponible para que quede explícito).
-        const resHijos = await api.get(`/padre/${padreId || 0}/hijos`);
+        // 1. Obtener hijos del padre autenticado. Usamos siempre el comodín "0":
+        // el backend lo resuelve con el user_id del token, y solo permite pasar
+        // un ID explícito distinto de "0" a cuentas admin/staff (ver /padre/:id/hijos
+        // en main.go) — si mandáramos aquí el padreId real, un papá recibiría 403.
+        // Ya incluye el expediente extendido (fecha de nacimiento, dirección, etc.).
+        const resHijos = await api.get('/padre/0/hijos');
 
-        // CORRECCIÓN DE MAPEO: Aseguramos que 'nombre' tome el valor de 'nombre_niño'
         const hijosFormateados = (resHijos.data || []).map(h => ({
           id: h.id,
-          // Intentamos leer nombre_niño (SQL) o nombre (JSON genérico)
-          nombre: h.nombre_niño || h.nombre || "Sin nombre", 
-          activo: h.activo
+          nombre: h.nombre_niño || h.nombre || "Sin nombre",
+          activo: h.activo,
+          fechaNacimiento: h.fecha_nacimiento,
+          direccion: h.direccion,
+          contactoEmergenciaNombre: h.contacto_emergencia_nombre,
+          contactoEmergenciaTelefono: h.contacto_emergencia_telefono,
         }));
 
         setHijos(hijosFormateados);
-        
+
         // 2. Recuperar el nombre del usuario logueado
-        // Asegúrate de que en tu App.js guardes el nombre al hacer login
         const storedName = localStorage.getItem('username');
         setUsuarioNombre(storedName || 'Familia');
+
+        // 3. Estado de pago del mes actual (solo de mis hijos)
+        try {
+          const resPagos = await api.get('/padre/mis-pagos');
+          setPagos(Array.isArray(resPagos.data) ? resPagos.data : []);
+        } catch (errPagos) {
+          console.error("Error al cargar el estado de pagos", errPagos);
+        }
 
       } catch (err) {
         console.error("Error al cargar el dashboard de padre", err);
@@ -50,6 +76,27 @@ const DashboardPadre = ({ padreId, alCerrarSesion }) => {
     };
     cargarDatosIniciales();
   }, [padreId]);
+
+  // Aparte del resto (no debe frenar la carga del dashboard): revisa si ya hay
+  // una suscripción push activa en este navegador.
+  useEffect(() => {
+    suscripcionActiva().then((activa) => setNotifEstado(activa ? 'granted' : 'default'));
+  }, []);
+
+  const handleActivarNotificaciones = async () => {
+    setNotifEstado('activando');
+    try {
+      const ok = await suscribirseAPush(api);
+      setNotifEstado(ok ? 'granted' : 'default');
+      if (!ok) {
+        alert('No se pudieron activar las notificaciones. Revisa los permisos de notificaciones de tu navegador (en iPhone, agrega esta página a tu pantalla de inicio primero).');
+      }
+    } catch (err) {
+      console.error('Error al activar notificaciones', err);
+      setNotifEstado('default');
+      alert(err.message || 'No se pudieron activar las notificaciones. Inténtalo de nuevo.');
+    }
+  };
 
   const handleLogout = () => {
     if (typeof alCerrarSesion === 'function') {
@@ -72,10 +119,11 @@ const DashboardPadre = ({ padreId, alCerrarSesion }) => {
   // Navegación a la vista de detalle
   if (hijoSeleccionado) {
     return (
-      <VistaPadreDetalle 
-        hijoId={hijoSeleccionado.id} 
+      <VistaPadreDetalle
+        hijoId={hijoSeleccionado.id}
         nombreHijo={hijoSeleccionado.nombre}
-        onVolver={() => setHijoSeleccionado(null)} 
+        expediente={hijoSeleccionado}
+        onVolver={() => setHijoSeleccionado(null)}
       />
     );
   }
@@ -116,6 +164,54 @@ const DashboardPadre = ({ padreId, alCerrarSesion }) => {
             Las bitácoras se actualizan en tiempo real por las maestras.
           </p>
         </div>
+
+        {/* NOTIFICACIONES PUSH */}
+        {pushSoportado() && (
+          <div className="bg-white border border-slate-100 p-4 rounded-[2rem] flex items-center gap-4 shadow-sm">
+            <div className={`p-3 rounded-2xl ${notifEstado === 'granted' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400'}`}>
+              <BellRing size={20} />
+            </div>
+            <div className="flex-1">
+              <p className="text-[11px] font-black text-slate-900 uppercase leading-tight">
+                {notifEstado === 'granted' ? 'Notificaciones activas' : 'Activar notificaciones'}
+              </p>
+              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">
+                Entradas, salidas y bitácora al instante
+              </p>
+            </div>
+            {notifEstado !== 'granted' && (
+              <button
+                onClick={handleActivarNotificaciones}
+                disabled={notifEstado === 'activando'}
+                className="bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white text-[10px] font-black uppercase px-4 py-2.5 rounded-xl shadow-md transition-all active:scale-95"
+              >
+                {notifEstado === 'activando' ? '...' : 'Activar'}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* ESTADO DE PAGOS DEL MES */}
+        {pagos.length > 0 && (
+          <div className="space-y-3">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Pagos de este mes</h3>
+            {pagos.map((p) => {
+              const info = ESTADO_PAGO_INFO[p.estado] || ESTADO_PAGO_INFO.pendiente;
+              const Icono = info.icon;
+              return (
+                <div key={p.hijo_id} className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-slate-50 p-2.5 rounded-xl text-slate-400"><Wallet size={16} /></div>
+                    <p className="font-bold text-sm text-slate-700">{p.nombre}</p>
+                  </div>
+                  <span className={`flex items-center gap-1 text-[9px] font-black px-2.5 py-1.5 rounded-lg border uppercase ${info.color}`}>
+                    <Icono size={11} /> {info.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* LISTADO DE NIÑOS */}
         <div className="space-y-4">
