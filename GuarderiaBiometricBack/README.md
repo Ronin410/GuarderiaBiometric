@@ -28,7 +28,7 @@ go build ./...
 go run ./cmd/server
 ```
 
-El servidor queda escuchando en `:8099`. Las migraciones se ejecutan automáticamente al arrancar — crean las tablas si no existen y agregan columnas nuevas con `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, así que es seguro reiniciar el servicio en una base ya existente.
+El servidor queda escuchando en `:8099`. Las migraciones (`internal/db/migrations/*.sql`, versionadas con [golang-migrate](https://github.com/golang-migrate/migrate) y embebidas en el binario) se ejecutan automáticamente al arrancar, registrando en la tabla `schema_migrations` qué versión quedó aplicada. Son seguras de correr sobre una base ya existente (usan `CREATE ... IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS`), incluida una creada antes de este cambio: golang-migrate simplemente registra la versión sin recrear nada.
 
 ## Estructura del código
 
@@ -38,7 +38,7 @@ El código está organizado en paquetes Go reales (no solo archivos sueltos en `
 |---|---|
 | `cmd/server/main.go` | Punto de entrada: lee configuración, conecta AWS/Postgres, corre migraciones, arranca el router |
 | `internal/config` | Lectura de variables de entorno |
-| `internal/db` | Conexión y migraciones (`RunMigrations`) |
+| `internal/db` | Migraciones versionadas (`migrations/*.sql`, aplicadas con golang-migrate) |
 | `internal/middleware` | `Auth()` (JWT), `RequireStaff()`, CORS, limitador de peticiones en memoria |
 | `internal/server` | El `Server` (conexiones inyectadas) y los handlers HTTP, agrupados por dominio: `auth.go` (login, PIN), `asistencia.go` (kiosco biométrico), `hijos.go`, `bitacora.go`, `perfiles.go`, `pagos.go`, `reportes.go`, `push.go` |
 

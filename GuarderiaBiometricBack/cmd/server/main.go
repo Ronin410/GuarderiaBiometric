@@ -73,7 +73,9 @@ func conectarServicios(cfg appconfig.Config) *server.Server {
 		log.Fatal(err)
 	}
 
-	appdb.RunMigrations(conexion)
+	if err := appdb.RunMigrations(conexion); err != nil {
+		log.Fatal(err)
+	}
 
 	if err = conexion.Ping(); err != nil {
 		log.Fatal("No se pudo conectar a la DB:", err)
