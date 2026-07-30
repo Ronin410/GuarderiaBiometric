@@ -3,18 +3,21 @@ import Webcam from 'react-webcam';
 import api from './axiosConfig'; 
 // Importar componentes de rutas
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { 
-  UserPlus, ScanEye, Baby, AlertCircle, Users, Search, 
-  ClipboardList, TrendingUp, ShieldCheck, ArrowRightCircle, 
+import {
+  UserPlus, ScanEye, Baby, AlertCircle, Users, Search,
+  ClipboardList, TrendingUp, ShieldCheck, ArrowRightCircle,
   Lock, LogOut, CheckCircle, KeyRound, RefreshCw, X, Send, Clock, LogOut as LogOutIcon,
-  User
+  User, IdCard, Wallet, BarChart3
 } from 'lucide-react';
 
 // Componentes secundarios
 import GestionHijos from './GestionHijos';
 import VistaBitacora from './VistaBitacora';
 import PanelReportes from './PanelReportes';
-import DashboardPadre from './DashboardPadre'; 
+import PanelPerfiles from './PanelPerfiles';
+import PanelPagos from './PanelPagos';
+import PanelEstadisticas from './PanelEstadisticas';
+import DashboardPadre from './DashboardPadre';
 import ReportePublico from './ReportePublico'; // <-- Tu nueva ruta pública
 
 const videoConstraints = {
@@ -106,7 +109,7 @@ function MainApp() {
   };
 
   const cambiarTab = (targetTab) => {
-    const tabsProtegidas = ['admin', 'bitacora', 'reportes'];
+    const tabsProtegidas = ['admin', 'bitacora', 'reportes', 'perfiles', 'pagos', 'estadisticas'];
     if (tabsProtegidas.includes(targetTab) && userRole !== 'admin') {
       setTabPendiente(targetTab);
       setShowAdminPinModal(true);
@@ -284,6 +287,9 @@ function MainApp() {
             <button onClick={() => cambiarTab('admin')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'admin' ? 'bg-violet-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><Users size={18} /> Familia</button>
             <button onClick={() => cambiarTab('bitacora')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'bitacora' ? 'bg-violet-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><ClipboardList size={18} /> Bitácora</button>
             <button onClick={() => cambiarTab('reportes')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'reportes' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><TrendingUp size={18} /> Reportes</button>
+            <button onClick={() => cambiarTab('perfiles')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'perfiles' ? 'bg-violet-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><IdCard size={18} /> Perfiles</button>
+            <button onClick={() => cambiarTab('pagos')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'pagos' ? 'bg-violet-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><Wallet size={18} /> Pagos</button>
+            <button onClick={() => cambiarTab('estadisticas')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'estadisticas' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><BarChart3 size={18} /> Estadísticas</button>
             <button onClick={cerrarSesion} className="px-3 py-2 text-rose-500 hover:bg-rose-50 rounded-xl ml-2 border-l border-slate-100"><LogOut size={18} /></button>
           </div>
         </nav>
@@ -292,6 +298,9 @@ function MainApp() {
       <main className="max-w-5xl mx-auto">
         {tab === 'reportes' && <PanelReportes />}
         {tab === 'bitacora' && <VistaBitacora />}
+        {tab === 'perfiles' && <PanelPerfiles />}
+        {tab === 'pagos' && <PanelPagos />}
+        {tab === 'estadisticas' && <PanelEstadisticas />}
         {tab === 'admin' && (
           <div className="animate-in fade-in duration-500">
             <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl">

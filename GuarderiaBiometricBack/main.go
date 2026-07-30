@@ -212,9 +212,14 @@ func main() {
 	iniciarTareasProgramadas(db)
 
 	// Limitadores para endpoints sensibles a fuerza bruta / abuso de costos (Rekognition).
-	loginLimiter := newRateLimiter(10, time.Minute)      // 10 intentos de login por IP/min
-	pinLimiter := newRateLimiter(5, time.Minute)         // 5 intentos de PIN por IP/min (solo 10,000 combinaciones)
+	loginLimiter := newRateLimiter(10, time.Minute)       // 10 intentos de login por IP/min
+	pinLimiter := newRateLimiter(5, time.Minute)          // 5 intentos de PIN por IP/min (solo 10,000 combinaciones)
 	identificarLimiter := newRateLimiter(30, time.Minute) // 30 escaneos faciales por IP/min
+
+	// Módulo de Administración: perfiles extendidos, pagos y reportes de asistencia.
+	registrarRutasPerfiles(r)
+	registrarRutasPagos(r)
+	registrarRutasReportesAvanzados(r)
 
 	r.POST("/usuarios/registro", func(c *gin.Context) {
 		// 1. Estructura para recibir los datos (ajustada a tu tabla)
@@ -1592,7 +1597,7 @@ func RunMigrations() {
 			UNIQUE(hijo_id, fecha) -- Evita duplicados para el mismo niño el mismo día
 		);`,
 
-		`CREATE TABLE fotos_seguimiento (
+		`CREATE TABLE IF NOT EXISTS fotos_seguimiento (
 			id SERIAL PRIMARY KEY,
 			seguimiento_id INT REFERENCES seguimiento_diario(id),
 			url TEXT NOT NULL,
@@ -1601,6 +1606,38 @@ func RunMigrations() {
 
 		// 7. Índices adicionales
 		`CREATE INDEX IF NOT EXISTS idx_asistencia_fecha ON asistencia (fecha_hora DESC);`,
+
+		// 8. Columnas usadas por el código pero que faltaban en las migraciones versionadas
+		// (ya existían en la base de datos de producción de forma manual).
+		`ALTER TABLE hijos ADD COLUMN IF NOT EXISTS activo BOOLEAN DEFAULT true;`,
+		`ALTER TABLE hijos ADD COLUMN IF NOT EXISTS url_token UUID DEFAULT gen_random_uuid();`,
+		`ALTER TABLE padres ADD COLUMN IF NOT EXISTS celular VARCHAR(20);`,
+		`ALTER TABLE padres ADD COLUMN IF NOT EXISTS recibe_whatsapp BOOLEAN DEFAULT false;`,
+
+		// 9. Perfil extendido del niño (módulo de Administración)
+		`ALTER TABLE hijos ADD COLUMN IF NOT EXISTS fecha_nacimiento DATE;`,
+		`ALTER TABLE hijos ADD COLUMN IF NOT EXISTS direccion TEXT;`,
+		`ALTER TABLE hijos ADD COLUMN IF NOT EXISTS contacto_emergencia_nombre VARCHAR(150);`,
+		`ALTER TABLE hijos ADD COLUMN IF NOT EXISTS contacto_emergencia_telefono VARCHAR(20);`,
+		`ALTER TABLE hijos ADD COLUMN IF NOT EXISTS colegiatura_mensual NUMERIC(10,2) DEFAULT 0;`,
+
+		// 10. Tabla de Pagos (módulo de Administración)
+		// Nota: sin UNIQUE(hijo_id, periodo, concepto) a propósito — un mismo niño puede
+		// tener varios abonos ("pagos parciales") con el mismo concepto en el mismo periodo.
+		`CREATE TABLE IF NOT EXISTS pagos (
+			id SERIAL PRIMARY KEY,
+			hijo_id INTEGER REFERENCES hijos(id) ON DELETE CASCADE,
+			guarderia_id INTEGER REFERENCES guarderias(id) ON DELETE CASCADE,
+			monto NUMERIC(10,2) NOT NULL,
+			concepto VARCHAR(100) NOT NULL DEFAULT 'Colegiatura',
+			periodo VARCHAR(7) NOT NULL,
+			fecha_pago DATE DEFAULT CURRENT_DATE,
+			metodo_pago VARCHAR(20) DEFAULT 'efectivo',
+			observaciones TEXT,
+			registrado_por INTEGER,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);`,
+		`CREATE INDEX IF NOT EXISTS idx_pagos_hijo_periodo ON pagos (hijo_id, periodo);`,
 	}
 
 	for _, q := range queries {
