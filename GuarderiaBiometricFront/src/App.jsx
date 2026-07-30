@@ -18,7 +18,8 @@ import PanelPerfiles from './PanelPerfiles';
 import PanelPagos from './PanelPagos';
 import PanelEstadisticas from './PanelEstadisticas';
 import DashboardPadre from './DashboardPadre';
-import { mostrarError, mostrarExito, confirmar as confirmarAccion } from './utils/alertas';
+import { mostrarError, mostrarExito, mostrarAviso, confirmar as confirmarAccion } from './utils/alertas';
+import { segundosHastaExpirar } from './utils/sesion';
 import ReportePublico from './ReportePublico'; // <-- Tu nueva ruta pública
 
 const videoConstraints = {
@@ -45,6 +46,7 @@ function MainApp() {
   const [adminPin, setAdminPin] = useState('');
   const [tabPendiente, setTabPendiente] = useState(null);
 
+  const avisoExpiracionMostrado = useRef(false);
   const webcamRef = useRef(null);
   const [nombre, setNombre] = useState(''); 
   const [resultado, setResultado] = useState(null);
@@ -110,6 +112,32 @@ function MainApp() {
     window.location.reload();
   };
 
+  // Aviso proactivo de expiración: en vez de esperar a que una petición falle
+  // con 401 (interceptor de axiosConfig.js), revisamos el "exp" del propio
+  // JWT cada minuto para avisar antes de que la sesión muera a medio trabajo.
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    const revisarExpiracion = () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const restantes = segundosHastaExpirar(token);
+      if (restantes === null) return;
+
+      if (restantes <= 0) {
+        mostrarAviso('Tu sesión expiró por inactividad. Vuelve a iniciar sesión.', 'Sesión expirada')
+          .then(() => cerrarSesion());
+      } else if (restantes <= 300 && !avisoExpiracionMostrado.current) {
+        avisoExpiracionMostrado.current = true;
+        mostrarAviso('Tu sesión está por expirar en unos minutos. Guarda cualquier cambio pendiente.', 'Sesión por expirar');
+      }
+    };
+
+    revisarExpiracion();
+    const intervalo = setInterval(revisarExpiracion, 60000);
+    return () => clearInterval(intervalo);
+  }, [isLoggedIn]);
+
   const cambiarTab = (targetTab) => {
     const tabsProtegidas = ['admin', 'bitacora', 'reportes', 'perfiles', 'pagos', 'estadisticas'];
     if (tabsProtegidas.includes(targetTab) && userRole !== 'admin') {
@@ -155,10 +183,9 @@ function MainApp() {
     setLoading(true);
     const base64Image = imageSrc.split(',')[1];
     try {
-      const payload = { 
-        imagen: base64Image, 
-        collection_id: `guarderia-rostros`, 
-        ...(endpoint === 'registrar' && { nombre }) 
+      const payload = {
+        imagen: base64Image,
+        ...(endpoint === 'registrar' && { nombre })
       };
       const response = await api.post(`/${endpoint}`, payload);
       

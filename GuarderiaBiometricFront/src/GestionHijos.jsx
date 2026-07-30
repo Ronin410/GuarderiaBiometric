@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import api from './axiosConfig'; 
 import {
   UserPlus, Search, Baby, Save, X, Edit3,
-  Loader2, Check, RotateCcw, Eye, EyeOff, UserX, Link2Off
+  Loader2, Check, RotateCcw, Eye, EyeOff, UserX, Link2Off, RefreshCw
 } from 'lucide-react';
 import { mostrarExito, mostrarError, confirmar } from './utils/alertas';
 
@@ -119,6 +119,21 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
       mostrarError("Error al desvincular: " + (err.response?.data?.mensaje || "Error desconocido"));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const manejarRegenerarToken = async (hijo) => {
+    const ok = await confirmar(
+      `El enlace de bitácora que ya se compartió por WhatsApp para ${hijo.nombre_niño} dejará de funcionar. ¿Generar uno nuevo?`,
+      "Regenerar enlace"
+    );
+    if (!ok) return;
+    try {
+      await api.post(`/hijos/${hijo.id}/regenerar-token`);
+      mostrarExito("El enlace anterior fue invalidado. El próximo reporte que envíes usará el nuevo.");
+    } catch (err) {
+      console.error("Error al regenerar el enlace:", err);
+      mostrarError("Error al regenerar el enlace");
     }
   };
 
@@ -337,6 +352,7 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
                     {h.persistente && (
                       h.activo ? (
                         <>
+                          <button onClick={() => manejarRegenerarToken(h)} title="Regenerar enlace de bitácora" className="flex-1 sm:flex-none text-slate-400 hover:text-violet-600 hover:bg-violet-50 p-3 rounded-xl border border-slate-200 sm:border-none flex justify-center"><RefreshCw size={22}/></button>
                           <button onClick={() => manejarBajaHijo(h)} title="Baja del sistema" className="flex-1 sm:flex-none text-slate-400 hover:text-rose-500 hover:bg-rose-50 p-3 rounded-xl border border-slate-200 sm:border-none flex justify-center"><UserX size={22}/></button>
                           <button onClick={() => manejarDesvincular(h)} title="Desvincular tutor" className="flex-1 sm:flex-none text-slate-400 hover:text-amber-600 hover:bg-amber-50 p-3 rounded-xl border border-slate-200 sm:border-none flex justify-center"><Link2Off size={22}/></button>
                         </>

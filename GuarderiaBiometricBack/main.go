@@ -1133,6 +1133,27 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"mensaje": "Alumno reactivado correctamente"})
 	})
 
+	// --- REGENERAR ENLACE PÚBLICO DE BITÁCORA ---
+	// El url_token es permanente (se comparte una vez por WhatsApp y el papá lo
+	// revisita cada día), así que no expira solo por tiempo. Esto le da al staff
+	// una forma de invalidar un link comprometido/reenviado de más al instante.
+	r.POST("/hijos/:id/regenerar-token", AuthMiddleware(), RequireStaff(), func(c *gin.Context) {
+		gID, _ := c.Get("guarderia_id")
+		hijoID := c.Param("id")
+
+		var nuevoToken string
+		query := `UPDATE hijos SET url_token = gen_random_uuid()
+		          WHERE id = $1 AND guarderia_id = $2
+		          RETURNING url_token`
+		err := db.QueryRow(query, hijoID, gID).Scan(&nuevoToken)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Niño no encontrado"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"url_token": nuevoToken})
+	})
+
 	// Endpoint para que el admin fuerce la entrada o salida
 	r.POST("/admin/forzar-estatus", AuthMiddleware(), func(c *gin.Context) {
 		var req struct {
