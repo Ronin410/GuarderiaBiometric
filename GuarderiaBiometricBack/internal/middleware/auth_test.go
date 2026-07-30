@@ -1,4 +1,4 @@
-package main
+package middleware
 
 import (
 	"net/http"
@@ -14,9 +14,7 @@ func init() {
 	gin.SetMode(gin.TestMode)
 }
 
-// generarTokenPrueba firma un JWT con la misma forma que /login, para poder
-// probar AuthMiddleware() sin necesidad de pasar por la base de datos.
-func generarTokenPrueba(t *testing.T, rol string, expiraEn time.Duration) string {
+func generarToken(t *testing.T, jwtKey []byte, rol string, expiraEn time.Duration) string {
 	t.Helper()
 	claims := &Claims{
 		UserID:      1,
@@ -34,40 +32,36 @@ func generarTokenPrueba(t *testing.T, rol string, expiraEn time.Duration) string
 	return firmado
 }
 
-func TestAuthMiddleware(t *testing.T) {
-	jwtKey = []byte("clave-de-prueba-solo-para-tests")
+func TestAuth(t *testing.T) {
+	jwtKey := []byte("clave-de-prueba-solo-para-tests")
 
 	r := gin.New()
-	r.GET("/protegido", AuthMiddleware(), func(c *gin.Context) {
+	r.GET("/protegido", Auth(jwtKey), func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"ok": true})
 	})
 
-	casos := []struct {
-		nombre         string
-		authHeader     string
-		codigoEsperado int
-	}{
-		{"sin cabecera Authorization", "", http.StatusUnauthorized},
-		{"token con firma de otra clave", "Bearer " + firmarConClave(t, "otra-clave-distinta"), http.StatusUnauthorized},
-	}
+	t.Run("sin cabecera Authorization -> 401", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/protegido", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("código = %d; esperado 401 (body: %s)", w.Code, w.Body.String())
+		}
+	})
 
-	for _, c := range casos {
-		t.Run(c.nombre, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/protegido", nil)
-			if c.authHeader != "" {
-				req.Header.Set("Authorization", c.authHeader)
-			}
-			w := httptest.NewRecorder()
-			r.ServeHTTP(w, req)
-			if w.Code != c.codigoEsperado {
-				t.Errorf("código = %d; esperado %d (body: %s)", w.Code, c.codigoEsperado, w.Body.String())
-			}
-		})
-	}
+	t.Run("token con firma de otra clave -> 401", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/protegido", nil)
+		req.Header.Set("Authorization", "Bearer "+generarToken(t, []byte("otra-clave-distinta"), "admin", time.Hour))
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("código = %d; esperado 401 (body: %s)", w.Code, w.Body.String())
+		}
+	})
 
 	t.Run("token válido deja pasar", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/protegido", nil)
-		req.Header.Set("Authorization", "Bearer "+generarTokenPrueba(t, "admin", time.Hour))
+		req.Header.Set("Authorization", "Bearer "+generarToken(t, jwtKey, "admin", time.Hour))
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 		if w.Code != http.StatusOK {
@@ -77,27 +71,13 @@ func TestAuthMiddleware(t *testing.T) {
 
 	t.Run("token expirado -> 401", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/protegido", nil)
-		req.Header.Set("Authorization", "Bearer "+generarTokenPrueba(t, "admin", -time.Hour))
+		req.Header.Set("Authorization", "Bearer "+generarToken(t, jwtKey, "admin", -time.Hour))
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 		if w.Code != http.StatusUnauthorized {
 			t.Errorf("código = %d; esperado 401 para un token ya expirado (body: %s)", w.Code, w.Body.String())
 		}
 	})
-}
-
-func firmarConClave(t *testing.T, clave string) string {
-	t.Helper()
-	claims := &Claims{
-		UserID: 1, GuarderiaID: 1, Rol: "admin",
-		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour))},
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	firmado, err := token.SignedString([]byte(clave))
-	if err != nil {
-		t.Fatalf("no se pudo firmar: %v", err)
-	}
-	return firmado
 }
 
 func TestRequireStaff(t *testing.T) {

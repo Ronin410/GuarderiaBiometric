@@ -1,9 +1,11 @@
-package main
+package server
 
 import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+
+	"biometrico/internal/middleware"
 )
 
 // NinoPerfil representa la ficha administrativa completa de un niño,
@@ -20,9 +22,12 @@ type NinoPerfil struct {
 	Tutores                    string  `json:"tutores"`
 }
 
-func registrarRutasPerfiles(r *gin.Engine) {
+func (s *Server) registrarRutasPerfiles(r *gin.Engine) {
+	auth := middleware.Auth(s.JWTKey)
+	staff := middleware.RequireStaff()
+
 	// --- LISTA COMPLETA DE NIÑOS CON DATOS EXTENDIDOS (Panel de Administración) ---
-	r.GET("/admin/ninos", AuthMiddleware(), RequireStaff(), func(c *gin.Context) {
+	r.GET("/admin/ninos", auth, staff, func(c *gin.Context) {
 		gID, _ := c.Get("guarderia_id")
 
 		query := `
@@ -37,7 +42,7 @@ func registrarRutasPerfiles(r *gin.Engine) {
         GROUP BY h.id
         ORDER BY h.nombre_niño ASC`
 
-		rows, err := db.Query(query, gID)
+		rows, err := s.DB.Query(query, gID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar niños"})
 			return
@@ -62,7 +67,7 @@ func registrarRutasPerfiles(r *gin.Engine) {
 	})
 
 	// --- ACTUALIZAR PERFIL EXTENDIDO DE UN NIÑO ---
-	r.PUT("/hijos/:id/perfil", AuthMiddleware(), RequireStaff(), func(c *gin.Context) {
+	r.PUT("/hijos/:id/perfil", auth, staff, func(c *gin.Context) {
 		gID, _ := c.Get("guarderia_id")
 		hijoID := c.Param("id")
 
@@ -89,7 +94,7 @@ func registrarRutasPerfiles(r *gin.Engine) {
             colegiatura_mensual = $5
         WHERE id = $6 AND guarderia_id = $7`
 
-		result, err := db.Exec(query,
+		result, err := s.DB.Exec(query,
 			derefOrEmpty(input.FechaNacimiento),
 			input.Direccion,
 			input.ContactoEmergenciaNombre,

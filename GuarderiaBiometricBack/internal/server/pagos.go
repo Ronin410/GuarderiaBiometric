@@ -1,10 +1,12 @@
-package main
+package server
 
 import (
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"biometrico/internal/middleware"
 )
 
 type Pago struct {
@@ -27,9 +29,12 @@ type EstadoPagoNino struct {
 	Estado             string  `json:"estado"` // pagado | parcial | pendiente | vencido
 }
 
-func registrarRutasPagos(r *gin.Engine) {
+func (s *Server) registrarRutasPagos(r *gin.Engine) {
+	auth := middleware.Auth(s.JWTKey)
+	staff := middleware.RequireStaff()
+
 	// --- REGISTRAR UN PAGO ---
-	r.POST("/pagos", AuthMiddleware(), RequireStaff(), func(c *gin.Context) {
+	r.POST("/pagos", auth, staff, func(c *gin.Context) {
 		gID, _ := c.Get("guarderia_id")
 		userID, _ := c.Get("user_id")
 
@@ -59,11 +64,7 @@ func registrarRutasPagos(r *gin.Engine) {
 			input.MetodoPago = "efectivo"
 		}
 		if input.FechaPago == "" {
-			loc, err := time.LoadLocation("America/Mazatlan")
-			if err != nil {
-				loc = time.UTC
-			}
-			input.FechaPago = time.Now().In(loc).Format("2006-01-02")
+			input.FechaPago = hoyEnZonaLocal(time.Now())
 		}
 
 		var nuevoID int
@@ -72,7 +73,7 @@ func registrarRutasPagos(r *gin.Engine) {
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING id`
 
-		err := db.QueryRow(query,
+		err := s.DB.QueryRow(query,
 			input.HijoID, gID, input.Monto, input.Concepto, input.Periodo,
 			input.FechaPago, input.MetodoPago, input.Observaciones, userID,
 		).Scan(&nuevoID)
@@ -86,7 +87,7 @@ func registrarRutasPagos(r *gin.Engine) {
 	})
 
 	// --- HISTORIAL DE PAGOS (por niño y/o periodo) ---
-	r.GET("/pagos", AuthMiddleware(), RequireStaff(), func(c *gin.Context) {
+	r.GET("/pagos", auth, staff, func(c *gin.Context) {
 		gID, _ := c.Get("guarderia_id")
 		hijoID := c.Query("hijo_id")
 		periodo := c.Query("periodo")
@@ -99,7 +100,7 @@ func registrarRutasPagos(r *gin.Engine) {
           AND ($3 = '' OR periodo = $3)
         ORDER BY fecha_pago DESC, id DESC`
 
-		rows, err := db.Query(query, gID, hijoID, periodo)
+		rows, err := s.DB.Query(query, gID, hijoID, periodo)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar pagos"})
 			return
@@ -122,15 +123,11 @@ func registrarRutasPagos(r *gin.Engine) {
 	})
 
 	// --- ESTADO DE PAGO DE TODOS LOS NIÑOS ACTIVOS EN UN PERIODO ---
-	r.GET("/pagos/estado", AuthMiddleware(), RequireStaff(), func(c *gin.Context) {
+	r.GET("/pagos/estado", auth, staff, func(c *gin.Context) {
 		gID, _ := c.Get("guarderia_id")
 		periodo := c.Query("periodo")
 		if len(periodo) != 7 {
-			loc, err := time.LoadLocation("America/Mazatlan")
-			if err != nil {
-				loc = time.UTC
-			}
-			periodo = time.Now().In(loc).Format("2006-01")
+			periodo = time.Now().In(zonaMazatlan()).Format("2006-01")
 		}
 
 		query := `
@@ -142,18 +139,14 @@ func registrarRutasPagos(r *gin.Engine) {
         GROUP BY h.id, h.nombre_niño, h.colegiatura_mensual
         ORDER BY h.nombre_niño ASC`
 
-		rows, err := db.Query(query, gID, periodo)
+		rows, err := s.DB.Query(query, gID, periodo)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar el estado de pagos"})
 			return
 		}
 		defer rows.Close()
 
-		loc, err := time.LoadLocation("America/Mazatlan")
-		if err != nil {
-			loc = time.UTC
-		}
-		periodoActual := time.Now().In(loc).Format("2006-01")
+		periodoActual := time.Now().In(zonaMazatlan()).Format("2006-01")
 
 		estados := []EstadoPagoNino{}
 		for rows.Next() {
@@ -169,11 +162,11 @@ func registrarRutasPagos(r *gin.Engine) {
 	})
 
 	// --- ELIMINAR UN PAGO (corrección de captura) ---
-	r.DELETE("/pagos/:id", AuthMiddleware(), RequireStaff(), func(c *gin.Context) {
+	r.DELETE("/pagos/:id", auth, staff, func(c *gin.Context) {
 		gID, _ := c.Get("guarderia_id")
 		pagoID := c.Param("id")
 
-		result, err := db.Exec("DELETE FROM pagos WHERE id = $1 AND guarderia_id = $2", pagoID, gID)
+		result, err := s.DB.Exec("DELETE FROM pagos WHERE id = $1 AND guarderia_id = $2", pagoID, gID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo eliminar el pago"})
 			return
@@ -187,20 +180,16 @@ func registrarRutasPagos(r *gin.Engine) {
 
 		c.JSON(http.StatusOK, gin.H{"status": "Pago eliminado"})
 	})
-}
 
-// registrarRutasMisPagos expone el estado de pago SOLO de los hijos del padre
-// autenticado (a diferencia de /pagos* que es para el staff y ve toda la guardería).
-// padre_id se resuelve igual que en /padre/:id/hijos: el user_id del token.
-func registrarRutasMisPagos(r *gin.Engine) {
-	r.GET("/padre/mis-pagos", AuthMiddleware(), func(c *gin.Context) {
+	// --- MIS PAGOS (portal del papá) ---
+	// Expone el estado de pago SOLO de los hijos del padre autenticado (a diferencia
+	// de /pagos* que es para el staff y ve toda la guardería). padre_id se resuelve
+	// igual que en /padre/:id/hijos: el user_id del token.
+	r.GET("/padre/mis-pagos", auth, func(c *gin.Context) {
 		gID, _ := c.Get("guarderia_id")
 		tokenUsuarioID, _ := c.Get("user_id")
 
-		loc, err := time.LoadLocation("America/Mazatlan")
-		if err != nil {
-			loc = time.UTC
-		}
+		loc := zonaMazatlan()
 		periodo := c.Query("periodo")
 		if len(periodo) != 7 {
 			periodo = time.Now().In(loc).Format("2006-01")
@@ -215,7 +204,7 @@ func registrarRutasMisPagos(r *gin.Engine) {
         GROUP BY h.id, h.nombre_niño, h.colegiatura_mensual
         ORDER BY h.nombre_niño ASC`
 
-		rows, err := db.Query(query, tokenUsuarioID, gID, periodo)
+		rows, err := s.DB.Query(query, tokenUsuarioID, gID, periodo)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar tus pagos"})
 			return
@@ -237,7 +226,7 @@ func registrarRutasMisPagos(r *gin.Engine) {
 		c.JSON(http.StatusOK, estados)
 	})
 
-	r.GET("/padre/mis-pagos/historial", AuthMiddleware(), func(c *gin.Context) {
+	r.GET("/padre/mis-pagos/historial", auth, func(c *gin.Context) {
 		gID, _ := c.Get("guarderia_id")
 		tokenUsuarioID, _ := c.Get("user_id")
 		hijoID := c.Query("hijo_id")
@@ -248,7 +237,7 @@ func registrarRutasMisPagos(r *gin.Engine) {
 		}
 
 		var esPropio bool
-		err := db.QueryRow(
+		err := s.DB.QueryRow(
 			"SELECT EXISTS(SELECT 1 FROM tutor_hijos WHERE hijo_id = $1 AND padre_id = $2)",
 			hijoID, tokenUsuarioID,
 		).Scan(&esPropio)
@@ -263,7 +252,7 @@ func registrarRutasMisPagos(r *gin.Engine) {
         WHERE guarderia_id = $1 AND hijo_id::text = $2
         ORDER BY fecha_pago DESC, id DESC`
 
-		rows, err := db.Query(query, gID, hijoID)
+		rows, err := s.DB.Query(query, gID, hijoID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar el historial"})
 			return

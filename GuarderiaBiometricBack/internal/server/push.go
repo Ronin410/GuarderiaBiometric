@@ -1,25 +1,15 @@
-package main
+package server
 
 import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"os"
 
 	webpush "github.com/SherClockHolmes/webpush-go"
 	"github.com/gin-gonic/gin"
+
+	"biometrico/internal/middleware"
 )
-
-var vapidPublicKey = os.Getenv("VAPID_PUBLIC_KEY")
-var vapidPrivateKey = os.Getenv("VAPID_PRIVATE_KEY")
-var vapidSubject = os.Getenv("VAPID_SUBJECT")
-
-// pushConfigurado indica si el servidor tiene claves VAPID propias. Sin ellas,
-// las notificaciones simplemente se omiten (no es un requisito para operar el
-// resto de la app, a diferencia de JWT_SECRET).
-func pushConfigurado() bool {
-	return vapidPublicKey != "" && vapidPrivateKey != ""
-}
 
 type pushSubscriptionInput struct {
 	Endpoint string `json:"endpoint"`
@@ -29,10 +19,18 @@ type pushSubscriptionInput struct {
 	} `json:"keys"`
 }
 
-func registrarRutasPush(r *gin.Engine) {
+type pushPayload struct {
+	Titulo string `json:"titulo"`
+	Cuerpo string `json:"cuerpo"`
+	URL    string `json:"url"`
+}
+
+func (s *Server) registrarRutasPush(r *gin.Engine) {
+	auth := middleware.Auth(s.JWTKey)
+
 	// --- GUARDAR SUSCRIPCIÓN (cualquier usuario autenticado, típicamente rol "papa") ---
-	r.POST("/push/suscribir", AuthMiddleware(), func(c *gin.Context) {
-		if !pushConfigurado() {
+	r.POST("/push/suscribir", auth, func(c *gin.Context) {
+		if !s.PushConfigurado() {
 			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Notificaciones push no configuradas en el servidor"})
 			return
 		}
@@ -54,7 +52,7 @@ func registrarRutasPush(r *gin.Engine) {
             p256dh = EXCLUDED.p256dh,
             auth = EXCLUDED.auth`
 
-		if _, err := db.Exec(query, userID, gID, input.Endpoint, input.Keys.P256dh, input.Keys.Auth); err != nil {
+		if _, err := s.DB.Exec(query, userID, gID, input.Endpoint, input.Keys.P256dh, input.Keys.Auth); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo guardar la suscripción"})
 			return
 		}
@@ -63,7 +61,7 @@ func registrarRutasPush(r *gin.Engine) {
 	})
 
 	// --- ELIMINAR SUSCRIPCIÓN (cuando el usuario desactiva notificaciones) ---
-	r.DELETE("/push/suscribir", AuthMiddleware(), func(c *gin.Context) {
+	r.DELETE("/push/suscribir", auth, func(c *gin.Context) {
 		var input struct {
 			Endpoint string `json:"endpoint"`
 		}
@@ -72,27 +70,21 @@ func registrarRutasPush(r *gin.Engine) {
 			return
 		}
 
-		db.Exec("DELETE FROM push_subscripciones WHERE endpoint = $1", input.Endpoint)
+		s.DB.Exec("DELETE FROM push_subscripciones WHERE endpoint = $1", input.Endpoint)
 		c.JSON(http.StatusOK, gin.H{"status": "Suscripción eliminada"})
 	})
 }
 
-type pushPayload struct {
-	Titulo string `json:"titulo"`
-	Cuerpo string `json:"cuerpo"`
-	URL    string `json:"url"`
-}
-
 // notificarEvento avisa a TODOS los tutores vinculados a un niño (no solo a
-// quien disparó el movimiento). Debe llamarse siempre como "go notificarEvento(...)"
+// quien disparó el movimiento). Debe llamarse siempre como "go s.notificarEvento(...)"
 // desde el handler: nunca debe frenar la respuesta al kiosco/staff.
-func notificarEvento(hijoID int, evento string, detalle string) {
-	if !pushConfigurado() {
+func (s *Server) notificarEvento(hijoID int, evento string, detalle string) {
+	if !s.PushConfigurado() {
 		return
 	}
 
 	var nombre string
-	if err := db.QueryRow("SELECT nombre_niño FROM hijos WHERE id = $1", hijoID).Scan(&nombre); err != nil {
+	if err := s.DB.QueryRow("SELECT nombre_niño FROM hijos WHERE id = $1", hijoID).Scan(&nombre); err != nil {
 		log.Printf("notificarEvento: no se pudo obtener el nombre del niño %d: %v", hijoID, err)
 		return
 	}
@@ -113,7 +105,7 @@ func notificarEvento(hijoID int, evento string, detalle string) {
 		cuerpo = nombre + ": " + detalle
 	}
 
-	rows, err := db.Query(`
+	rows, err := s.DB.Query(`
         SELECT DISTINCT ps.id, ps.endpoint, ps.p256dh, ps.auth
         FROM push_subscripciones ps
         INNER JOIN tutor_hijos th ON th.padre_id = ps.padre_id
@@ -145,9 +137,9 @@ func notificarEvento(hijoID int, evento string, detalle string) {
 
 	for _, d := range destinos {
 		resp, err := webpush.SendNotification(payload, &d.sub, &webpush.Options{
-			VAPIDPublicKey:  vapidPublicKey,
-			VAPIDPrivateKey: vapidPrivateKey,
-			Subscriber:      vapidSubject,
+			VAPIDPublicKey:  s.VapidPublicKey,
+			VAPIDPrivateKey: s.VapidPrivateKey,
+			Subscriber:      s.VapidSubject,
 			TTL:             30,
 		})
 		if err != nil {
@@ -158,7 +150,7 @@ func notificarEvento(hijoID int, evento string, detalle string) {
 
 		// 404/410: la suscripción ya no existe del lado del navegador. La limpiamos.
 		if resp.StatusCode == http.StatusGone || resp.StatusCode == http.StatusNotFound {
-			db.Exec("DELETE FROM push_subscripciones WHERE id = $1", d.id)
+			s.DB.Exec("DELETE FROM push_subscripciones WHERE id = $1", d.id)
 		}
 	}
 }

@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"bytes"
@@ -20,7 +20,6 @@ func loginRequest(username, password string) *http.Request {
 }
 
 func TestLogin(t *testing.T) {
-	jwtKey = []byte("clave-de-prueba-solo-para-tests")
 	hashCorrecto, err := bcrypt.GenerateFromPassword([]byte("Correcta123!"), bcrypt.DefaultCost)
 	if err != nil {
 		t.Fatalf("no se pudo generar el hash de prueba: %v", err)
@@ -34,14 +33,17 @@ func TestLogin(t *testing.T) {
 			t.Fatalf("sqlmock: %v", err)
 		}
 		defer mockDB.Close()
-		dbAuth = mockDB
+
+		srv := New()
+		srv.DBAuth = mockDB
+		srv.JWTKey = []byte("clave-de-prueba-solo-para-tests")
 
 		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.username = \\$1").
 			WithArgs("admin_demo").
 			WillReturnRows(sqlmock.NewRows(columnas).
 				AddRow(1, 1, string(hashCorrecto), "admin", "1234", "Guardería Demo", "demo"))
 
-		r := setupRouter()
+		r := nuevoRouterDePrueba(srv)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, loginRequest("admin_demo", "Correcta123!"))
 
@@ -69,14 +71,17 @@ func TestLogin(t *testing.T) {
 			t.Fatalf("sqlmock: %v", err)
 		}
 		defer mockDB.Close()
-		dbAuth = mockDB
+
+		srv := New()
+		srv.DBAuth = mockDB
+		srv.JWTKey = []byte("clave-de-prueba-solo-para-tests")
 
 		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.username = \\$1").
 			WithArgs("admin_demo").
 			WillReturnRows(sqlmock.NewRows(columnas).
 				AddRow(1, 1, string(hashCorrecto), "admin", "1234", "Guardería Demo", "demo"))
 
-		r := setupRouter()
+		r := nuevoRouterDePrueba(srv)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, loginRequest("admin_demo", "esta-no-es-la-contraseña"))
 
@@ -91,13 +96,16 @@ func TestLogin(t *testing.T) {
 			t.Fatalf("sqlmock: %v", err)
 		}
 		defer mockDB.Close()
-		dbAuth = mockDB
+
+		srv := New()
+		srv.DBAuth = mockDB
+		srv.JWTKey = []byte("clave-de-prueba-solo-para-tests")
 
 		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.username = \\$1").
 			WithArgs("no_existe").
 			WillReturnError(sql.ErrNoRows)
 
-		r := setupRouter()
+		r := nuevoRouterDePrueba(srv)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, loginRequest("no_existe", "cualquiera"))
 

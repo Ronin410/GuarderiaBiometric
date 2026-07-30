@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"net/http"
@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"biometrico/internal/middleware"
 )
 
 // horaLimiteEntrada define a partir de qué hora una ENTRADA se considera "llegada tarde".
@@ -24,14 +26,11 @@ type ResumenAsistenciaNino struct {
 	PorcentajeAsistencia float64 `json:"porcentaje_asistencia"`
 }
 
-func registrarRutasReportesAvanzados(r *gin.Engine) {
-	r.GET("/reportes/asistencia-resumen", AuthMiddleware(), RequireStaff(), func(c *gin.Context) {
+func (s *Server) registrarRutasReportes(r *gin.Engine) {
+	r.GET("/reportes/asistencia-resumen", middleware.Auth(s.JWTKey), middleware.RequireStaff(), func(c *gin.Context) {
 		gID, _ := c.Get("guarderia_id")
 
-		loc, err := time.LoadLocation("America/Mazatlan")
-		if err != nil {
-			loc = time.UTC
-		}
+		loc := zonaMazatlan()
 		hoy := time.Now().In(loc)
 
 		desdeStr := c.Query("desde")
@@ -76,7 +75,7 @@ func registrarRutasReportesAvanzados(r *gin.Engine) {
         GROUP BY h.id, h.nombre_niño
         ORDER BY h.nombre_niño ASC`
 
-		rows, err := db.Query(query,
+		rows, err := s.DB.Query(query,
 			gID, desde.Format("2006-01-02"), hasta.Format("2006-01-02"), horaLimiteEntrada, hijoIDFiltro,
 		)
 		if err != nil {

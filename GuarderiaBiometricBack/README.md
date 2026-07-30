@@ -25,24 +25,24 @@ API en Go (Gin) para el sistema biométrico de control de asistencia y administr
 go mod download
 go build ./...
 # con las variables de entorno exportadas:
-go run .
+go run ./cmd/server
 ```
 
-El servidor queda escuchando en `:8099`. Las migraciones (`RunMigrations()`) se ejecutan automáticamente al arrancar — crean las tablas si no existen y agregan columnas nuevas con `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, así que es seguro reiniciar el servicio en una base ya existente.
+El servidor queda escuchando en `:8099`. Las migraciones se ejecutan automáticamente al arrancar — crean las tablas si no existen y agregan columnas nuevas con `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, así que es seguro reiniciar el servicio en una base ya existente.
 
 ## Estructura del código
 
-Todo vive en `package main`, repartido en varios archivos por tema (no son paquetes Go separados, solo organización):
+El código está organizado en paquetes Go reales (no solo archivos sueltos en `package main`):
 
-| Archivo | Contenido |
+| Ruta | Contenido |
 |---|---|
-| `main.go` | Arranque, migraciones, autenticación (`/login`, `/usuarios/registro`), kiosco biométrico, asistencia, bitácora diaria, reportes clásicos |
-| `perfiles.go` | Expediente extendido del niño (`/admin/ninos`, `/hijos/:id/perfil`) |
-| `pagos.go` | Registro de pagos y estado de cuenta (`/pagos*`, `/padre/mis-pagos*`) |
-| `reportes_avanzados.go` | Resumen de asistencia/ausencias/tardanzas (`/reportes/asistencia-resumen`) |
-| `push.go` | Suscripciones y envío de notificaciones push (`/push/suscribir`) |
-| `auth.go` | Middleware `RequireStaff()` |
-| `ratelimit.go` | Limitador de peticiones en memoria, usado en `/login`, `/identificar`, `/verificar-pin` |
+| `cmd/server/main.go` | Punto de entrada: lee configuración, conecta AWS/Postgres, corre migraciones, arranca el router |
+| `internal/config` | Lectura de variables de entorno |
+| `internal/db` | Conexión y migraciones (`RunMigrations`) |
+| `internal/middleware` | `Auth()` (JWT), `RequireStaff()`, CORS, limitador de peticiones en memoria |
+| `internal/server` | El `Server` (conexiones inyectadas) y los handlers HTTP, agrupados por dominio: `auth.go` (login, PIN), `asistencia.go` (kiosco biométrico), `hijos.go`, `bitacora.go`, `perfiles.go`, `pagos.go`, `reportes.go`, `push.go` |
+
+Cada handler es un método de `*Server` (ej. `func (s *Server) handleLogin(...)`), con `s.DB`/`s.DBAuth`/`s.Rek`/`s.JWTKey` inyectados una sola vez en `cmd/server/main.go` — no hay variables globales sueltas. `internal/server` tiene pruebas automatizadas (`go test ./...`) que montan el router real con una base de datos simulada (`sqlmock`), sin depender de una Postgres real.
 
 ## Modelo de datos (resumen)
 

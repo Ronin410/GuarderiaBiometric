@@ -1,4 +1,4 @@
-package main
+package middleware
 
 import (
 	"net/http"
@@ -8,10 +8,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// rateLimiter implementa un limitador simple de "ventana fija" por IP, en memoria.
+// RateLimiter implementa un limitador simple de "ventana fija" por IP, en memoria.
 // Es suficiente para una única instancia del backend; si en el futuro se despliega
 // con más de una réplica, esto debe moverse a un almacén compartido (ej. Redis).
-type rateLimiter struct {
+type RateLimiter struct {
 	mu       sync.Mutex
 	visitors map[string]*visitorEntry
 	limit    int
@@ -23,8 +23,8 @@ type visitorEntry struct {
 	windowStart time.Time
 }
 
-func newRateLimiter(limit int, window time.Duration) *rateLimiter {
-	rl := &rateLimiter{
+func NewRateLimiter(limit int, window time.Duration) *RateLimiter {
+	rl := &RateLimiter{
 		visitors: make(map[string]*visitorEntry),
 		limit:    limit,
 		window:   window,
@@ -35,7 +35,7 @@ func newRateLimiter(limit int, window time.Duration) *rateLimiter {
 
 // cleanupLoop libera periódicamente entradas de IPs que ya no tienen actividad
 // reciente, para que el mapa no crezca indefinidamente.
-func (rl *rateLimiter) cleanupLoop() {
+func (rl *RateLimiter) cleanupLoop() {
 	ticker := time.NewTicker(rl.window)
 	defer ticker.Stop()
 	for range ticker.C {
@@ -52,7 +52,7 @@ func (rl *rateLimiter) cleanupLoop() {
 
 // Middleware bloquea con 429 cuando una misma IP excede "limit" peticiones
 // dentro de la ventana configurada.
-func (rl *rateLimiter) Middleware() gin.HandlerFunc {
+func (rl *RateLimiter) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		key := c.ClientIP()
 		now := time.Now()
