@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/rekognition"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gin-gonic/gin"
 
 	"biometrico/internal/middleware"
@@ -29,12 +30,12 @@ type Server struct {
 	DB     *sql.DB
 	DBAuth *sql.DB
 	Rek    *rekognition.Client
+	S3     *s3.Client
 	JWTKey []byte
 
 	VapidPublicKey  string
 	VapidPrivateKey string
 	VapidSubject    string
-	AWSRegion       string
 
 	loginLimiter       *middleware.RateLimiter
 	pinLimiter         *middleware.RateLimiter

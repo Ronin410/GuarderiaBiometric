@@ -233,14 +233,17 @@ func (s *Server) handleGuardarSeguimiento(c *gin.Context) {
 		nombreArchivo := fmt.Sprintf("guarderia_%v/hijo_%s/%s_%s_%s",
 			gID, hijoID, fechaHoy, ahora.Format("150405"), file.Filename)
 
-		url, errS3 := s.uploadToS3(file, nombreArchivo)
+		key, errS3 := s.uploadToS3(file, nombreArchivo)
 		if errS3 != nil {
 			continue
 		}
 
-		_, errDBFoto := s.DB.Exec("INSERT INTO fotos_seguimiento (seguimiento_id, url) VALUES ($1, $2)", seguimientoID, url)
-		if errDBFoto == nil {
-			urlsSubidas = append(urlsSubidas, url)
+		_, errDBFoto := s.DB.Exec("INSERT INTO fotos_seguimiento (seguimiento_id, url) VALUES ($1, $2)", seguimientoID, key)
+		if errDBFoto != nil {
+			continue
+		}
+		if urlFirmada, errFirma := s.firmarURLFoto(key); errFirma == nil {
+			urlsSubidas = append(urlsSubidas, urlFirmada)
 		}
 	}
 
@@ -303,9 +306,12 @@ func (s *Server) handleObtenerSeguimiento(c *gin.Context) {
 		defer rows.Close()
 		sc.Fotos = []string{}
 		for rows.Next() {
-			var url string
-			if err := rows.Scan(&url); err == nil {
-				sc.Fotos = append(sc.Fotos, url)
+			var valorGuardado string
+			if err := rows.Scan(&valorGuardado); err != nil {
+				continue
+			}
+			if urlFirmada, errFirma := s.firmarURLFoto(valorGuardado); errFirma == nil {
+				sc.Fotos = append(sc.Fotos, urlFirmada)
 			}
 		}
 	}
@@ -357,9 +363,12 @@ func (s *Server) handleSeguimientoPublico(c *gin.Context) {
 		defer rows.Close()
 		sc.Fotos = []string{}
 		for rows.Next() {
-			var url string
-			if err := rows.Scan(&url); err == nil {
-				sc.Fotos = append(sc.Fotos, url)
+			var valorGuardado string
+			if err := rows.Scan(&valorGuardado); err != nil {
+				continue
+			}
+			if urlFirmada, errFirma := s.firmarURLFoto(valorGuardado); errFirma == nil {
+				sc.Fotos = append(sc.Fotos, urlFirmada)
 			}
 		}
 	}

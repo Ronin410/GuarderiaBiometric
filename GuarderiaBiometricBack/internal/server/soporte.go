@@ -3,21 +3,32 @@ package server
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"log"
 	"mime/multipart"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/robfig/cron/v3"
 )
 
-// uploadToS3 sube una foto de la bitácora al bucket público y regresa su URL.
-func (s *Server) uploadToS3(fileHeader *multipart.FileHeader, fileName string) (string, error) {
+// bucketFotos es el bucket privado donde se guardan las fotos de la
+// bitácora. NO debe tener objetos públicos: el "Block Public Access" a
+// nivel de bucket debe estar activado en la consola de AWS (ver
+// GuarderiaBiometricBack/README.md). El backend nunca sube nada como
+// público — solo sirve fotos a través de firmarURLFoto.
+const bucketFotos = "biosafe-storage-fotos"
+
+// ttlURLFoto es cuánto dura vigente una URL firmada antes de dejar de
+// funcionar. Basta para que se cargue la foto en el navegador; no es un
+// enlace permanente como lo era la URL pública anterior.
+const ttlURLFoto = time.Hour
+
+// uploadToS3 sube una foto de la bitácora al bucket privado y regresa la key
+// del objeto (no una URL: el bucket no permite lectura pública).
+func (s *Server) uploadToS3(fileHeader *multipart.FileHeader, key string) (string, error) {
 	file, err := fileHeader.Open()
 	if err != nil {
 		return "", err
@@ -29,32 +40,46 @@ func (s *Server) uploadToS3(fileHeader *multipart.FileHeader, fileName string) (
 		return "", err
 	}
 
-	cfg, err := config.LoadDefaultConfig(context.TODO())
-	if err != nil {
-		return "", err
-	}
-
-	client := s3.NewFromConfig(cfg)
-	bucketName := "biosafe-storage-fotos"
-
-	_, err = client.PutObject(context.TODO(), &s3.PutObjectInput{
-		Bucket:      aws.String(bucketName),
-		Key:         aws.String(fileName),
+	_, err = s.S3.PutObject(context.TODO(), &s3.PutObjectInput{
+		Bucket:      aws.String(bucketFotos),
+		Key:         aws.String(key),
 		Body:        bytes.NewReader(buffer),
 		ContentType: aws.String("image/jpeg"),
-		ACL:         s3types.ObjectCannedACLPublicRead,
 	})
 	if err != nil {
 		return "", err
 	}
 
-	region := s.AWSRegion
-	if region == "" {
-		region = "us-east-1"
-	}
+	return key, nil
+}
 
-	url := fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", bucketName, region, fileName)
-	return url, nil
+// firmarURLFoto genera una URL temporal (presigned) para leer una foto del
+// bucket privado. Acepta tanto una key nueva (lo que guarda uploadToS3 desde
+// este cambio) como una URL pública completa de una foto subida antes de
+// este cambio (fotos_seguimiento.url guarda ambos formatos según cuándo se
+// subió la foto) — en ambos casos extrae la key y firma sobre ella.
+func (s *Server) firmarURLFoto(valorGuardado string) (string, error) {
+	presignClient := s3.NewPresignClient(s.S3)
+	req, err := presignClient.PresignGetObject(context.TODO(), &s3.GetObjectInput{
+		Bucket: aws.String(bucketFotos),
+		Key:    aws.String(extraerKeyS3(valorGuardado)),
+	}, s3.WithPresignExpires(ttlURLFoto))
+	if err != nil {
+		return "", err
+	}
+	return req.URL, nil
+}
+
+// extraerKeyS3 recibe lo que haya en fotos_seguimiento.url y regresa la key
+// del objeto en S3. Si es una URL pública completa (formato anterior a este
+// cambio), recorta todo lo anterior a ".amazonaws.com/"; si ya es una key
+// (formato nuevo), la regresa tal cual.
+func extraerKeyS3(valorGuardado string) string {
+	const marcador = ".amazonaws.com/"
+	if idx := strings.Index(valorGuardado, marcador); idx != -1 {
+		return valorGuardado[idx+len(marcador):]
+	}
+	return valorGuardado
 }
 
 // IniciarTareasProgramadas arranca el cron de cierre automático nocturno: a

@@ -55,6 +55,9 @@ Cada handler es un método de `*Server` (ej. `func (s *Server) handleLogin(...)`
 - `RequireStaff()` bloquea a nivel de servidor los endpoints que exponen datos de **todas** las familias (perfiles, pagos, reportes) a cualquier cuenta que no sea `admin`/`staff`.
 - Rate limiting en memoria (por IP) en los endpoints más sensibles a fuerza bruta o abuso de costos de AWS.
 - **Nota**: el rate limiter es en memoria — si el backend se despliega con más de una réplica, hay que moverlo a un almacén compartido (Redis) para que siga siendo efectivo.
+- **Bucket de S3 (`biosafe-storage-fotos`) debe ser privado.** El backend nunca sube fotos como públicas y siempre las sirve con URLs firmadas de 1 hora (`internal/server/soporte.go`, `firmarURLFoto`), pero eso no alcanza si el bucket permite lectura pública a nivel de bucket. Configura esto una sola vez en la consola de AWS:
+  **S3 → bucket `biosafe-storage-fotos` → Permissions → "Block public access (bucket settings)" → Edit → activar las 4 casillas ("Block all public access") → guardar.**
+  Ese ajuste anula cualquier ACL pública en objetos individuales — incluidas fotos subidas antes de este cambio — sin tener que tocarlas una por una.
 
 ## Despliegue
 

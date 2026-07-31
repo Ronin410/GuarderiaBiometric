@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/rekognition"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
@@ -86,8 +87,8 @@ func conectarServicios(cfg appconfig.Config) *server.Server {
 	srv.DB = conexion
 	srv.DBAuth = dbAuth
 	srv.Rek = rekognition.NewFromConfig(awsCfg)
+	srv.S3 = s3.NewFromConfig(awsCfg)
 	srv.JWTKey = []byte(cfg.JWTSecret)
-	srv.AWSRegion = cfg.AWSRegion
 	srv.VapidPublicKey = cfg.VapidPublicKey
 	srv.VapidPrivateKey = cfg.VapidPrivateKey
 	srv.VapidSubject = cfg.VapidSubject
