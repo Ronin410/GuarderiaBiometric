@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react';
 import api from './axiosConfig'; 
 import {
   UserPlus, Search, Baby, Save, X, Edit3,
-  Loader2, Check, RotateCcw, Eye, EyeOff, UserX, Link2Off, RefreshCw
+  Loader2, Check, RotateCcw, Eye, EyeOff, UserX, Link2Off, RefreshCw,
+  Download, Trash2
 } from 'lucide-react';
 import { mostrarExito, mostrarError, confirmar } from './utils/alertas';
 
@@ -122,6 +123,49 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
     }
   };
 
+  // Derechos ARCO (LFPDPPP): un padre puede pedir copia de sus datos o que
+  // se borren. El borrado solo alcanza al tutor (perfil, rostro, cuenta) —
+  // la bitácora/asistencia/pagos de sus hijos se conserva, es su expediente.
+  const manejarExportarDatosArco = async () => {
+    try {
+      const res = await api.get(`/admin/familias/${padreId}/exportar`);
+      const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
+      const url = window.URL.createObjectURL(blob);
+      const enlace = document.createElement('a');
+      enlace.href = url;
+      enlace.download = `expediente_padre_${padreId}.json`;
+      document.body.appendChild(enlace);
+      enlace.click();
+      enlace.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Error al exportar datos del tutor:", err);
+      mostrarError("No se pudo exportar la información del tutor");
+    }
+  };
+
+  const manejarEliminarDatosArco = async () => {
+    const ok = await confirmar(
+      `Se eliminará el perfil, rostro biométrico y cuenta de ${nombreTutorEdit}. La bitácora, asistencia y pagos de sus hijos NO se borran. Esta acción no se puede deshacer.`,
+      "Eliminar datos del tutor"
+    );
+    if (!ok) return;
+
+    setLoading(true);
+    try {
+      await api.delete(`/admin/familias/${padreId}`);
+      mostrarExito("Los datos del tutor fueron eliminados");
+      if (typeof onFinalizar === 'function') {
+        onFinalizar();
+      }
+    } catch (err) {
+      console.error("Error al eliminar datos del tutor:", err);
+      mostrarError("No se pudo eliminar al tutor");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const manejarRegenerarToken = async (hijo) => {
     const ok = await confirmar(
       `El enlace de bitácora que ya se compartió por WhatsApp para ${hijo.nombre_niño} dejará de funcionar. ¿Generar uno nuevo?`,
@@ -235,6 +279,23 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
               </button>
             </div>
           )}
+        </div>
+
+        <div className="flex gap-2 shrink-0">
+          <button
+            onClick={manejarExportarDatosArco}
+            title="Exportar datos (ARCO)"
+            className="flex items-center gap-2 text-[9px] font-black uppercase bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-2.5 rounded-xl transition-all"
+          >
+            <Download size={14} /> Exportar
+          </button>
+          <button
+            onClick={manejarEliminarDatosArco}
+            title="Eliminar datos del tutor (ARCO)"
+            className="flex items-center gap-2 text-[9px] font-black uppercase bg-rose-50 hover:bg-rose-100 text-rose-600 px-3 py-2.5 rounded-xl transition-all"
+          >
+            <Trash2 size={14} /> Eliminar Tutor
+          </button>
         </div>
       </div>
 

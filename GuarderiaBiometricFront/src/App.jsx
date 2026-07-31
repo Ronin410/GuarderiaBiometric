@@ -7,7 +7,7 @@ import {
   UserPlus, ScanEye, Baby, AlertCircle, Users, Search,
   ClipboardList, TrendingUp, ShieldCheck, ArrowRightCircle,
   Lock, LogOut, CheckCircle, KeyRound, RefreshCw, X, Send, Clock, LogOut as LogOutIcon,
-  User, IdCard, Wallet, BarChart3
+  User, IdCard, Wallet, BarChart3, ShieldCheck as ShieldCheckIcon
 } from 'lucide-react';
 
 // Componentes secundarios
@@ -17,7 +17,9 @@ import PanelReportes from './PanelReportes';
 import PanelPerfiles from './PanelPerfiles';
 import PanelPagos from './PanelPagos';
 import PanelEstadisticas from './PanelEstadisticas';
+import PanelConfiguracion from './PanelConfiguracion';
 import DashboardPadre from './DashboardPadre';
+import AvisoPrivacidadModal from './AvisoPrivacidadModal';
 import { mostrarError, mostrarExito, mostrarAviso, confirmar as confirmarAccion } from './utils/alertas';
 import { segundosHastaExpirar } from './utils/sesion';
 import ReportePublico from './ReportePublico'; // <-- Tu nueva ruta pública
@@ -45,7 +47,7 @@ function MainApp() {
   const { tab: tabDeUrl } = useParams();
   const tab = tabDeUrl || 'identificar';
   const navigate = useNavigate();
-  const TABS_PROTEGIDAS = ['admin', 'bitacora', 'reportes', 'perfiles', 'pagos', 'estadisticas'];
+  const TABS_PROTEGIDAS = ['admin', 'bitacora', 'reportes', 'perfiles', 'pagos', 'estadisticas', 'configuracion'];
 
   const [loading, setLoading] = useState(false);
   const [showAdminPinModal, setShowAdminPinModal] = useState(false);
@@ -66,6 +68,13 @@ function MainApp() {
   const [padreSeleccionado, setPadreSeleccionado] = useState(null);
   const [tutoresEncontrados, setTutoresEncontrados] = useState([]);
   const [mostrarModalGestion, setMostrarModalGestion] = useState(false);
+
+  // Aviso de Privacidad: se consulta una vez y, si el tutor todavía no lo
+  // aceptó en esta sesión del kiosco, se le muestra antes de enrolar su
+  // rostro. Una vez aceptado no se vuelve a pedir hasta recargar/cerrar sesión.
+  const [avisoPrivacidad, setAvisoPrivacidad] = useState(null);
+  const [avisoAceptado, setAvisoAceptado] = useState(false);
+  const [mostrarModalAviso, setMostrarModalAviso] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -199,6 +208,42 @@ function MainApp() {
       mostrarError("No has escrito un nombre para el registro.");
       return;
     }
+    if (endpoint === 'registrar' && !avisoAceptado) {
+      await verificarYMostrarAvisoPrivacidad();
+      return;
+    }
+    await capturarYEnviar(endpoint);
+  };
+
+  // Consulta (una sola vez por sesión de kiosco) si la guardería ya
+  // configuró su Aviso de Privacidad. Sin texto configurado, se bloquea el
+  // registro: no hay evidencia de consentimiento posible para mostrar.
+  const verificarYMostrarAvisoPrivacidad = async () => {
+    try {
+      let aviso = avisoPrivacidad;
+      if (!aviso) {
+        const res = await api.get('/aviso-privacidad');
+        aviso = res.data;
+        setAvisoPrivacidad(aviso);
+      }
+      if (!aviso.configurado) {
+        mostrarError("El administrador debe configurar el Aviso de Privacidad (pestaña Configuración) antes de poder registrar tutores.");
+        return;
+      }
+      setMostrarModalAviso(true);
+    } catch (error) {
+      console.error("Error al consultar el Aviso de Privacidad:", error);
+      mostrarError("No se pudo cargar el Aviso de Privacidad.");
+    }
+  };
+
+  const manejarAceptarAvisoPrivacidad = () => {
+    setAvisoAceptado(true);
+    setMostrarModalAviso(false);
+    capturarYEnviar('registrar');
+  };
+
+  const capturarYEnviar = async (endpoint) => {
     if (!webcamRef.current) return;
     const imageSrc = webcamRef.current.getScreenshot();
     if (!imageSrc) return mostrarError("No se pudo capturar la imagen.");
@@ -208,7 +253,7 @@ function MainApp() {
     try {
       const payload = {
         imagen: base64Image,
-        ...(endpoint === 'registrar' && { nombre })
+        ...(endpoint === 'registrar' && { nombre, acepta_aviso: true })
       };
       const response = await api.post(`/${endpoint}`, payload);
       
@@ -344,6 +389,7 @@ function MainApp() {
             <button onClick={() => cambiarTab('perfiles')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'perfiles' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><IdCard size={18} /> Perfiles</button>
             <button onClick={() => cambiarTab('pagos')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'pagos' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><Wallet size={18} /> Pagos</button>
             <button onClick={() => cambiarTab('estadisticas')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'estadisticas' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><BarChart3 size={18} /> Estadísticas</button>
+            <button onClick={() => cambiarTab('configuracion')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'configuracion' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><ShieldCheckIcon size={18} /> Configuración</button>
             <button onClick={cerrarSesion} className="px-3 py-2 text-rose-500 hover:bg-rose-50 rounded-xl ml-2 border-l border-slate-100"><LogOut size={18} /></button>
           </div>
         </nav>
@@ -355,6 +401,7 @@ function MainApp() {
         {tab === 'perfiles' && <PanelPerfiles />}
         {tab === 'pagos' && <PanelPagos />}
         {tab === 'estadisticas' && <PanelEstadisticas />}
+        {tab === 'configuracion' && <PanelConfiguracion />}
         {tab === 'admin' && (
           <div className="animate-in fade-in duration-500">
             <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl">
@@ -488,6 +535,15 @@ function MainApp() {
             </div>
           </div>
         </div>
+      )}
+
+      {mostrarModalAviso && avisoPrivacidad && (
+        <AvisoPrivacidadModal
+          texto={avisoPrivacidad.texto}
+          version={avisoPrivacidad.version}
+          onAceptar={manejarAceptarAvisoPrivacidad}
+          onCancelar={() => setMostrarModalAviso(false)}
+        />
       )}
 
       {showAdminPinModal && (

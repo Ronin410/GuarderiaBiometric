@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -55,10 +56,33 @@ func (s *Server) handleRegistrar(c *gin.Context) {
 	colID := getCollectionID(gID)
 
 	var input struct {
-		Nombre string `json:"nombre"`
-		Imagen string `json:"imagen"`
+		Nombre      string `json:"nombre"`
+		Imagen      string `json:"imagen"`
+		AceptaAviso bool   `json:"acepta_aviso"`
 	}
 	c.BindJSON(&input)
+
+	// El enrolamiento de un rostro (dato biométrico sensible, de un tutor y
+	// que además queda ligado a los datos de sus hijos) no puede proceder sin
+	// un Aviso de Privacidad vigente ni sin que el tutor lo haya aceptado
+	// explícitamente frente al staff que opera el kiosco.
+	var textoAviso, versionAviso string
+	if err := s.DB.QueryRow(
+		"SELECT COALESCE(aviso_privacidad_texto, ''), aviso_privacidad_version FROM guarderias WHERE id = $1",
+		gID,
+	).Scan(&textoAviso, &versionAviso); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo verificar el Aviso de Privacidad"})
+		return
+	}
+	if strings.TrimSpace(textoAviso) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "El administrador debe configurar el Aviso de Privacidad antes de poder registrar tutores."})
+		return
+	}
+	if !input.AceptaAviso {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Debes mostrar el Aviso de Privacidad y obtener la aceptación del tutor antes de registrar su rostro."})
+		return
+	}
+
 	imgBytes, _ := base64.StdEncoding.DecodeString(input.Imagen)
 
 	// 1. Validar duplicados SOLO en la colección de esta guardería
@@ -90,6 +114,15 @@ func (s *Server) handleRegistrar(c *gin.Context) {
 	var nuevoPadreID int
 	s.DB.QueryRow("INSERT INTO padres (nombre, face_id, guarderia_id) VALUES ($1, $2, $3) RETURNING id",
 		input.Nombre, faceID, gID).Scan(&nuevoPadreID)
+
+	_, err = s.DB.Exec(
+		`INSERT INTO consentimientos (padre_id, padre_nombre_historico, guarderia_id, version_aviso, ip)
+		 VALUES ($1, $2, $3, $4, $5)`,
+		nuevoPadreID, input.Nombre, gID, versionAviso, c.ClientIP(),
+	)
+	if err != nil {
+		log.Printf("No se pudo registrar el consentimiento del padre %d: %v", nuevoPadreID, err)
+	}
 
 	c.JSON(200, gin.H{"status": "OK", "padre_id": nuevoPadreID})
 }
