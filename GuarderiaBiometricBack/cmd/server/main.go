@@ -41,6 +41,11 @@ func main() {
 	}
 
 	srv.RegisterRoutes(r)
+
+	if cfg.TLSCertFile != "" && cfg.TLSKeyFile != "" {
+		log.Println("Sirviendo HTTPS directamente (TLS_CERT_FILE/TLS_KEY_FILE configurados)")
+		log.Fatal(r.RunTLS(":8099", cfg.TLSCertFile, cfg.TLSKeyFile))
+	}
 	r.Run(":8099")
 }
 
