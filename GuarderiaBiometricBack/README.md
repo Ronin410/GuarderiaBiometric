@@ -16,7 +16,7 @@ API en Go (Gin) para el sistema biométrico de control de asistencia y administr
    - `JWT_SECRET` — genera una clave larga y aleatoria, por ejemplo con `openssl rand -base64 48`
    - `DATABASE_URL`, `DATABASE_URL_AUTH` — cadenas de conexión a Postgres (pueden apuntar a la misma base)
 3. Variables opcionales:
-   - `ALLOWED_ORIGINS` — dominios permitidos por CORS, separados por comas. Si no se define, cae a `http://localhost:5173`/`https://localhost:5173` (uso local).
+   - `ALLOWED_ORIGINS` — dominios permitidos por CORS, separados por comas. Si no se define, cae a `http://localhost:5173`/`https://localhost:5173` (uso local). **Importante:** el JWT vive en una cookie `SameSite=None; Secure` (ver `internal/middleware/auth.go`), así que este valor debe ser el origen HTTPS *exacto* del frontend en producción — no funciona con `*` ni con un origen HTTP.
    - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` — para notificaciones push. Sin ellas, el servidor arranca igual pero no envía notificaciones. Genera el par de claves una sola vez con `npx web-push generate-vapid-keys`.
 
 ## Correr localmente

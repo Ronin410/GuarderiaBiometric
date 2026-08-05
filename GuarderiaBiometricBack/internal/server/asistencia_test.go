@@ -26,7 +26,7 @@ func confirmarAsistenciaRequest(t *testing.T, jwtKey []byte, hijoID int) *http.R
 	})
 	req := httptest.NewRequest(http.MethodPost, "/confirmar-asistencia", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+generarTokenPrueba(t, jwtKey, "staff", time.Hour))
+	autenticarRequestPrueba(t, req, jwtKey, "staff", time.Hour)
 	return req
 }
 
@@ -103,7 +103,7 @@ func TestConfirmarAsistencia(t *testing.T) {
 		r := nuevoRouterDePrueba(srv)
 		req := httptest.NewRequest(http.MethodPost, "/confirmar-asistencia", bytes.NewReader([]byte("no-es-json")))
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+generarTokenPrueba(t, srv.JWTKey, "staff", time.Hour))
+		autenticarRequestPrueba(t, req, srv.JWTKey, "staff", time.Hour)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 
@@ -162,7 +162,7 @@ func TestIdentificarRequiereImagen(t *testing.T) {
 	t.Run("JSON inválido -> 400, nunca llega a Rekognition", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/identificar", bytes.NewReader([]byte("no-es-json")))
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+generarTokenPrueba(t, srv.JWTKey, "staff", time.Hour))
+		autenticarRequestPrueba(t, req, srv.JWTKey, "staff", time.Hour)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 		if w.Code != http.StatusBadRequest {

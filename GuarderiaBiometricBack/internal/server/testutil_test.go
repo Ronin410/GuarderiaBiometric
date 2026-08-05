@@ -1,6 +1,7 @@
 package server
 
 import (
+	"net/http"
 	"testing"
 	"time"
 
@@ -9,6 +10,11 @@ import (
 
 	"biometrico/internal/middleware"
 )
+
+// csrfTokenPrueba es el valor fijo de CSRF usado en pruebas — no necesita
+// ser aleatorio como en producción, solo tiene que coincidir entre la
+// cookie y el header, que es lo único que middleware.Auth verifica.
+const csrfTokenPrueba = "csrf-de-prueba"
 
 func init() {
 	gin.SetMode(gin.TestMode)
@@ -32,6 +38,19 @@ func generarTokenPrueba(t *testing.T, jwtKey []byte, rol string, expiraEn time.D
 		t.Fatalf("no se pudo firmar el token de prueba: %v", err)
 	}
 	return firmado
+}
+
+// autenticarRequestPrueba agrega a un *http.Request las cookies que
+// middleware.Auth exige (JWT + CSRF) y, si el método modifica datos, el
+// header X-CSRF-Token — mismo patrón "double-submit cookie" que usa
+// axiosConfig.js en el frontend.
+func autenticarRequestPrueba(t *testing.T, req *http.Request, jwtKey []byte, rol string, expiraEn time.Duration) {
+	t.Helper()
+	req.AddCookie(&http.Cookie{Name: middleware.CookieToken, Value: generarTokenPrueba(t, jwtKey, rol, expiraEn)})
+	if req.Method != http.MethodGet && req.Method != http.MethodHead && req.Method != http.MethodOptions {
+		req.AddCookie(&http.Cookie{Name: middleware.CookieCSRF, Value: csrfTokenPrueba})
+		req.Header.Set("X-CSRF-Token", csrfTokenPrueba)
+	}
 }
 
 // nuevoRouterDePrueba monta un *gin.Engine real sobre el Server dado, igual

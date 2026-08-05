@@ -36,8 +36,14 @@ function MainApp() {
   // --- ESTADOS DE AUTENTICACIÓN Y SESIÓN ---
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState(null);
-  const [userId, setUserId] = useState(null); 
+  const [userId, setUserId] = useState(null);
+  const [username, setUsername] = useState('');
   const [guarderiaInfo, setGuarderiaInfo] = useState({ nombre: '', slug: '' });
+  // La cookie con el JWT es httpOnly (invisible a JS) — mientras se
+  // confirma si ya hay sesión activa (GET /me), se muestra un loading en
+  // vez de saltar directo a la pantalla de login.
+  const [sesionCargando, setSesionCargando] = useState(true);
+  const [expiraEn, setExpiraEn] = useState(null);
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [tipoAcceso, setTipoAcceso] = useState('staff');
@@ -76,18 +82,32 @@ function MainApp() {
   const [avisoAceptado, setAvisoAceptado] = useState(false);
   const [mostrarModalAviso, setMostrarModalAviso] = useState(false);
 
+  // Restaura la sesión al montar: la cookie httpOnly viaja sola en la
+  // petición, pero JS no puede leerla — por eso se le pregunta al backend
+  // quién está logueado en vez de leer localStorage como antes.
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      setIsLoggedIn(true);
-      setUserRole(localStorage.getItem('role'));
-      setUserId(localStorage.getItem('userId'));
-      setGuarderiaInfo({ 
-        nombre: localStorage.getItem('guarderia_nombre') || '', 
-        slug: localStorage.getItem('guarderia_slug') || '' 
-      });
-    }
+    // Limpieza única de lo que haya quedado de sesiones previas a este
+    // cambio (el JWT vivía en localStorage) — ya no se usa como mecanismo
+    // de sesión, pero no debe quedar tirado ahí.
+    localStorage.clear();
+
+    api.get('/me')
+      .then((res) => hidratarSesion(res.data))
+      .catch(() => { /* sin sesión activa: se queda en la pantalla de login */ })
+      .finally(() => setSesionCargando(false));
   }, []);
+
+  const hidratarSesion = (data) => {
+    setIsLoggedIn(true);
+    setUserRole(data.rol);
+    setUserId(data.user_id);
+    setUsername(data.username || '');
+    setGuarderiaInfo({
+      nombre: data.guarderia_nombre || '',
+      slug: data.guarderia_slug || ''
+    });
+    setExpiraEn(data.expires_at || null);
+  };
 
   useEffect(() => {
     if (tab === 'admin' && isLoggedIn) cargarTodosLosPadres();
@@ -109,51 +129,38 @@ function MainApp() {
   const manejarLoginPrincipal = async (e) => {
     if (e) e.preventDefault();
     try {
-      const res = await api.post('/login', { 
-        username: loginUsername, 
+      const res = await api.post('/login', {
+        username: loginUsername,
         password: loginPassword,
-        tipo: tipoAcceso 
+        tipo: tipoAcceso
       });
-
-      if (res.data.token) {
-        localStorage.setItem('token', res.data.token);
-        localStorage.setItem('role', res.data.rol);
-        localStorage.setItem('userId', res.data.user_id);
-        localStorage.setItem('username', res.data.username || loginUsername);
-        localStorage.setItem('guarderia_nombre', res.data.guarderia_nombre || '');
-        localStorage.setItem('guarderia_slug', res.data.guarderia_slug || '');
-
-        setIsLoggedIn(true);
-        setUserRole(res.data.rol);
-        setUserId(res.data.user_id);
-        setGuarderiaInfo({
-          nombre: res.data.guarderia_nombre || '',
-          slug: res.data.guarderia_slug || ''
-        });
-      }
+      hidratarSesion(res.data);
     } catch (error) {
       console.error("Error en login:", error);
       mostrarError("Credenciales incorrectas para el perfil seleccionado");
     }
   };
 
-  const cerrarSesion = () => {
-    localStorage.clear();
+  const cerrarSesion = async () => {
+    try {
+      await api.post('/logout');
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error);
+    }
     setIsLoggedIn(false);
     setUserRole(null);
     window.location.reload();
   };
 
   // Aviso proactivo de expiración: en vez de esperar a que una petición falle
-  // con 401 (interceptor de axiosConfig.js), revisamos el "exp" del propio
-  // JWT cada minuto para avisar antes de que la sesión muera a medio trabajo.
+  // con 401 (interceptor de axiosConfig.js), revisamos cada minuto cuánto
+  // falta para expiraEn (que manda el backend en /login y /me) para avisar
+  // antes de que la sesión muera a medio trabajo.
   useEffect(() => {
     if (!isLoggedIn) return;
 
     const revisarExpiracion = () => {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-      const restantes = segundosHastaExpirar(token);
+      const restantes = segundosHastaExpirar(expiraEn);
       if (restantes === null) return;
 
       if (restantes <= 0) {
@@ -168,7 +175,7 @@ function MainApp() {
     revisarExpiracion();
     const intervalo = setInterval(revisarExpiracion, 60000);
     return () => clearInterval(intervalo);
-  }, [isLoggedIn]);
+  }, [isLoggedIn, expiraEn]);
 
   const cambiarTab = (targetTab) => {
     if (TABS_PROTEGIDAS.includes(targetTab) && userRole !== 'admin' && !pinVerificado) {
@@ -327,6 +334,18 @@ function MainApp() {
     } catch (err) { console.error(err); }
   };
 
+  // Mientras se confirma (GET /me) si la cookie httpOnly corresponde a una
+  // sesión activa, se muestra este loading en vez de saltar directo al
+  // formulario de login — evita el parpadeo de "no hay sesión" seguido de
+  // "sí la hay" en cada recarga.
+  if (sesionCargando) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+        <RefreshCw className="animate-spin text-brand-600" size={40} />
+      </div>
+    );
+  }
+
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
@@ -365,7 +384,7 @@ function MainApp() {
   }
 
   if (userRole === 'papa') {
-    return <DashboardPadre padreId={userId} alCerrarSesion={cerrarSesion} />;
+    return <DashboardPadre padreId={userId} nombreUsuario={username} alCerrarSesion={cerrarSesion} />;
   }
 
   return (

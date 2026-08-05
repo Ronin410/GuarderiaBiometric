@@ -24,11 +24,11 @@ const ESTADO_PAGO_INFO = {
   vencido: { label: 'Vencido', color: 'bg-rose-100 text-rose-700 border-rose-200', icon: XCircle },
 };
 
-const DashboardPadre = ({ padreId, alCerrarSesion }) => {
+const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
   const [hijos, setHijos] = useState([]);
   const [hijoSeleccionado, setHijoSeleccionado] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [usuarioNombre, setUsuarioNombre] = useState('');
+  const usuarioNombre = nombreUsuario || 'Familia';
   const [pagos, setPagos] = useState([]);
   const [notifEstado, setNotifEstado] = useState('default');
 
@@ -56,11 +56,7 @@ const DashboardPadre = ({ padreId, alCerrarSesion }) => {
 
         setHijos(hijosFormateados);
 
-        // 2. Recuperar el nombre del usuario logueado
-        const storedName = localStorage.getItem('username');
-        setUsuarioNombre(storedName || 'Familia');
-
-        // 3. Estado de pago del mes actual (solo de mis hijos)
+        // 2. Estado de pago del mes actual (solo de mis hijos)
         try {
           const resPagos = await api.get('/padre/mis-pagos');
           setPagos(Array.isArray(resPagos.data) ? resPagos.data : []);
@@ -102,7 +98,6 @@ const DashboardPadre = ({ padreId, alCerrarSesion }) => {
     if (typeof alCerrarSesion === 'function') {
       alCerrarSesion();
     } else {
-      localStorage.clear();
       window.location.href = '/';
     }
   };

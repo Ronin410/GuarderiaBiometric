@@ -10,6 +10,8 @@ import (
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"golang.org/x/crypto/bcrypt"
+
+	"biometrico/internal/middleware"
 )
 
 func loginRequest(username, password string) *http.Request {
@@ -54,11 +56,37 @@ func TestLogin(t *testing.T) {
 		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 			t.Fatalf("respuesta no es JSON válido: %v", err)
 		}
-		if resp["token"] == nil || resp["token"] == "" {
-			t.Errorf("se esperaba un token en la respuesta, se obtuvo: %v", resp)
+		if resp["token"] != nil {
+			t.Errorf("el JWT ya NO debe ir en el body (vive en una cookie httpOnly), se encontró: %v", resp["token"])
 		}
 		if resp["pin_admin"] != nil {
 			t.Errorf("el pin_admin NUNCA debe exponerse en la respuesta de /login, se encontró: %v", resp["pin_admin"])
+		}
+
+		cookies := w.Result().Cookies()
+		var tieneCookieToken, tieneCookieCSRF bool
+		for _, ck := range cookies {
+			if ck.Name == middleware.CookieToken {
+				tieneCookieToken = true
+				if !ck.HttpOnly {
+					t.Errorf("la cookie %s debe ser httpOnly", middleware.CookieToken)
+				}
+				if ck.Value == "" {
+					t.Errorf("la cookie %s no debe estar vacía", middleware.CookieToken)
+				}
+			}
+			if ck.Name == middleware.CookieCSRF {
+				tieneCookieCSRF = true
+				if ck.HttpOnly {
+					t.Errorf("la cookie %s NO debe ser httpOnly (el frontend la tiene que leer)", middleware.CookieCSRF)
+				}
+			}
+		}
+		if !tieneCookieToken {
+			t.Errorf("se esperaba un Set-Cookie para %s, cookies recibidas: %v", middleware.CookieToken, cookies)
+		}
+		if !tieneCookieCSRF {
+			t.Errorf("se esperaba un Set-Cookie para %s, cookies recibidas: %v", middleware.CookieCSRF, cookies)
 		}
 		if err := mock.ExpectationsWereMet(); err != nil {
 			t.Errorf("expectativas de sqlmock no cumplidas: %v", err)

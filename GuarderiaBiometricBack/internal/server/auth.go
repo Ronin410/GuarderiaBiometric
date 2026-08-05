@@ -1,7 +1,9 @@
 package server
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"net/http"
@@ -20,10 +22,29 @@ type PinRequest struct {
 	Pin string `json:"pin"`
 }
 
+// duracionCookieSegundos es la vida de las cookies de sesión (biosafe_token
+// y biosafe_csrf) — coincide con la expiración del JWT (24h) para que
+// ambas cosas caduquen juntas.
+const duracionCookieSegundos = 24 * 60 * 60
+
 func (s *Server) registrarRutasAuth(r *gin.Engine) {
 	r.POST("/usuarios/registro", s.handleRegistroUsuario)
 	r.POST("/login", s.loginLimiter.Middleware(), s.handleLogin)
 	r.POST("/verificar-pin", middleware.Auth(s.JWTKey), s.pinLimiter.Middleware(), s.handleVerificarPin)
+	r.GET("/me", middleware.Auth(s.JWTKey), s.handleMe)
+	r.POST("/logout", middleware.Auth(s.JWTKey), s.handleLogout)
+}
+
+// generarCSRFToken produce un valor aleatorio para la cookie biosafe_csrf
+// (patrón "double-submit cookie": el frontend la lee y la reenvía en el
+// header X-CSRF-Token en cada petición que modifica datos; middleware.Auth
+// exige que ambas coincidan).
+func generarCSRFToken() (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
 }
 
 func (s *Server) handleRegistroUsuario(c *gin.Context) {
@@ -127,17 +148,82 @@ func (s *Server) handleLogin(c *gin.Context) {
 		return
 	}
 
+	csrfToken, err := generarCSRFToken()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al generar token"})
+		return
+	}
+
+	// SameSite=None porque frontend y backend viven en orígenes distintos
+	// (y seguirían siendo "sitios" distintos aunque ambos vivieran bajo
+	// onrender.com, que está en la Public Suffix List) — el navegador no
+	// mandaría la cookie con Lax en las peticiones del frontend. None exige
+	// Secure, que ya cumplimos (Render termina TLS en producción).
+	c.SetSameSite(http.SameSiteNoneMode)
+	c.SetCookie(middleware.CookieToken, tokenStr, duracionCookieSegundos, "/", "", true, true)
+	c.SetCookie(middleware.CookieCSRF, csrfToken, duracionCookieSegundos, "/", "", true, false)
+
 	log.Printf("Login exitoso: %s", creds.Username)
 	s.registrarAcceso("login_exitoso", gID, id, creds.Username, c.ClientIP())
 	c.JSON(http.StatusOK, gin.H{
-		"token":            tokenStr,
 		"user_id":          id,
 		"guarderia_id":     gID,
 		"guarderia_nombre": gNombre,
 		"guarderia_slug":   gSlug,
 		"rol":              rol,
 		"username":         creds.Username,
+		"expires_at":       expirationTime.Unix(),
 	})
+}
+
+// handleMe restaura la sesión al recargar la página: la cookie httpOnly es
+// invisible a JavaScript, así que el frontend no puede leer quién es el
+// usuario logueado directamente — se lo pregunta aquí, detrás de Auth()
+// (que ya validó la cookie antes de llegar acá).
+func (s *Server) handleMe(c *gin.Context) {
+	uid, _ := c.Get("user_id")
+	gID, _ := c.Get("guarderia_id")
+	rol, _ := c.Get("rol")
+
+	var username, gNombre, gSlug string
+	err := s.DBAuth.QueryRow(
+		`SELECT u.username, g.nombre, g.slug
+         FROM usuarios u
+         INNER JOIN guarderias g ON u.guarderia_id = g.id
+         WHERE u.id = $1`,
+		uid,
+	).Scan(&username, &gNombre, &gSlug)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo cargar la sesión"})
+		return
+	}
+
+	var expiraEn int64
+	if expRaw, ok := c.Get("token_exp"); ok {
+		if expTime, ok := expRaw.(time.Time); ok {
+			expiraEn = expTime.Unix()
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"user_id":          uid,
+		"guarderia_id":     gID,
+		"guarderia_nombre": gNombre,
+		"guarderia_slug":   gSlug,
+		"rol":              rol,
+		"username":         username,
+		"expires_at":       expiraEn,
+	})
+}
+
+// handleLogout borra las cookies de sesión. JavaScript no puede borrar una
+// cookie httpOnly con document.cookie, por eso hace falta un endpoint que
+// las sobreescriba con un maxAge negativo.
+func (s *Server) handleLogout(c *gin.Context) {
+	c.SetSameSite(http.SameSiteNoneMode)
+	c.SetCookie(middleware.CookieToken, "", -1, "/", "", true, true)
+	c.SetCookie(middleware.CookieCSRF, "", -1, "/", "", true, false)
+	c.JSON(http.StatusOK, gin.H{"status": "Sesión cerrada"})
 }
 
 func (s *Server) handleVerificarPin(c *gin.Context) {

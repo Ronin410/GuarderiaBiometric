@@ -40,7 +40,7 @@ func TestAuth(t *testing.T) {
 		c.JSON(http.StatusOK, gin.H{"ok": true})
 	})
 
-	t.Run("sin cabecera Authorization -> 401", func(t *testing.T) {
+	t.Run("sin cookie de sesión -> 401", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/protegido", nil)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
@@ -51,7 +51,7 @@ func TestAuth(t *testing.T) {
 
 	t.Run("token con firma de otra clave -> 401", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/protegido", nil)
-		req.Header.Set("Authorization", "Bearer "+generarToken(t, []byte("otra-clave-distinta"), "admin", time.Hour))
+		req.AddCookie(&http.Cookie{Name: CookieToken, Value: generarToken(t, []byte("otra-clave-distinta"), "admin", time.Hour)})
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 		if w.Code != http.StatusUnauthorized {
@@ -61,7 +61,7 @@ func TestAuth(t *testing.T) {
 
 	t.Run("token válido deja pasar", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/protegido", nil)
-		req.Header.Set("Authorization", "Bearer "+generarToken(t, jwtKey, "admin", time.Hour))
+		req.AddCookie(&http.Cookie{Name: CookieToken, Value: generarToken(t, jwtKey, "admin", time.Hour)})
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 		if w.Code != http.StatusOK {
@@ -71,11 +71,42 @@ func TestAuth(t *testing.T) {
 
 	t.Run("token expirado -> 401", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/protegido", nil)
-		req.Header.Set("Authorization", "Bearer "+generarToken(t, jwtKey, "admin", -time.Hour))
+		req.AddCookie(&http.Cookie{Name: CookieToken, Value: generarToken(t, jwtKey, "admin", -time.Hour)})
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 		if w.Code != http.StatusUnauthorized {
 			t.Errorf("código = %d; esperado 401 para un token ya expirado (body: %s)", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("POST sin header X-CSRF-Token -> 403", func(t *testing.T) {
+		rPost := gin.New()
+		rPost.POST("/protegido", Auth(jwtKey), func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{"ok": true})
+		})
+		req := httptest.NewRequest(http.MethodPost, "/protegido", nil)
+		req.AddCookie(&http.Cookie{Name: CookieToken, Value: generarToken(t, jwtKey, "admin", time.Hour)})
+		req.AddCookie(&http.Cookie{Name: CookieCSRF, Value: "csrf-de-prueba"})
+		w := httptest.NewRecorder()
+		rPost.ServeHTTP(w, req)
+		if w.Code != http.StatusForbidden {
+			t.Errorf("código = %d; esperado 403 sin header X-CSRF-Token (body: %s)", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("POST con cookie y header CSRF coincidentes -> 200", func(t *testing.T) {
+		rPost := gin.New()
+		rPost.POST("/protegido", Auth(jwtKey), func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{"ok": true})
+		})
+		req := httptest.NewRequest(http.MethodPost, "/protegido", nil)
+		req.AddCookie(&http.Cookie{Name: CookieToken, Value: generarToken(t, jwtKey, "admin", time.Hour)})
+		req.AddCookie(&http.Cookie{Name: CookieCSRF, Value: "csrf-de-prueba"})
+		req.Header.Set("X-CSRF-Token", "csrf-de-prueba")
+		w := httptest.NewRecorder()
+		rPost.ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Errorf("código = %d; esperado 200 con CSRF coincidente (body: %s)", w.Code, w.Body.String())
 		}
 	})
 }

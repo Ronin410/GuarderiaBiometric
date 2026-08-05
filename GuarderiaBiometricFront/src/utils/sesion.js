@@ -1,19 +1,8 @@
-// Decodifica el payload de un JWT (base64url) sin verificar la firma —
-// solo para leer localmente cuándo expira, la verificación real la hace el backend.
-export function leerExpiracionToken(token) {
-  try {
-    const payloadBase64 = token.split('.')[1];
-    const payloadJson = atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/'));
-    const payload = JSON.parse(payloadJson);
-    if (!payload.exp) return null;
-    return payload.exp * 1000; // exp viene en segundos, Date.now() en milisegundos
-  } catch {
-    return null;
-  }
-}
-
-export function segundosHastaExpirar(token) {
-  const expiraEn = leerExpiracionToken(token);
-  if (!expiraEn) return null;
-  return Math.floor((expiraEn - Date.now()) / 1000);
+// El JWT ahora vive en una cookie httpOnly (invisible a JavaScript), así
+// que ya no hay token que decodificar en el cliente: la fecha de
+// expiración la manda el backend directamente (campo expires_at de
+// /login y /me, en segundos unix), y este helper solo hace la resta.
+export function segundosHastaExpirar(expiraEnUnix) {
+  if (!expiraEnUnix) return null;
+  return Math.floor(expiraEnUnix - Date.now() / 1000);
 }
