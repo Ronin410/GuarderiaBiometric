@@ -20,34 +20,20 @@ IMG_BACKEND=guarderia-backend:local
 IMG_FRONTEND=guarderia-frontend:local
 VOL_PG=guarderia-pgdata
 
-for cmd in podman openssl curl; do
+for cmd in podman curl; do
   command -v "$cmd" >/dev/null 2>&1 || { echo "Falta '$cmd' — instálalo antes de continuar." >&2; exit 1; }
 done
 
-# 1. Certificado autofirmado ---------------------------------------------------
-# La cookie de sesión del backend es Secure (ver
-# GuarderiaBiometricBack/internal/middleware/auth.go) — el navegador la
-# descarta si no llega por HTTPS. En Render eso lo resuelve la plataforma;
-# aquí no hay nada delante del contenedor, así que el propio binario Go sirve
-# TLS con este certificado (variables TLS_CERT_FILE/TLS_KEY_FILE).
-mkdir -p certs
-if [ ! -f certs/cert.pem ]; then
-  echo "==> Generando certificado autofirmado para localhost..."
-  openssl req -x509 -newkey rsa:2048 -keyout certs/key.pem -out certs/cert.pem \
-    -days 825 -nodes -subj "/CN=localhost" >/dev/null 2>&1
-  chmod 644 certs/key.pem certs/cert.pem
-fi
-
-# 2. Variables de entorno del backend ------------------------------------------
+# 1. Variables de entorno del backend ------------------------------------------
 if [ ! -f backend.env ]; then
   echo "==> No existe podman/backend.env, copiando desde backend.env.example."
   cp backend.env.example backend.env
 fi
 
-# 3. Limpieza de una corrida anterior -------------------------------------------
+# 2. Limpieza de una corrida anterior -------------------------------------------
 ./stop.sh >/dev/null 2>&1 || true
 
-# 4. Pod compartido ------------------------------------------------------------
+# 3. Pod compartido ------------------------------------------------------------
 # Solo estos tres puertos quedan expuestos al host; entre ellos los
 # contenedores se hablan por localhost (comparten la red del pod).
 echo "==> Creando pod..."
@@ -56,7 +42,7 @@ podman pod create --name "$POD_NAME" \
   -p 8099:8099 \
   -p 5432:5432
 
-# 5. Postgres -------------------------------------------------------------------
+# 4. Postgres -------------------------------------------------------------------
 echo "==> Levantando Postgres..."
 podman run -d --pod "$POD_NAME" --name guarderia-postgres \
   -e POSTGRES_PASSWORD=postgres \
@@ -71,14 +57,15 @@ until podman exec guarderia-postgres pg_isready -U postgres >/dev/null 2>&1; do
 done
 echo " listo."
 
-# 6. Backend ----------------------------------------------------------------------
+# 5. Backend ----------------------------------------------------------------------
 echo "==> Construyendo imagen del backend..."
 podman build -t "$IMG_BACKEND" -f ../GuarderiaBiometricBack/Dockerfile ../GuarderiaBiometricBack
 
 echo "==> Levantando backend..."
+# El certificado TLS ya viene horneado en la imagen (ver el Dockerfile) —
+# no hace falta montar nada del host.
 podman run -d --pod "$POD_NAME" --name guarderia-backend \
   --env-file backend.env \
-  -v "$(pwd)/certs:/certs:ro" \
   "$IMG_BACKEND"
 
 echo -n "==> Esperando a que el backend responda (aplica migraciones al arrancar)"
@@ -95,12 +82,12 @@ until curl -sk -o /dev/null https://localhost:8099/aviso-privacidad; do
 done
 echo " listo."
 
-# 7. Datos de prueba ---------------------------------------------------------------
+# 6. Datos de prueba ---------------------------------------------------------------
 echo "==> Aplicando datos de prueba..."
 podman exec -i guarderia-postgres psql -U postgres -d guarderia \
   < ../GuarderiaBiometricBack/internal/db/seeds/seed_dev.sql
 
-# 8. Frontend -----------------------------------------------------------------------
+# 7. Frontend -----------------------------------------------------------------------
 echo "==> Construyendo imagen del frontend..."
 podman build -t "$IMG_FRONTEND" \
   --build-arg VITE_API_URL=https://localhost:8099 \
