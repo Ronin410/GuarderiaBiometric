@@ -119,6 +119,9 @@ func (s *Server) handleExportarFamilia(c *gin.Context) {
 		"generado_en":     time.Now().Format(time.RFC3339),
 	}
 
+	uidRaw, _ := c.Get("user_id")
+	s.registrarAcceso("arco_exportar", gID, uidRaw, "padre_id="+padreID, c.ClientIP())
+
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=expediente_padre_%s.json", padreID))
 	c.JSON(http.StatusOK, exportacion)
 }
@@ -217,6 +220,9 @@ func (s *Server) handleEliminarFamilia(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Tutor no encontrado en esta guardería"})
 		return
 	}
+
+	uidRaw, _ := c.Get("user_id")
+	s.registrarAcceso("arco_eliminar", gID, uidRaw, fmt.Sprintf("padre_id=%s, rekognition_eliminado=%v", padreID, rekognitionEliminado), c.ClientIP())
 
 	c.JSON(http.StatusOK, gin.H{
 		"status":                "Datos del tutor eliminados",

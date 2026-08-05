@@ -333,14 +333,15 @@ func (s *Server) handleSeguimientoPublico(c *gin.Context) {
 	querySeguimiento := `
         SELECT
             s.id, s.hijo_id, h.nombre_niño, s.fecha, s.desayuno,
-            s.comida, s.merienda, s.esfinter, s.observaciones, s.durmio
+            s.comida, s.merienda, s.esfinter, s.observaciones, s.durmio, h.guarderia_id
         FROM hijos h
         JOIN seguimiento_diario s ON h.id = s.hijo_id
         WHERE h.url_token = $1 AND s.fecha = $2`
 
+	var guarderiaID int
 	err := s.DB.QueryRow(querySeguimiento, token, fechaConsulta).Scan(
 		&sc.ID, &sc.HijoID, &sc.HijoNombre, &sc.Fecha, &sc.Desayuno, &sc.Comida,
-		&sc.Merienda, &sc.Esfinter, &sc.Observaciones, &sc.Durmio,
+		&sc.Merienda, &sc.Esfinter, &sc.Observaciones, &sc.Durmio, &guarderiaID,
 	)
 	if err != nil {
 		// Si no hay bitácora, al menos intentamos traer el nombre del niño para que
@@ -372,6 +373,8 @@ func (s *Server) handleSeguimientoPublico(c *gin.Context) {
 			}
 		}
 	}
+
+	s.registrarAcceso("bitacora_publica", guarderiaID, nil, fmt.Sprintf("hijo_id=%d", sc.HijoID), c.ClientIP())
 
 	c.JSON(http.StatusOK, sc)
 }

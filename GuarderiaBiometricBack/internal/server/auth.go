@@ -94,6 +94,7 @@ func (s *Server) handleLogin(c *gin.Context) {
 	if err != nil {
 		if err == sql.ErrNoRows {
 			fmt.Printf("Usuario no encontrado: %s\n", creds.Username)
+			s.registrarAcceso("login_fallido", nil, nil, "usuario no encontrado: "+creds.Username, c.ClientIP())
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Usuario no existe"})
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error de BD"})
@@ -104,6 +105,7 @@ func (s *Server) handleLogin(c *gin.Context) {
 	err = bcrypt.CompareHashAndPassword([]byte(passHash), []byte(creds.Password))
 	if err != nil {
 		log.Printf("Intento de login inválido para usuario %s", creds.Username)
+		s.registrarAcceso("login_fallido", gID, id, "contraseña incorrecta", c.ClientIP())
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Contraseña incorrecta"})
 		return
 	}
@@ -126,6 +128,7 @@ func (s *Server) handleLogin(c *gin.Context) {
 	}
 
 	log.Printf("Login exitoso: %s", creds.Username)
+	s.registrarAcceso("login_exitoso", gID, id, creds.Username, c.ClientIP())
 	c.JSON(http.StatusOK, gin.H{
 		"token":            tokenStr,
 		"user_id":          id,
