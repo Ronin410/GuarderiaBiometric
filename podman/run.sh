@@ -9,6 +9,12 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# Git Bash en Windows (MSYS) convierte solo argumentos que empiezan con "/"
+# a rutas de Windows sin que se lo pidas — rompe los "-v /host:/contenedor"
+# de más abajo. En Linux/macOS/WSL esta variable simplemente no se usa para
+# nada, así que es seguro dejarla siempre.
+export MSYS_NO_PATHCONV=1
+
 POD_NAME=guarderia-pod
 IMG_BACKEND=guarderia-backend:local
 IMG_FRONTEND=guarderia-frontend:local
