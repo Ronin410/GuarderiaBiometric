@@ -30,8 +30,12 @@ spec:
         - name: POSTGRES_DB
           value: "guarderia"
       ports:
+        # hostPort en 5433 (no 5432): para no chocar con un Postgres local
+        # que ya esté corriendo en tu máquina. El backend igual se conecta
+        # por dentro del pod a 127.0.0.1:5432 — eso es tráfico
+        # contenedor-a-contenedor, no pasa por este puerto expuesto al host.
         - containerPort: 5432
-          hostPort: 5432
+          hostPort: 5433
       volumeMounts:
         - name: pgdata
           mountPath: /var/lib/postgresql/data

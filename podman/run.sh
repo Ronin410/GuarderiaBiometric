@@ -35,12 +35,15 @@ fi
 
 # 3. Pod compartido ------------------------------------------------------------
 # Solo estos tres puertos quedan expuestos al host; entre ellos los
-# contenedores se hablan por localhost (comparten la red del pod).
+# contenedores se hablan por localhost (comparten la red del pod). Postgres
+# va en 5433, no 5432, para no chocar con un Postgres local que ya tengas
+# corriendo en tu máquina — el backend igual se conecta por dentro del pod
+# a 127.0.0.1:5432 (ver backend.env), eso no pasa por este puerto expuesto.
 echo "==> Creando pod..."
 podman pod create --name "$POD_NAME" \
   -p 5173:8080 \
   -p 8099:8099 \
-  -p 5432:5432
+  -p 5433:5432
 
 # 4. Postgres -------------------------------------------------------------------
 echo "==> Levantando Postgres..."

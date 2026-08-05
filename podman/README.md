@@ -59,7 +59,7 @@ Pestaña **Pods** (o el menú `...` de Containers, según tu versión) →
 **Play Kubernetes YAML** → selecciona `podman/kube.yaml`.
 
 Esto crea el pod `guarderia-pod` con Postgres + backend + frontend juntos,
-con los puertos ya publicados (5173, 8099, 5432). El contenedor del backend
+con los puertos ya publicados (5173, 8099, 5433 para Postgres). El contenedor del backend
 puede reiniciarse solo una o dos veces al principio (arrancó antes de que
 Postgres estuviera listo) — en unos segundos se estabiliza solo.
 
@@ -141,7 +141,8 @@ Registro del kiosco.
 - **VITE_API_URL se hornea en la imagen del frontend en tiempo de build** —
   si cambias el puerto del backend, hay que reconstruir la imagen del
   frontend, no basta con reiniciar el contenedor.
-- El puerto 5432 del pod queda expuesto al host por conveniencia (para
-  conectarte con un cliente de Postgres local) — no lo publiques así en un
-  entorno que no sea tu máquina de desarrollo.
+- Postgres queda expuesto al host en el puerto **5433** (no 5432, a
+  propósito, para no chocar con un Postgres local que ya tengas corriendo)
+  por conveniencia, para conectarte con un cliente de Postgres local — no
+  lo publiques así en un entorno que no sea tu máquina de desarrollo.
 - `backend.env` no se sube a git (ver `.gitignore` de la raíz del repo).
