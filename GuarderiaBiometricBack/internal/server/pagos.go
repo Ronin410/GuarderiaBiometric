@@ -21,12 +21,24 @@ type Pago struct {
 }
 
 // EstadoPagoNino resume, para un periodo dado, cuánto debe y cuánto ha pagado un niño.
+// TotalPagado es SOLO lo pagado por concepto "Colegiatura" — antes sumaba
+// todos los conceptos juntos (Material, Inscripción, Otro incluidos), lo que
+// hacía que pagar el material, por ejemplo, contara como abono a la
+// mensualidad sin haberla tocado. Estado se calcula sobre este mismo total,
+// así que el bug también inflaba el estado "pagado"/"parcial" cuando en
+// realidad la colegiatura seguía sin pagarse.
 type EstadoPagoNino struct {
 	HijoID             int     `json:"hijo_id"`
 	Nombre             string  `json:"nombre"`
 	ColegiaturaMensual float64 `json:"colegiatura_mensual"`
 	TotalPagado        float64 `json:"total_pagado"`
 	Estado             string  `json:"estado"` // pagado | parcial | pendiente | vencido
+	// Desglose de los demás conceptos en el mismo periodo — no tienen un
+	// monto esperado configurado (a diferencia de colegiatura_mensual), así
+	// que aquí solo se informa cuánto se pagó de cada uno, sin estado.
+	TotalInscripcion float64 `json:"total_inscripcion"`
+	TotalMaterial    float64 `json:"total_material"`
+	TotalOtro        float64 `json:"total_otro"`
 }
 
 func (s *Server) registrarRutasPagos(r *gin.Engine) {
@@ -132,7 +144,10 @@ func (s *Server) registrarRutasPagos(r *gin.Engine) {
 
 		query := `
         SELECT h.id, h.nombre_niño, h.colegiatura_mensual,
-               COALESCE(SUM(p.monto), 0) as total_pagado
+               COALESCE(SUM(p.monto) FILTER (WHERE p.concepto = 'Colegiatura'), 0) as total_colegiatura,
+               COALESCE(SUM(p.monto) FILTER (WHERE p.concepto = 'Inscripción'), 0) as total_inscripcion,
+               COALESCE(SUM(p.monto) FILTER (WHERE p.concepto = 'Material'), 0) as total_material,
+               COALESCE(SUM(p.monto) FILTER (WHERE p.concepto = 'Otro'), 0) as total_otro
         FROM hijos h
         LEFT JOIN pagos p ON p.hijo_id = h.id AND p.periodo = $2
         WHERE h.guarderia_id = $1 AND h.activo = true
@@ -151,7 +166,7 @@ func (s *Server) registrarRutasPagos(r *gin.Engine) {
 		estados := []EstadoPagoNino{}
 		for rows.Next() {
 			var e EstadoPagoNino
-			if err := rows.Scan(&e.HijoID, &e.Nombre, &e.ColegiaturaMensual, &e.TotalPagado); err != nil {
+			if err := rows.Scan(&e.HijoID, &e.Nombre, &e.ColegiaturaMensual, &e.TotalPagado, &e.TotalInscripcion, &e.TotalMaterial, &e.TotalOtro); err != nil {
 				continue
 			}
 			e.Estado = calcularEstadoPago(e.ColegiaturaMensual, e.TotalPagado, periodo, periodoActual)
@@ -196,7 +211,11 @@ func (s *Server) registrarRutasPagos(r *gin.Engine) {
 		}
 
 		query := `
-        SELECT h.id, h.nombre_niño, h.colegiatura_mensual, COALESCE(SUM(p.monto), 0) as total_pagado
+        SELECT h.id, h.nombre_niño, h.colegiatura_mensual,
+               COALESCE(SUM(p.monto) FILTER (WHERE p.concepto = 'Colegiatura'), 0) as total_colegiatura,
+               COALESCE(SUM(p.monto) FILTER (WHERE p.concepto = 'Inscripción'), 0) as total_inscripcion,
+               COALESCE(SUM(p.monto) FILTER (WHERE p.concepto = 'Material'), 0) as total_material,
+               COALESCE(SUM(p.monto) FILTER (WHERE p.concepto = 'Otro'), 0) as total_otro
         FROM hijos h
         INNER JOIN tutor_hijos th ON th.hijo_id = h.id
         LEFT JOIN pagos p ON p.hijo_id = h.id AND p.periodo = $3
@@ -216,7 +235,7 @@ func (s *Server) registrarRutasPagos(r *gin.Engine) {
 		estados := []EstadoPagoNino{}
 		for rows.Next() {
 			var e EstadoPagoNino
-			if err := rows.Scan(&e.HijoID, &e.Nombre, &e.ColegiaturaMensual, &e.TotalPagado); err != nil {
+			if err := rows.Scan(&e.HijoID, &e.Nombre, &e.ColegiaturaMensual, &e.TotalPagado, &e.TotalInscripcion, &e.TotalMaterial, &e.TotalOtro); err != nil {
 				continue
 			}
 			e.Estado = calcularEstadoPago(e.ColegiaturaMensual, e.TotalPagado, periodo, periodoActual)

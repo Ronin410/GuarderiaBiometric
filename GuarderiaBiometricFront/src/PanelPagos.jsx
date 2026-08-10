@@ -91,6 +91,23 @@ const PanelPagos = () => {
                     <div className="flex justify-between text-slate-400"><span>Pagado</span><span className="text-emerald-600">${Number(e.total_pagado || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span></div>
                     {saldo > 0 && <div className="flex justify-between text-slate-400"><span>Saldo</span><span className="text-rose-500">${saldo.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span></div>}
                   </div>
+                  {/* Desglose de los demás conceptos del periodo — aparte de la
+                      colegiatura de arriba, que es la única con un monto
+                      esperado configurado (colegiatura_mensual). */}
+                  <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-slate-200">
+                    {[
+                      ['Material', e.total_material],
+                      ['Inscripción', e.total_inscripcion],
+                      ['Otro', e.total_otro],
+                    ].map(([label, monto]) => (
+                      <span
+                        key={label}
+                        className={`text-[9px] font-black px-2 py-1 rounded-lg border uppercase ${monto > 0 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-400 border-slate-100'}`}
+                      >
+                        {label} {monto > 0 ? `$${Number(monto).toLocaleString('es-MX', { minimumFractionDigits: 2 })}` : 'sin pago'}
+                      </span>
+                    ))}
+                  </div>
                 </button>
               );
             })}
