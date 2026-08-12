@@ -3,8 +3,10 @@ import api from './axiosConfig';
 import {
   Search, IdCard, Eye, EyeOff, Edit3, Check, X, Loader2,
   Cake, MapPin, Phone, Wallet, Users, LayoutGrid, Plus, Trash2, Settings2,
+  FolderOpen,
 } from 'lucide-react';
 import { mostrarError, mostrarExito, confirmar } from './utils/alertas';
+import DocumentosNino from './DocumentosNino';
 
 const PanelPerfiles = () => {
   const [ninos, setNinos] = useState([]);
@@ -21,6 +23,8 @@ const PanelPerfiles = () => {
   const [gestionandoGrupos, setGestionandoGrupos] = useState(false);
   const [nuevoGrupoNombre, setNuevoGrupoNombre] = useState('');
   const [creandoGrupo, setCreandoGrupo] = useState(false);
+
+  const [documentosAbiertosId, setDocumentosAbiertosId] = useState(null);
 
   const cargarNinos = async () => {
     setLoading(true);
@@ -44,6 +48,10 @@ const PanelPerfiles = () => {
   };
 
   useEffect(() => { cargarNinos(); cargarGrupos(); }, []);
+
+  const alternarDocumentos = (ninoId) => {
+    setDocumentosAbiertosId(documentosAbiertosId === ninoId ? null : ninoId);
+  };
 
   const iniciarEdicion = (nino) => {
     setEditandoId(nino.id);
@@ -226,14 +234,29 @@ const PanelPerfiles = () => {
                     </p>
                   </div>
                   {editandoId !== nino.id && (
-                    <button
-                      onClick={() => iniciarEdicion(nino)}
-                      className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white text-[10px] font-black uppercase px-4 py-2.5 rounded-xl shadow-md transition-all active:scale-95"
-                    >
-                      <Edit3 size={14} /> Editar Perfil
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => alternarDocumentos(nino.id)}
+                        className={`flex items-center gap-2 text-[10px] font-black uppercase px-4 py-2.5 rounded-xl shadow-md transition-all active:scale-95 ${documentosAbiertosId === nino.id ? 'bg-slate-700 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:border-brand-300'}`}
+                      >
+                        <FolderOpen size={14} /> Documentos
+                      </button>
+                      <button
+                        onClick={() => iniciarEdicion(nino)}
+                        className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white text-[10px] font-black uppercase px-4 py-2.5 rounded-xl shadow-md transition-all active:scale-95"
+                      >
+                        <Edit3 size={14} /> Editar Perfil
+                      </button>
+                    </div>
                   )}
                 </div>
+
+                {documentosAbiertosId === nino.id && (
+                  <div className="mt-6 pt-6 border-t border-slate-200">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Documentos de inscripción</p>
+                    <DocumentosNino ninoId={nino.id} />
+                  </div>
+                )}
 
                 {editandoId === nino.id ? (
                   <div className="mt-6 pt-6 border-t border-slate-200 grid sm:grid-cols-2 gap-4">

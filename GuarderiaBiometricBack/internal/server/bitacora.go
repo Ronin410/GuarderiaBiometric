@@ -233,7 +233,7 @@ func (s *Server) handleGuardarSeguimiento(c *gin.Context) {
 		nombreArchivo := fmt.Sprintf("guarderia_%v/hijo_%s/%s_%s_%s",
 			gID, hijoID, fechaHoy, ahora.Format("150405"), file.Filename)
 
-		key, errS3 := s.uploadToS3(file, nombreArchivo)
+		key, errS3 := s.uploadToS3(file, nombreArchivo, "image/jpeg")
 		if errS3 != nil {
 			continue
 		}

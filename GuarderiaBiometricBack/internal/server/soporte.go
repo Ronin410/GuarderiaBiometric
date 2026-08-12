@@ -26,9 +26,10 @@ const bucketFotos = "biosafe-storage-fotos"
 // enlace permanente como lo era la URL pública anterior.
 const ttlURLFoto = time.Hour
 
-// uploadToS3 sube una foto de la bitácora al bucket privado y regresa la key
-// del objeto (no una URL: el bucket no permite lectura pública).
-func (s *Server) uploadToS3(fileHeader *multipart.FileHeader, key string) (string, error) {
+// uploadToS3 sube un archivo (foto de bitácora o documento de inscripción)
+// al bucket privado y regresa la key del objeto (no una URL: el bucket no
+// permite lectura pública).
+func (s *Server) uploadToS3(fileHeader *multipart.FileHeader, key string, contentType string) (string, error) {
 	file, err := fileHeader.Open()
 	if err != nil {
 		return "", err
@@ -44,13 +45,29 @@ func (s *Server) uploadToS3(fileHeader *multipart.FileHeader, key string) (strin
 		Bucket:      aws.String(bucketFotos),
 		Key:         aws.String(key),
 		Body:        bytes.NewReader(buffer),
-		ContentType: aws.String("image/jpeg"),
+		ContentType: aws.String(contentType),
 	})
 	if err != nil {
 		return "", err
 	}
 
 	return key, nil
+}
+
+// borrarDeS3 elimina un objeto del bucket privado. Se usa para no dejar
+// huérfano el archivo anterior cuando se reemplaza un documento de
+// inscripción, o al eliminar uno explícitamente. Es "fire and forget"
+// (mismo criterio que registrarAcceso): si falla, queda en el log de la
+// aplicación pero no tumba la respuesta al usuario — un objeto huérfano en
+// S3 es un problema de limpieza, no de correctitud de los datos en Postgres.
+func (s *Server) borrarDeS3(key string) {
+	_, err := s.S3.DeleteObject(context.TODO(), &s3.DeleteObjectInput{
+		Bucket: aws.String(bucketFotos),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		log.Printf("borrarDeS3: no se pudo borrar %q: %v", key, err)
+	}
 }
 
 // firmarURLFoto genera una URL temporal (presigned) para leer una foto del
