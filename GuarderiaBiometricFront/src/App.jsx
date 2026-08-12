@@ -7,7 +7,8 @@ import {
   UserPlus, ScanEye, Baby, AlertCircle, Users, Search,
   ClipboardList, TrendingUp, ShieldCheck, ArrowRightCircle,
   Lock, LogOut, CheckCircle, KeyRound, RefreshCw, X, Send, Clock, LogOut as LogOutIcon,
-  User, IdCard, Wallet, BarChart3, ShieldCheck as ShieldCheckIcon, UserCog, UtensilsCrossed
+  User, IdCard, Wallet, BarChart3, ShieldCheck as ShieldCheckIcon, UserCog, UtensilsCrossed,
+  CalendarDays, LayoutDashboard, Settings
 } from 'lucide-react';
 
 // Componentes secundarios
@@ -20,6 +21,7 @@ import PanelEstadisticas from './PanelEstadisticas';
 import PanelConfiguracion from './PanelConfiguracion';
 import PanelPersonal from './PanelPersonal';
 import PanelMenu from './PanelMenu';
+import NavDropdown from './NavDropdown';
 import DashboardPadre from './DashboardPadre';
 import AvisoPrivacidadModal from './AvisoPrivacidadModal';
 import { mostrarError, mostrarExito, mostrarAviso, confirmar as confirmarAccion } from './utils/alertas';
@@ -404,17 +406,37 @@ function MainApp() {
           <div className="flex bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm min-w-max mx-auto">
             <button onClick={() => cambiarTab('identificar')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'identificar' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><ScanEye size={18} /> Kiosco</button>
             <button onClick={() => cambiarTab('registrar')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'registrar' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><UserPlus size={18} /> Registro</button>
-            <button onClick={() => cambiarTab('admin')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'admin' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><Users size={18} /> Familia</button>
-            <button onClick={() => cambiarTab('bitacora')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'bitacora' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><ClipboardList size={18} /> Bitácora</button>
-            <button onClick={() => cambiarTab('reportes')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'reportes' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><TrendingUp size={18} /> Reportes</button>
-            <button onClick={() => cambiarTab('perfiles')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'perfiles' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><IdCard size={18} /> Perfiles</button>
-            <button onClick={() => cambiarTab('pagos')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'pagos' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><Wallet size={18} /> Pagos</button>
-            <button onClick={() => cambiarTab('estadisticas')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'estadisticas' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><BarChart3 size={18} /> Estadísticas</button>
-            <button onClick={() => cambiarTab('menu')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'menu' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><UtensilsCrossed size={18} /> Menú</button>
-            <button onClick={() => cambiarTab('configuracion')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'configuracion' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><ShieldCheckIcon size={18} /> Configuración</button>
-            {userRole === 'admin' && (
-              <button onClick={() => cambiarTab('personal')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'personal' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><UserCog size={18} /> Personal</button>
-            )}
+
+            <NavDropdown
+              label="Alumnos" Icon={Users} tabActual={tab} onSeleccionar={cambiarTab}
+              items={[
+                { tab: 'admin', label: 'Familia', Icon: Users },
+                { tab: 'perfiles', label: 'Perfiles', Icon: IdCard },
+              ]}
+            />
+            <NavDropdown
+              label="Día a Día" Icon={CalendarDays} tabActual={tab} onSeleccionar={cambiarTab}
+              items={[
+                { tab: 'bitacora', label: 'Bitácora', Icon: ClipboardList },
+                { tab: 'menu', label: 'Menú Semanal', Icon: UtensilsCrossed },
+              ]}
+            />
+            <NavDropdown
+              label="Administración" Icon={LayoutDashboard} tabActual={tab} onSeleccionar={cambiarTab}
+              items={[
+                { tab: 'reportes', label: 'Reportes', Icon: TrendingUp },
+                { tab: 'pagos', label: 'Pagos', Icon: Wallet },
+                { tab: 'estadisticas', label: 'Estadísticas', Icon: BarChart3 },
+              ]}
+            />
+            <NavDropdown
+              label="Sistema" Icon={Settings} tabActual={tab} onSeleccionar={cambiarTab}
+              items={[
+                { tab: 'configuracion', label: 'Configuración', Icon: ShieldCheckIcon },
+                ...(userRole === 'admin' ? [{ tab: 'personal', label: 'Personal', Icon: UserCog }] : []),
+              ]}
+            />
+
             <button onClick={cerrarSesion} className="px-3 py-2 text-rose-500 hover:bg-rose-50 rounded-xl ml-2 border-l border-slate-100"><LogOut size={18} /></button>
           </div>
         </nav>
