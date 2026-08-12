@@ -8,7 +8,7 @@ import {
   ClipboardList, TrendingUp, ShieldCheck, ArrowRightCircle,
   Lock, LogOut, CheckCircle, KeyRound, RefreshCw, X, Send, Clock, LogOut as LogOutIcon,
   User, IdCard, Wallet, BarChart3, ShieldCheck as ShieldCheckIcon, UserCog, UtensilsCrossed,
-  CalendarDays, LayoutDashboard, Settings
+  CalendarDays, LayoutDashboard, Settings, Megaphone
 } from 'lucide-react';
 
 // Componentes secundarios
@@ -21,6 +21,7 @@ import PanelEstadisticas from './PanelEstadisticas';
 import PanelConfiguracion from './PanelConfiguracion';
 import PanelPersonal from './PanelPersonal';
 import PanelMenu from './PanelMenu';
+import PanelCirculares from './PanelCirculares';
 import NavDropdown from './NavDropdown';
 import DashboardPadre from './DashboardPadre';
 import AvisoPrivacidadModal from './AvisoPrivacidadModal';
@@ -57,7 +58,7 @@ function MainApp() {
   const { tab: tabDeUrl } = useParams();
   const tab = tabDeUrl || 'identificar';
   const navigate = useNavigate();
-  const TABS_PROTEGIDAS = ['admin', 'bitacora', 'reportes', 'perfiles', 'pagos', 'estadisticas', 'configuracion', 'menu'];
+  const TABS_PROTEGIDAS = ['admin', 'bitacora', 'reportes', 'perfiles', 'pagos', 'estadisticas', 'configuracion', 'menu', 'circulares'];
 
   const [loading, setLoading] = useState(false);
   const [showAdminPinModal, setShowAdminPinModal] = useState(false);
@@ -419,6 +420,7 @@ function MainApp() {
               items={[
                 { tab: 'bitacora', label: 'Bitácora', Icon: ClipboardList },
                 { tab: 'menu', label: 'Menú Semanal', Icon: UtensilsCrossed },
+                { tab: 'circulares', label: 'Circulares', Icon: Megaphone },
               ]}
             />
             <NavDropdown
@@ -449,6 +451,7 @@ function MainApp() {
         {tab === 'pagos' && <PanelPagos />}
         {tab === 'estadisticas' && <PanelEstadisticas />}
         {tab === 'menu' && <PanelMenu />}
+        {tab === 'circulares' && <PanelCirculares />}
         {tab === 'configuracion' && <PanelConfiguracion />}
         {tab === 'personal' && userRole === 'admin' && <PanelPersonal usuarioActualId={userId} />}
         {tab === 'admin' && (

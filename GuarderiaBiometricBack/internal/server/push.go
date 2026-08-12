@@ -115,13 +115,9 @@ func (s *Server) notificarEvento(hijoID int, evento string, detalle string) {
 		return
 	}
 
-	type destino struct {
-		id  int
-		sub webpush.Subscription
-	}
-	var destinos []destino
+	var destinos []destinoPush
 	for rows.Next() {
-		var d destino
+		var d destinoPush
 		if err := rows.Scan(&d.id, &d.sub.Endpoint, &d.sub.Keys.P256dh, &d.sub.Keys.Auth); err != nil {
 			continue
 		}
@@ -135,6 +131,64 @@ func (s *Server) notificarEvento(hijoID int, evento string, detalle string) {
 		return
 	}
 
+	s.enviarPushATodos(destinos, payload)
+}
+
+// notificarCircular avisa a TODOS los tutores de la guardería (no solo a los
+// de un niño en particular, a diferencia de notificarEvento) cuando se
+// publica una circular nueva. Igual que notificarEvento, debe llamarse como
+// "go s.notificarCircular(...)" -- nunca debe frenar la respuesta al panel.
+func (s *Server) notificarCircular(guarderiaID any, titulo, contenido string) {
+	if !s.PushConfigurado() {
+		return
+	}
+
+	rows, err := s.DB.Query(`SELECT id, endpoint, p256dh, auth FROM push_subscripciones WHERE guarderia_id = $1`, guarderiaID)
+	if err != nil {
+		log.Printf("notificarCircular: error consultando suscripciones: %v", err)
+		return
+	}
+	var destinos []destinoPush
+	for rows.Next() {
+		var d destinoPush
+		if err := rows.Scan(&d.id, &d.sub.Endpoint, &d.sub.Keys.P256dh, &d.sub.Keys.Auth); err != nil {
+			continue
+		}
+		destinos = append(destinos, d)
+	}
+	rows.Close()
+
+	// Recorte por runas, no por bytes: el contenido es texto en español con
+	// acentos/ñ (multi-byte en UTF-8) -- cortar por índice de byte podría
+	// partir un carácter a la mitad y mandar texto corrupto en la notificación.
+	cuerpo := contenido
+	runas := []rune(contenido)
+	if len(runas) > 120 {
+		cuerpo = string(runas[:120]) + "…"
+	}
+
+	payload, err := json.Marshal(pushPayload{Titulo: "📢 " + titulo, Cuerpo: cuerpo, URL: "/"})
+	if err != nil {
+		log.Printf("notificarCircular: error serializando payload: %v", err)
+		return
+	}
+
+	s.enviarPushATodos(destinos, payload)
+}
+
+// destinoPush es una suscripción push resuelta, lista para mandarle una
+// notificación -- compartido entre notificarEvento (por niño) y
+// notificarCircular (por guardería completa).
+type destinoPush struct {
+	id  int
+	sub webpush.Subscription
+}
+
+// enviarPushATodos manda el mismo payload a cada destino y limpia del lado
+// de la BD cualquier suscripción que el navegador ya invalidó (404/410) --
+// lógica de envío común para no duplicarla entre notificarEvento y
+// notificarCircular.
+func (s *Server) enviarPushATodos(destinos []destinoPush, payload []byte) {
 	for _, d := range destinos {
 		resp, err := webpush.SendNotification(payload, &d.sub, &webpush.Options{
 			VAPIDPublicKey:  s.VapidPublicKey,
@@ -143,7 +197,7 @@ func (s *Server) notificarEvento(hijoID int, evento string, detalle string) {
 			TTL:             30,
 		})
 		if err != nil {
-			log.Printf("notificarEvento: error enviando a suscripción %d: %v", d.id, err)
+			log.Printf("enviarPushATodos: error enviando a suscripción %d: %v", d.id, err)
 			continue
 		}
 		resp.Body.Close()

@@ -13,7 +13,8 @@ import {
   Clock,
   XCircle,
   LayoutDashboard,
-  UtensilsCrossed
+  UtensilsCrossed,
+  Megaphone
 } from 'lucide-react';
 import VistaPadreDetalle from './VistaPadreDetalle';
 import { suscribirseAPush, suscripcionActiva, pushSoportado } from './utils/push';
@@ -33,6 +34,7 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
   const usuarioNombre = nombreUsuario || 'Familia';
   const [pagos, setPagos] = useState([]);
   const [menuHoy, setMenuHoy] = useState(null);
+  const [circulares, setCirculares] = useState([]);
   const [notifEstado, setNotifEstado] = useState('default');
 
   useEffect(() => {
@@ -75,6 +77,14 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
           if (dia && (dia.desayuno || dia.comida || dia.merienda)) setMenuHoy(dia);
         } catch (errMenu) {
           console.error("Error al cargar el menú del día", errMenu);
+        }
+
+        // 4. Últimas circulares (avisos generales de la guardería)
+        try {
+          const resCirculares = await api.get('/padre/circulares');
+          setCirculares((Array.isArray(resCirculares.data) ? resCirculares.data : []).slice(0, 3));
+        } catch (errCirculares) {
+          console.error("Error al cargar circulares", errCirculares);
         }
 
       } catch (err) {
@@ -218,6 +228,21 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* CIRCULARES */}
+        {circulares.length > 0 && (
+          <div className="space-y-3">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Últimos avisos</h3>
+            {circulares.map((cir) => (
+              <div key={cir.id} className="bg-white p-4 rounded-2xl border border-slate-100 space-y-1.5">
+                <p className="font-black text-sm text-slate-900 uppercase flex items-center gap-2">
+                  <Megaphone size={14} className="text-brand-500 shrink-0" /> {cir.titulo}
+                </p>
+                <p className="text-xs text-slate-500 font-medium whitespace-pre-wrap">{cir.contenido}</p>
+              </div>
+            ))}
           </div>
         )}
 
