@@ -12,10 +12,12 @@ import {
   CheckCircle2,
   Clock,
   XCircle,
-  LayoutDashboard
+  LayoutDashboard,
+  UtensilsCrossed
 } from 'lucide-react';
 import VistaPadreDetalle from './VistaPadreDetalle';
 import { suscribirseAPush, suscripcionActiva, pushSoportado } from './utils/push';
+import { hoyLocal } from './utils/fecha';
 
 const ESTADO_PAGO_INFO = {
   pagado: { label: 'Pagado', color: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: CheckCircle2 },
@@ -30,6 +32,7 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
   const [loading, setLoading] = useState(true);
   const usuarioNombre = nombreUsuario || 'Familia';
   const [pagos, setPagos] = useState([]);
+  const [menuHoy, setMenuHoy] = useState(null);
   const [notifEstado, setNotifEstado] = useState('default');
 
   useEffect(() => {
@@ -62,6 +65,16 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
           setPagos(Array.isArray(resPagos.data) ? resPagos.data : []);
         } catch (errPagos) {
           console.error("Error al cargar el estado de pagos", errPagos);
+        }
+
+        // 3. Menú de hoy (si el staff ya lo cargó)
+        try {
+          const hoy = hoyLocal();
+          const resMenu = await api.get('/padre/menu-semanal', { params: { inicio: hoy, fin: hoy } });
+          const dia = (resMenu.data || [])[0];
+          if (dia && (dia.desayuno || dia.comida || dia.merienda)) setMenuHoy(dia);
+        } catch (errMenu) {
+          console.error("Error al cargar el menú del día", errMenu);
         }
 
       } catch (err) {
@@ -205,6 +218,18 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* MENÚ DE HOY */}
+        {menuHoy && (
+          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm space-y-2">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <UtensilsCrossed size={14} className="text-brand-500" /> Menú de hoy
+            </h3>
+            {menuHoy.desayuno && <p className="text-xs font-bold text-slate-700"><span className="text-brand-500">Desayuno:</span> {menuHoy.desayuno}</p>}
+            {menuHoy.comida && <p className="text-xs font-bold text-slate-700"><span className="text-brand-500">Comida:</span> {menuHoy.comida}</p>}
+            {menuHoy.merienda && <p className="text-xs font-bold text-slate-700"><span className="text-brand-500">Merienda:</span> {menuHoy.merienda}</p>}
           </div>
         )}
 

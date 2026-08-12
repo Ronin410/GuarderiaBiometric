@@ -7,7 +7,7 @@ import {
   UserPlus, ScanEye, Baby, AlertCircle, Users, Search,
   ClipboardList, TrendingUp, ShieldCheck, ArrowRightCircle,
   Lock, LogOut, CheckCircle, KeyRound, RefreshCw, X, Send, Clock, LogOut as LogOutIcon,
-  User, IdCard, Wallet, BarChart3, ShieldCheck as ShieldCheckIcon, UserCog
+  User, IdCard, Wallet, BarChart3, ShieldCheck as ShieldCheckIcon, UserCog, UtensilsCrossed
 } from 'lucide-react';
 
 // Componentes secundarios
@@ -19,6 +19,7 @@ import PanelPagos from './PanelPagos';
 import PanelEstadisticas from './PanelEstadisticas';
 import PanelConfiguracion from './PanelConfiguracion';
 import PanelPersonal from './PanelPersonal';
+import PanelMenu from './PanelMenu';
 import DashboardPadre from './DashboardPadre';
 import AvisoPrivacidadModal from './AvisoPrivacidadModal';
 import { mostrarError, mostrarExito, mostrarAviso, confirmar as confirmarAccion } from './utils/alertas';
@@ -54,7 +55,7 @@ function MainApp() {
   const { tab: tabDeUrl } = useParams();
   const tab = tabDeUrl || 'identificar';
   const navigate = useNavigate();
-  const TABS_PROTEGIDAS = ['admin', 'bitacora', 'reportes', 'perfiles', 'pagos', 'estadisticas', 'configuracion'];
+  const TABS_PROTEGIDAS = ['admin', 'bitacora', 'reportes', 'perfiles', 'pagos', 'estadisticas', 'configuracion', 'menu'];
 
   const [loading, setLoading] = useState(false);
   const [showAdminPinModal, setShowAdminPinModal] = useState(false);
@@ -409,6 +410,7 @@ function MainApp() {
             <button onClick={() => cambiarTab('perfiles')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'perfiles' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><IdCard size={18} /> Perfiles</button>
             <button onClick={() => cambiarTab('pagos')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'pagos' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><Wallet size={18} /> Pagos</button>
             <button onClick={() => cambiarTab('estadisticas')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'estadisticas' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><BarChart3 size={18} /> Estadísticas</button>
+            <button onClick={() => cambiarTab('menu')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'menu' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><UtensilsCrossed size={18} /> Menú</button>
             <button onClick={() => cambiarTab('configuracion')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'configuracion' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><ShieldCheckIcon size={18} /> Configuración</button>
             {userRole === 'admin' && (
               <button onClick={() => cambiarTab('personal')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'personal' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><UserCog size={18} /> Personal</button>
@@ -424,6 +426,7 @@ function MainApp() {
         {tab === 'perfiles' && <PanelPerfiles />}
         {tab === 'pagos' && <PanelPagos />}
         {tab === 'estadisticas' && <PanelEstadisticas />}
+        {tab === 'menu' && <PanelMenu />}
         {tab === 'configuracion' && <PanelConfiguracion />}
         {tab === 'personal' && userRole === 'admin' && <PanelPersonal usuarioActualId={userId} />}
         {tab === 'admin' && (
