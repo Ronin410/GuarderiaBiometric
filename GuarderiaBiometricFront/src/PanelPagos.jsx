@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import api from './axiosConfig';
 import {
   Wallet, Calendar, Loader2, ArrowLeft, Plus, Trash2,
-  CheckCircle2, Clock, XCircle
+  CheckCircle2, Clock, XCircle, Receipt, BellRing
 } from 'lucide-react';
 import { hoyLocal } from './utils/fecha';
-import { mostrarError, confirmar } from './utils/alertas';
+import { mostrarError, mostrarExito, confirmar } from './utils/alertas';
+import ReciboPago from './components/ReciboPago';
 
 const CONCEPTOS = ['Colegiatura', 'Inscripción', 'Material', 'Otro'];
 const METODOS = ['efectivo', 'transferencia', 'tarjeta', 'otro'];
@@ -34,6 +35,7 @@ const PanelPagos = () => {
   const [loading, setLoading] = useState(true);
   const [ninoSeleccionado, setNinoSeleccionado] = useState(null);
   const [filtroEstado, setFiltroEstado] = useState('todos');
+  const [enviandoRecordatorios, setEnviandoRecordatorios] = useState(false);
 
   const cargarEstados = async () => {
     setLoading(true);
@@ -48,6 +50,27 @@ const PanelPagos = () => {
   };
 
   useEffect(() => { cargarEstados(); }, [periodo]);
+
+  const pendientesOVencidos = estados.filter((e) => e.estado === 'pendiente' || e.estado === 'vencido').length;
+
+  const enviarRecordatorios = async () => {
+    if (pendientesOVencidos === 0) return;
+    const ok = await confirmar(
+      `Se notificará por push a los tutores de ${pendientesOVencidos} niño(s) con la colegiatura de ${periodo} pendiente o vencida.`,
+      '¿Enviar recordatorios de pago?',
+    );
+    if (!ok) return;
+    setEnviandoRecordatorios(true);
+    try {
+      const res = await api.post('/pagos/recordatorio', null, { params: { periodo } });
+      mostrarExito(`Se enviaron recordatorios a los tutores de ${res.data.enviados} niño(s).`);
+    } catch (err) {
+      console.error('Error al enviar recordatorios:', err);
+      mostrarError(err.response?.data?.error || 'No se pudieron enviar los recordatorios');
+    } finally {
+      setEnviandoRecordatorios(false);
+    }
+  };
 
   const estadosFiltrados = filtroEstado === 'todos'
     ? estados
@@ -74,9 +97,20 @@ const PanelPagos = () => {
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Colegiaturas mensuales</p>
             </div>
           </div>
-          <div className="relative flex items-center bg-slate-50 rounded-2xl border border-slate-200 px-4">
-            <Calendar size={18} className="text-slate-400" />
-            <input type="month" value={periodo} onChange={(e) => setPeriodo(e.target.value)} className="bg-transparent p-3 text-slate-900 outline-none font-bold text-sm" />
+          <div className="flex items-center gap-3">
+            <div className="relative flex items-center bg-slate-50 rounded-2xl border border-slate-200 px-4">
+              <Calendar size={18} className="text-slate-400" />
+              <input type="month" value={periodo} onChange={(e) => setPeriodo(e.target.value)} className="bg-transparent p-3 text-slate-900 outline-none font-bold text-sm" />
+            </div>
+            <button
+              onClick={enviarRecordatorios}
+              disabled={enviandoRecordatorios || pendientesOVencidos === 0}
+              title={pendientesOVencidos === 0 ? 'Nadie pendiente en este periodo' : `Notificar a ${pendientesOVencidos} familia(s)`}
+              className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white text-[10px] font-black uppercase px-4 py-3 rounded-2xl shadow-md transition-all active:scale-95"
+            >
+              {enviandoRecordatorios ? <Loader2 className="animate-spin" size={16} /> : <BellRing size={16} />}
+              Recordatorios {pendientesOVencidos > 0 ? `(${pendientesOVencidos})` : ''}
+            </button>
           </div>
         </div>
 
@@ -159,6 +193,7 @@ const DetallePago = ({ nino, periodo, onVolver }) => {
   const [historial, setHistorial] = useState([]);
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  const [reciboId, setReciboId] = useState(null);
 
   const saldoSugerido = Math.max(0, (nino.colegiatura_mensual || 0) - (nino.total_pagado || 0)) || nino.colegiatura_mensual || 0;
 
@@ -222,6 +257,10 @@ const DetallePago = ({ nino, periodo, onVolver }) => {
     }
   };
 
+  if (reciboId) {
+    return <ReciboPago pagoId={reciboId} rutaBase="/pagos" onVolver={() => setReciboId(null)} />;
+  }
+
   return (
     <div className="animate-in fade-in duration-500">
       <button onClick={onVolver} className="mb-6 flex items-center gap-2 text-brand-600 font-black uppercase text-xs tracking-widest hover:opacity-70 transition-all">
@@ -283,7 +322,10 @@ const DetallePago = ({ nino, periodo, onVolver }) => {
                     <p className="font-black text-sm text-slate-800">${Number(p.monto).toLocaleString('es-MX', { minimumFractionDigits: 2 })} <span className="text-slate-400 font-bold text-xs">· {p.concepto}</span></p>
                     <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{p.periodo} · {p.fecha_pago} · {p.metodo_pago}{p.observaciones ? ` · ${p.observaciones}` : ''}</p>
                   </div>
-                  <button onClick={() => eliminarPago(p.id)} title="Eliminar pago" className="text-slate-300 hover:text-rose-500 hover:bg-rose-50 p-2.5 rounded-xl transition-colors"><Trash2 size={18} /></button>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => setReciboId(p.id)} title="Ver recibo" className="text-slate-300 hover:text-brand-600 hover:bg-brand-50 p-2.5 rounded-xl transition-colors"><Receipt size={18} /></button>
+                    <button onClick={() => eliminarPago(p.id)} title="Eliminar pago" className="text-slate-300 hover:text-rose-500 hover:bg-rose-50 p-2.5 rounded-xl transition-colors"><Trash2 size={18} /></button>
+                  </div>
                 </div>
               ))}
             </div>

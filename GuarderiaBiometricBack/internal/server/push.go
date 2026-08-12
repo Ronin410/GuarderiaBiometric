@@ -100,6 +100,9 @@ func (s *Server) notificarEvento(hijoID int, evento string, detalle string) {
 	case "BITACORA":
 		titulo = "📋 Bitácora actualizada"
 		cuerpo = nombre + ": " + detalle
+	case "RECORDATORIO_PAGO":
+		titulo = "💰 Recordatorio de pago"
+		cuerpo = "La colegiatura de " + nombre + " del periodo " + detalle + " sigue pendiente."
 	default:
 		titulo = "BioSafe"
 		cuerpo = nombre + ": " + detalle

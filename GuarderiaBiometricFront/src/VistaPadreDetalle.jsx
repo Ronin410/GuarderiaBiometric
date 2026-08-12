@@ -6,10 +6,11 @@ import {
   Calendar as CalendarIcon,
   X, // Importamos el icono de cerrar
   ClipboardList, IdCard, Wallet,
-  Cake, MapPin, Phone, XCircle
+  Cake, MapPin, Phone, XCircle, Receipt
 } from 'lucide-react';
 import { hoyLocal } from './utils/fecha';
 import ReporteDiario from './components/ReporteDiario';
+import ReciboPago from './components/ReciboPago';
 
 const ESTADO_PAGO_INFO = {
   pagado: { label: 'Pagado', color: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: CheckCircle2 },
@@ -28,6 +29,7 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
 
   const [historialPagos, setHistorialPagos] = useState([]);
   const [loadingPagos, setLoadingPagos] = useState(false);
+  const [reciboId, setReciboId] = useState(null);
 
   // ESTADO PARA LA FOTO EN GRANDE
   const [fotoSeleccionada, setFotoSeleccionada] = useState(null);
@@ -71,6 +73,14 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
   const handleCambioFecha = (e) => {
     setFechaSeleccionada(e.target.value);
   };
+
+  if (reciboId) {
+    return (
+      <div className="min-h-screen bg-slate-50 p-4 sm:p-6">
+        <ReciboPago pagoId={reciboId} rutaBase="/padre/pagos" onVolver={() => setReciboId(null)} />
+      </div>
+    );
+  }
 
   if (loading && vista === 'bitacora') {
     return (
@@ -213,6 +223,7 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
                   <p className="font-black text-sm text-slate-800">${Number(p.monto).toLocaleString('es-MX', { minimumFractionDigits: 2 })} <span className="text-slate-400 font-bold text-xs">· {p.concepto}</span></p>
                   <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{p.periodo} · {p.fecha_pago} · {p.metodo_pago}</p>
                 </div>
+                <button onClick={() => setReciboId(p.id)} title="Ver recibo" className="text-slate-300 hover:text-brand-600 hover:bg-brand-50 p-2.5 rounded-xl transition-colors shrink-0"><Receipt size={18} /></button>
               </div>
             ))
           )}
