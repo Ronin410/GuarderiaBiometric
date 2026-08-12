@@ -179,6 +179,40 @@ func (s *Server) notificarCircular(guarderiaID any, titulo, contenido string) {
 	s.enviarPushATodos(destinos, payload)
 }
 
+// notificarMensajeChat avisa a UN tutor (no a toda la guardería, a
+// diferencia de notificarCircular) cuando staff le responde en el chat
+// privado. No se manda contenido del mensaje en la notificación a propósito
+// -- push va sobre HTTPS pero el payload queda en el log del navegador/SO,
+// y son datos de una conversación privada.
+func (s *Server) notificarMensajeChat(padreID int) {
+	if !s.PushConfigurado() {
+		return
+	}
+
+	rows, err := s.DB.Query(`SELECT id, endpoint, p256dh, auth FROM push_subscripciones WHERE padre_id = $1`, padreID)
+	if err != nil {
+		log.Printf("notificarMensajeChat: error consultando suscripciones: %v", err)
+		return
+	}
+	var destinos []destinoPush
+	for rows.Next() {
+		var d destinoPush
+		if err := rows.Scan(&d.id, &d.sub.Endpoint, &d.sub.Keys.P256dh, &d.sub.Keys.Auth); err != nil {
+			continue
+		}
+		destinos = append(destinos, d)
+	}
+	rows.Close()
+
+	payload, err := json.Marshal(pushPayload{Titulo: "💬 Nuevo mensaje", Cuerpo: "La guardería te envió un mensaje.", URL: "/"})
+	if err != nil {
+		log.Printf("notificarMensajeChat: error serializando payload: %v", err)
+		return
+	}
+
+	s.enviarPushATodos(destinos, payload)
+}
+
 // destinoPush es una suscripción push resuelta, lista para mandarle una
 // notificación -- compartido entre notificarEvento (por niño) y
 // notificarCircular (por guardería completa).

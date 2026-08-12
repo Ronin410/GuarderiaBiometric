@@ -14,9 +14,11 @@ import {
   XCircle,
   LayoutDashboard,
   UtensilsCrossed,
-  Megaphone
+  Megaphone,
+  MessageCircle
 } from 'lucide-react';
 import VistaPadreDetalle from './VistaPadreDetalle';
+import ChatPadre from './ChatPadre';
 import { suscribirseAPush, suscripcionActiva, pushSoportado } from './utils/push';
 import { hoyLocal } from './utils/fecha';
 
@@ -30,6 +32,7 @@ const ESTADO_PAGO_INFO = {
 const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
   const [hijos, setHijos] = useState([]);
   const [hijoSeleccionado, setHijoSeleccionado] = useState(null);
+  const [mostrarChat, setMostrarChat] = useState(false);
   const [loading, setLoading] = useState(true);
   const usuarioNombre = nombreUsuario || 'Familia';
   const [pagos, setPagos] = useState([]);
@@ -135,6 +138,10 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
   }
 
   // Navegación a la vista de detalle
+  if (mostrarChat) {
+    return <ChatPadre onVolver={() => setMostrarChat(false)} />;
+  }
+
   if (hijoSeleccionado) {
     return (
       <VistaPadreDetalle
@@ -182,6 +189,19 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
             Las bitácoras se actualizan en tiempo real por las maestras.
           </p>
         </div>
+
+        {/* CHAT CON LA GUARDERÍA */}
+        <button
+          onClick={() => setMostrarChat(true)}
+          className="w-full bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-all active:scale-[0.98]"
+        >
+          <div className="bg-brand-100 p-3 rounded-2xl text-brand-600 shrink-0"><MessageCircle size={20} /></div>
+          <div className="flex-1 text-left">
+            <p className="text-[11px] font-black text-slate-900 uppercase leading-tight">Chat con la guardería</p>
+            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Mensajes directos, sin WhatsApp</p>
+          </div>
+          <ChevronRight size={20} className="text-slate-300 shrink-0" />
+        </button>
 
         {/* NOTIFICACIONES PUSH */}
         {pushSoportado() && (
