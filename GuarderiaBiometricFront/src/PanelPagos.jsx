@@ -17,11 +17,23 @@ const ESTADO_INFO = {
   vencido: { label: 'Vencido', color: 'bg-rose-100 text-rose-700 border-rose-200', icon: XCircle },
 };
 
+// Filtro de la grilla — "todos" no es un estado real, es el valor por
+// defecto que no filtra nada. El resto coincide exactamente con lo que
+// regresa calcularEstadoPago en el backend.
+const FILTROS = [
+  { valor: 'todos', label: 'Todos' },
+  { valor: 'pendiente', label: 'Pendientes' },
+  { valor: 'parcial', label: 'Parciales' },
+  { valor: 'pagado', label: 'Pagados' },
+  { valor: 'vencido', label: 'Vencidos' },
+];
+
 const PanelPagos = () => {
   const [periodo, setPeriodo] = useState(hoyLocal().slice(0, 7));
   const [estados, setEstados] = useState([]);
   const [loading, setLoading] = useState(true);
   const [ninoSeleccionado, setNinoSeleccionado] = useState(null);
+  const [filtroEstado, setFiltroEstado] = useState('todos');
 
   const cargarEstados = async () => {
     setLoading(true);
@@ -36,6 +48,10 @@ const PanelPagos = () => {
   };
 
   useEffect(() => { cargarEstados(); }, [periodo]);
+
+  const estadosFiltrados = filtroEstado === 'todos'
+    ? estados
+    : estados.filter((e) => e.estado === filtroEstado);
 
   if (ninoSeleccionado) {
     return (
@@ -64,13 +80,34 @@ const PanelPagos = () => {
           </div>
         </div>
 
+        {/* Filtro por estado — los contadores se calculan sobre "estados" (sin
+            filtrar) para que no cambien de valor según cuál pill esté activa. */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          {FILTROS.map((f) => {
+            const cantidad = f.valor === 'todos' ? estados.length : estados.filter((e) => e.estado === f.valor).length;
+            const activo = filtroEstado === f.valor;
+            return (
+              <button
+                key={f.valor}
+                onClick={() => setFiltroEstado(f.valor)}
+                className={`flex items-center gap-2 text-[10px] font-black uppercase px-3.5 py-2 rounded-full border transition-all ${activo ? 'bg-brand-600 border-brand-600 text-white shadow-sm' : 'bg-white border-slate-200 text-slate-500 hover:border-brand-300'}`}
+              >
+                {f.label}
+                <span className={`px-1.5 py-0.5 rounded-full text-[9px] ${activo ? 'bg-white/20' : 'bg-slate-100'}`}>{cantidad}</span>
+              </button>
+            );
+          })}
+        </div>
+
         {loading ? (
           <div className="py-20 text-center text-slate-400 font-black uppercase tracking-widest text-xs">Cargando...</div>
         ) : estados.length === 0 ? (
           <div className="py-20 text-center text-slate-400 font-black uppercase tracking-widest text-xs">Sin alumnos activos</div>
+        ) : estadosFiltrados.length === 0 ? (
+          <div className="py-20 text-center text-slate-400 font-black uppercase tracking-widest text-xs">Nadie en este estado</div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {estados.map((e) => {
+            {estadosFiltrados.map((e) => {
               const info = ESTADO_INFO[e.estado] || ESTADO_INFO.pendiente;
               const Icono = info.icon;
               const saldo = Math.max(0, (e.colegiatura_mensual || 0) - (e.total_pagado || 0));
