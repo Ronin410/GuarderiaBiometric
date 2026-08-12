@@ -2,19 +2,25 @@ import React, { useState, useEffect } from 'react';
 import api from './axiosConfig';
 import {
   Search, IdCard, Eye, EyeOff, Edit3, Check, X, Loader2,
-  Cake, MapPin, Phone, Wallet, Users
+  Cake, MapPin, Phone, Wallet, Users, LayoutGrid, Plus, Trash2, Settings2,
 } from 'lucide-react';
-import { mostrarError } from './utils/alertas';
+import { mostrarError, mostrarExito, confirmar } from './utils/alertas';
 
 const PanelPerfiles = () => {
   const [ninos, setNinos] = useState([]);
+  const [grupos, setGrupos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState('');
   const [verBajas, setVerBajas] = useState(false);
+  const [filtroGrupo, setFiltroGrupo] = useState('todos');
 
   const [editandoId, setEditandoId] = useState(null);
   const [form, setForm] = useState({});
   const [guardando, setGuardando] = useState(false);
+
+  const [gestionandoGrupos, setGestionandoGrupos] = useState(false);
+  const [nuevoGrupoNombre, setNuevoGrupoNombre] = useState('');
+  const [creandoGrupo, setCreandoGrupo] = useState(false);
 
   const cargarNinos = async () => {
     setLoading(true);
@@ -28,7 +34,16 @@ const PanelPerfiles = () => {
     }
   };
 
-  useEffect(() => { cargarNinos(); }, []);
+  const cargarGrupos = async () => {
+    try {
+      const res = await api.get('/admin/grupos');
+      setGrupos(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error('Error al cargar grupos:', err);
+    }
+  };
+
+  useEffect(() => { cargarNinos(); cargarGrupos(); }, []);
 
   const iniciarEdicion = (nino) => {
     setEditandoId(nino.id);
@@ -38,6 +53,7 @@ const PanelPerfiles = () => {
       contacto_emergencia_nombre: nino.contacto_emergencia_nombre || '',
       contacto_emergencia_telefono: nino.contacto_emergencia_telefono || '',
       colegiatura_mensual: nino.colegiatura_mensual || 0,
+      grupo_id: nino.grupo_id || '',
     });
   };
 
@@ -52,9 +68,11 @@ const PanelPerfiles = () => {
       await api.put(`/hijos/${id}/perfil`, {
         ...form,
         colegiatura_mensual: parseFloat(form.colegiatura_mensual) || 0,
+        grupo_id: form.grupo_id === '' ? null : parseInt(form.grupo_id, 10),
       });
       setEditandoId(null);
       cargarNinos();
+      cargarGrupos(); // el conteo de cada píldora de grupo depende de a quién se le asignó
     } catch (err) {
       console.error('Error al guardar perfil:', err);
       mostrarError('No se pudo guardar el perfil');
@@ -63,9 +81,43 @@ const PanelPerfiles = () => {
     }
   };
 
+  const crearGrupo = async () => {
+    if (!nuevoGrupoNombre.trim()) return;
+    setCreandoGrupo(true);
+    try {
+      await api.post('/admin/grupos', { nombre: nuevoGrupoNombre.trim() });
+      setNuevoGrupoNombre('');
+      cargarGrupos();
+    } catch (err) {
+      console.error('Error al crear grupo:', err);
+      mostrarError('No se pudo crear el grupo');
+    } finally {
+      setCreandoGrupo(false);
+    }
+  };
+
+  const eliminarGrupo = async (grupo) => {
+    if (grupo.ninos_activos > 0) {
+      mostrarError(`"${grupo.nombre}" tiene ${grupo.ninos_activos} niño(s) asignado(s). Reasígnalos a otro grupo antes de eliminarlo.`);
+      return;
+    }
+    const ok = await confirmar(`Se eliminará el grupo "${grupo.nombre}".`, '¿Eliminar grupo?');
+    if (!ok) return;
+    try {
+      await api.delete(`/admin/grupos/${grupo.id}`);
+      mostrarExito('Grupo eliminado');
+      if (filtroGrupo === grupo.id) setFiltroGrupo('todos');
+      cargarGrupos();
+    } catch (err) {
+      console.error('Error al eliminar grupo:', err);
+      mostrarError(err.response?.data?.error || 'No se pudo eliminar el grupo');
+    }
+  };
+
   const ninosFiltrados = ninos
     .filter(n => verBajas ? true : n.activo)
-    .filter(n => n.nombre.toLowerCase().includes(busqueda.toLowerCase()));
+    .filter(n => n.nombre.toLowerCase().includes(busqueda.toLowerCase()))
+    .filter(n => filtroGrupo === 'todos' ? true : n.grupo_id === filtroGrupo);
 
   return (
     <div className="animate-in fade-in duration-500">
@@ -85,6 +137,61 @@ const PanelPerfiles = () => {
             {verBajas ? <EyeOff size={12} /> : <Eye size={12} />}
             {verBajas ? 'Ocultar Bajas' : 'Ver Bajas'}
           </button>
+        </div>
+
+        {/* --- Grupos: filtro + gestión (crear/eliminar) --- */}
+        <div className="mb-6">
+          <div className="flex flex-wrap items-center gap-2">
+            <LayoutGrid size={14} className="text-slate-400 mr-1" />
+            <button
+              onClick={() => setFiltroGrupo('todos')}
+              className={`text-[10px] font-black uppercase px-3.5 py-2 rounded-full border transition-all ${filtroGrupo === 'todos' ? 'bg-brand-600 border-brand-600 text-white shadow-sm' : 'bg-white border-slate-200 text-slate-500 hover:border-brand-300'}`}
+            >
+              Todos
+            </button>
+            {grupos.map((g) => (
+              <div key={g.id} className="flex items-center gap-1">
+                <button
+                  onClick={() => setFiltroGrupo(g.id)}
+                  className={`flex items-center gap-2 text-[10px] font-black uppercase px-3.5 py-2 rounded-full border transition-all ${filtroGrupo === g.id ? 'bg-brand-600 border-brand-600 text-white shadow-sm' : 'bg-white border-slate-200 text-slate-500 hover:border-brand-300'}`}
+                >
+                  {g.nombre}
+                  <span className={`px-1.5 py-0.5 rounded-full text-[9px] ${filtroGrupo === g.id ? 'bg-white/20' : 'bg-slate-100'}`}>{g.ninos_activos}</span>
+                </button>
+                {gestionandoGrupos && (
+                  <button onClick={() => eliminarGrupo(g)} className="text-rose-400 hover:text-rose-600 p-1" title="Eliminar grupo">
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              onClick={() => setGestionandoGrupos(!gestionandoGrupos)}
+              className={`flex items-center gap-1.5 text-[10px] font-black uppercase px-3 py-2 rounded-full transition-all ${gestionandoGrupos ? 'bg-slate-200 text-slate-700' : 'text-slate-400 hover:bg-slate-100'}`}
+              title="Gestionar grupos"
+            >
+              <Settings2 size={14} /> {gestionandoGrupos ? 'Listo' : 'Gestionar'}
+            </button>
+          </div>
+          {gestionandoGrupos && (
+            <div className="flex items-center gap-2 mt-3">
+              <input
+                type="text"
+                value={nuevoGrupoNombre}
+                onChange={(e) => setNuevoGrupoNombre(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && crearGrupo()}
+                placeholder="Nombre del nuevo grupo (ej. Sala Maternal)"
+                className="bg-slate-50 border border-slate-200 px-4 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-brand-500 text-sm font-bold flex-1 max-w-xs"
+              />
+              <button
+                onClick={crearGrupo}
+                disabled={creandoGrupo || !nuevoGrupoNombre.trim()}
+                className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-[10px] font-black uppercase px-4 py-2.5 rounded-xl shadow-md transition-all"
+              >
+                {creandoGrupo ? <Loader2 className="animate-spin" size={14} /> : <Plus size={14} />} Agregar
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="relative mb-8">
@@ -108,7 +215,12 @@ const PanelPerfiles = () => {
               <div key={nino.id} className={`p-6 rounded-[2rem] border transition-all ${!nino.activo ? 'bg-slate-100 opacity-60 border-dashed border-slate-300' : 'bg-slate-50 border-slate-100'}`}>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <div>
-                    <p className="font-black text-lg uppercase tracking-tight text-slate-900">{nino.nombre}</p>
+                    <p className="font-black text-lg uppercase tracking-tight text-slate-900 flex items-center gap-2">
+                      {nino.nombre}
+                      {nino.grupo_nombre && (
+                        <span className="text-[9px] bg-brand-100 text-brand-600 px-2 py-0.5 rounded-full normal-case font-black">{nino.grupo_nombre}</span>
+                      )}
+                    </p>
                     <p className="text-[10px] text-brand-500 font-bold uppercase flex items-center gap-1 mt-1">
                       <Users size={12} /> {nino.tutores || 'Sin tutor vinculado'}
                     </p>
@@ -128,6 +240,13 @@ const PanelPerfiles = () => {
                     <div>
                       <label className="text-[10px] font-black text-slate-400 uppercase ml-1 mb-1 block">Fecha de nacimiento</label>
                       <input type="date" value={form.fecha_nacimiento} onChange={(e) => setForm({ ...form, fecha_nacimiento: e.target.value })} className="w-full bg-white border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-brand-500 text-sm font-bold" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black text-slate-400 uppercase ml-1 mb-1 block">Grupo</label>
+                      <select value={form.grupo_id} onChange={(e) => setForm({ ...form, grupo_id: e.target.value })} className="w-full bg-white border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-brand-500 text-sm font-bold">
+                        <option value="">Sin grupo</option>
+                        {grupos.map((g) => <option key={g.id} value={g.id}>{g.nombre}</option>)}
+                      </select>
                     </div>
                     <div>
                       <label className="text-[10px] font-black text-slate-400 uppercase ml-1 mb-1 block">Colegiatura mensual (MXN)</label>
