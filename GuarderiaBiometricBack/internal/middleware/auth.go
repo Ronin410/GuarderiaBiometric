@@ -90,3 +90,20 @@ func RequireStaff() gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+// RequireAdmin bloquea el acceso a cualquier cuenta que no sea "admin" — a
+// diferencia de RequireStaff (que solo excluye "papa"), esto también excluye
+// "staff". Se usa en la gestión de personal: dejar que una cuenta de staff
+// cree otras cuentas, se reasigne el rol admin a sí misma, o cambie el PIN
+// de alguien más sería un escalamiento de privilegios.
+func RequireAdmin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		rol, _ := c.Get("rol")
+		if rol != "admin" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Acceso restringido al administrador de la guardería"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}

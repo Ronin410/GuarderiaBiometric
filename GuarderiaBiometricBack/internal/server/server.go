@@ -66,6 +66,7 @@ func (s *Server) PushConfigurado() bool {
 // ejercitarlo con httptest, igual que antes hacía setupRouter() en main.go.
 func (s *Server) RegisterRoutes(r *gin.Engine) {
 	s.registrarRutasAuth(r)
+	s.registrarRutasPersonal(r)
 	s.registrarRutasAsistencia(r)
 	s.registrarRutasHijos(r)
 	s.registrarRutasBitacora(r)

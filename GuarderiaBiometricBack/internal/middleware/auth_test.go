@@ -141,3 +141,34 @@ func TestRequireStaff(t *testing.T) {
 		})
 	}
 }
+
+func TestRequireAdmin(t *testing.T) {
+	r := gin.New()
+	r.GET("/solo-admin",
+		func(c *gin.Context) { c.Set("rol", c.GetHeader("X-Rol-Prueba")); c.Next() },
+		RequireAdmin(),
+		func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"ok": true}) },
+	)
+
+	casos := []struct {
+		rol            string
+		codigoEsperado int
+	}{
+		{"admin", http.StatusOK},
+		{"staff", http.StatusForbidden},
+		{"papa", http.StatusForbidden},
+		{"", http.StatusForbidden},
+	}
+
+	for _, c := range casos {
+		t.Run("rol="+c.rol, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/solo-admin", nil)
+			req.Header.Set("X-Rol-Prueba", c.rol)
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+			if w.Code != c.codigoEsperado {
+				t.Errorf("rol %q: código = %d; esperado %d", c.rol, w.Code, c.codigoEsperado)
+			}
+		})
+	}
+}

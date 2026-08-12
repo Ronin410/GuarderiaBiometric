@@ -27,7 +27,7 @@ func TestLogin(t *testing.T) {
 		t.Fatalf("no se pudo generar el hash de prueba: %v", err)
 	}
 
-	columnas := []string{"id", "guarderia_id", "password_hash", "rol", "pin_admin", "nombre", "slug"}
+	columnas := []string{"id", "guarderia_id", "password_hash", "rol", "pin_admin", "nombre", "slug", "activo"}
 
 	t.Run("credenciales correctas -> 200 con token", func(t *testing.T) {
 		mockDB, mock, err := sqlmock.New()
@@ -43,7 +43,7 @@ func TestLogin(t *testing.T) {
 		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.username = \\$1").
 			WithArgs("admin_demo").
 			WillReturnRows(sqlmock.NewRows(columnas).
-				AddRow(1, 1, string(hashCorrecto), "admin", "1234", "Guardería Demo", "demo"))
+				AddRow(1, 1, string(hashCorrecto), "admin", "1234", "Guardería Demo", "demo", true))
 
 		r := nuevoRouterDePrueba(srv)
 		w := httptest.NewRecorder()
@@ -107,7 +107,7 @@ func TestLogin(t *testing.T) {
 		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.username = \\$1").
 			WithArgs("admin_demo").
 			WillReturnRows(sqlmock.NewRows(columnas).
-				AddRow(1, 1, string(hashCorrecto), "admin", "1234", "Guardería Demo", "demo"))
+				AddRow(1, 1, string(hashCorrecto), "admin", "1234", "Guardería Demo", "demo", true))
 
 		r := nuevoRouterDePrueba(srv)
 		w := httptest.NewRecorder()
@@ -115,6 +115,37 @@ func TestLogin(t *testing.T) {
 
 		if w.Code != http.StatusUnauthorized {
 			t.Fatalf("código = %d; esperado 401 (body: %s)", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("cuenta desactivada -> 401", func(t *testing.T) {
+		mockDB, mock, err := sqlmock.New()
+		if err != nil {
+			t.Fatalf("sqlmock: %v", err)
+		}
+		defer mockDB.Close()
+
+		srv := New()
+		srv.DBAuth = mockDB
+		srv.JWTKey = []byte("clave-de-prueba-solo-para-tests")
+
+		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.username = \\$1").
+			WithArgs("staff_baja").
+			WillReturnRows(sqlmock.NewRows(columnas).
+				AddRow(2, 1, string(hashCorrecto), "staff", "1234", "Guardería Demo", "demo", false))
+
+		r := nuevoRouterDePrueba(srv)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, loginRequest("staff_baja", "Correcta123!"))
+
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("código = %d; esperado 401 (body: %s)", w.Code, w.Body.String())
+		}
+		cookies := w.Result().Cookies()
+		for _, ck := range cookies {
+			if ck.Name == middleware.CookieToken && ck.Value != "" {
+				t.Errorf("una cuenta desactivada no debe recibir cookie de sesión, se encontró: %v", ck)
+			}
 		}
 	})
 

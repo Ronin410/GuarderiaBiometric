@@ -28,7 +28,6 @@ type PinRequest struct {
 const duracionCookieSegundos = 24 * 60 * 60
 
 func (s *Server) registrarRutasAuth(r *gin.Engine) {
-	r.POST("/usuarios/registro", s.handleRegistroUsuario)
 	r.POST("/login", s.loginLimiter.Middleware(), s.handleLogin)
 	r.POST("/verificar-pin", middleware.Auth(s.JWTKey), s.pinLimiter.Middleware(), s.handleVerificarPin)
 	r.GET("/me", middleware.Auth(s.JWTKey), s.handleMe)
@@ -47,47 +46,6 @@ func generarCSRFToken() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
-func (s *Server) handleRegistroUsuario(c *gin.Context) {
-	var nuevoUsuario struct {
-		Username    string `json:"username"`
-		Password    string `json:"password"`
-		GuarderiaID int    `json:"guarderia_id"`
-		Rol         string `json:"rol"`
-		PinAdmin    string `json:"pin_admin"`
-	}
-
-	if err := c.ShouldBindJSON(&nuevoUsuario); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Datos inválidos"})
-		return
-	}
-
-	// El costo 10 es el estándar recomendado para el plan Professional que manejas
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(nuevoUsuario.Password), 10)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al procesar seguridad"})
-		return
-	}
-
-	query := `
-        INSERT INTO usuarios (username, password_hash, guarderia_id, rol, pin_admin)
-        VALUES ($1, $2, $3, $4, $5)`
-
-	_, err = s.DBAuth.Exec(query,
-		nuevoUsuario.Username,
-		string(hashedPassword),
-		nuevoUsuario.GuarderiaID,
-		nuevoUsuario.Rol,
-		nuevoUsuario.PinAdmin,
-	)
-	if err != nil {
-		fmt.Printf("Error al insertar usuario: %v\n", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo crear el usuario"})
-		return
-	}
-
-	c.JSON(http.StatusCreated, gin.H{"message": "Usuario creado exitosamente con hash de seguridad"})
-}
-
 func (s *Server) handleLogin(c *gin.Context) {
 	var creds struct {
 		Username string `json:"username"`
@@ -101,17 +59,18 @@ func (s *Server) handleLogin(c *gin.Context) {
 
 	var id, gID int
 	var passHash, rol, pinAdmin, gNombre, gSlug string
+	var activo bool
 	// Nota: pin_admin se consulta solo para mantener la forma de la fila; nunca se
 	// expone en la respuesta. La verificación del PIN se hace en /verificar-pin.
 	query := `
 		SELECT
             u.id, u.guarderia_id, u.password_hash, u.rol, u.pin_admin,
-            g.nombre, g.slug
+            g.nombre, g.slug, u.activo
         FROM usuarios u
         INNER JOIN guarderias g ON u.guarderia_id = g.id
         WHERE u.username = $1`
 
-	err := s.DBAuth.QueryRow(query, creds.Username).Scan(&id, &gID, &passHash, &rol, &pinAdmin, &gNombre, &gSlug)
+	err := s.DBAuth.QueryRow(query, creds.Username).Scan(&id, &gID, &passHash, &rol, &pinAdmin, &gNombre, &gSlug, &activo)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			fmt.Printf("Usuario no encontrado: %s\n", creds.Username)
@@ -128,6 +87,23 @@ func (s *Server) handleLogin(c *gin.Context) {
 		log.Printf("Intento de login inválido para usuario %s", creds.Username)
 		s.registrarAcceso("login_fallido", gID, id, "contraseña incorrecta", c.ClientIP())
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Contraseña incorrecta"})
+		return
+	}
+
+	// La contraseña ya se validó antes de revisar esto a propósito: así un
+	// intento con contraseña incorrecta contra una cuenta desactivada no le
+	// revela a quien lo intenta que la cuenta existe y está desactivada.
+	//
+	// Trade-off: esto bloquea logins NUEVOS de inmediato, pero una sesión ya
+	// iniciada (cookie con JWT válido) sigue funcionando hasta que expira
+	// (24h) — Auth() no vuelve a consultar la BD en cada request. Aceptable
+	// para el tamaño de esta app (nadie más audita revocación en tiempo
+	// real hoy); si se necesita corte inmediato, hay que revisar "activo" en
+	// Auth() con el costo de una consulta extra por request.
+	if !activo {
+		log.Printf("Login rechazado (cuenta desactivada): %s", creds.Username)
+		s.registrarAcceso("login_fallido", gID, id, "cuenta desactivada: "+creds.Username, c.ClientIP())
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Esta cuenta está desactivada"})
 		return
 	}
 

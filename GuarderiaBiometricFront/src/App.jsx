@@ -7,7 +7,7 @@ import {
   UserPlus, ScanEye, Baby, AlertCircle, Users, Search,
   ClipboardList, TrendingUp, ShieldCheck, ArrowRightCircle,
   Lock, LogOut, CheckCircle, KeyRound, RefreshCw, X, Send, Clock, LogOut as LogOutIcon,
-  User, IdCard, Wallet, BarChart3, ShieldCheck as ShieldCheckIcon
+  User, IdCard, Wallet, BarChart3, ShieldCheck as ShieldCheckIcon, UserCog
 } from 'lucide-react';
 
 // Componentes secundarios
@@ -18,6 +18,7 @@ import PanelPerfiles from './PanelPerfiles';
 import PanelPagos from './PanelPagos';
 import PanelEstadisticas from './PanelEstadisticas';
 import PanelConfiguracion from './PanelConfiguracion';
+import PanelPersonal from './PanelPersonal';
 import DashboardPadre from './DashboardPadre';
 import AvisoPrivacidadModal from './AvisoPrivacidadModal';
 import { mostrarError, mostrarExito, mostrarAviso, confirmar as confirmarAccion } from './utils/alertas';
@@ -409,6 +410,9 @@ function MainApp() {
             <button onClick={() => cambiarTab('pagos')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'pagos' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><Wallet size={18} /> Pagos</button>
             <button onClick={() => cambiarTab('estadisticas')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'estadisticas' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><BarChart3 size={18} /> Estadísticas</button>
             <button onClick={() => cambiarTab('configuracion')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'configuracion' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><ShieldCheckIcon size={18} /> Configuración</button>
+            {userRole === 'admin' && (
+              <button onClick={() => cambiarTab('personal')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'personal' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><UserCog size={18} /> Personal</button>
+            )}
             <button onClick={cerrarSesion} className="px-3 py-2 text-rose-500 hover:bg-rose-50 rounded-xl ml-2 border-l border-slate-100"><LogOut size={18} /></button>
           </div>
         </nav>
@@ -421,6 +425,7 @@ function MainApp() {
         {tab === 'pagos' && <PanelPagos />}
         {tab === 'estadisticas' && <PanelEstadisticas />}
         {tab === 'configuracion' && <PanelConfiguracion />}
+        {tab === 'personal' && userRole === 'admin' && <PanelPersonal usuarioActualId={userId} />}
         {tab === 'admin' && (
           <div className="animate-in fade-in duration-500">
             <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl">
