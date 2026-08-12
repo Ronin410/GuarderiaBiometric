@@ -22,6 +22,7 @@ import PanelConfiguracion from './PanelConfiguracion';
 import PanelPersonal from './PanelPersonal';
 import PanelMenu from './PanelMenu';
 import PanelCirculares from './PanelCirculares';
+import PanelHorarios from './PanelHorarios';
 import NavDropdown from './NavDropdown';
 import DashboardPadre from './DashboardPadre';
 import AvisoPrivacidadModal from './AvisoPrivacidadModal';
@@ -435,7 +436,10 @@ function MainApp() {
               label="Sistema" Icon={Settings} tabActual={tab} onSeleccionar={cambiarTab}
               items={[
                 { tab: 'configuracion', label: 'Configuración', Icon: ShieldCheckIcon },
-                ...(userRole === 'admin' ? [{ tab: 'personal', label: 'Personal', Icon: UserCog }] : []),
+                ...(userRole === 'admin' ? [
+                  { tab: 'personal', label: 'Personal', Icon: UserCog },
+                  { tab: 'horarios', label: 'Horarios de Personal', Icon: Clock },
+                ] : []),
               ]}
             />
 
@@ -454,6 +458,7 @@ function MainApp() {
         {tab === 'circulares' && <PanelCirculares />}
         {tab === 'configuracion' && <PanelConfiguracion />}
         {tab === 'personal' && userRole === 'admin' && <PanelPersonal usuarioActualId={userId} />}
+        {tab === 'horarios' && userRole === 'admin' && <PanelHorarios />}
         {tab === 'admin' && (
           <div className="animate-in fade-in duration-500">
             <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl">
