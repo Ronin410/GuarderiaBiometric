@@ -3,10 +3,11 @@ import api from './axiosConfig';
 import {
   Search, IdCard, Eye, EyeOff, Edit3, Check, X, Loader2,
   Cake, MapPin, Phone, Wallet, Users, LayoutGrid, Plus, Trash2, Settings2,
-  FolderOpen,
+  FolderOpen, Image as ImageIcon,
 } from 'lucide-react';
 import { mostrarError, mostrarExito, confirmar } from './utils/alertas';
 import DocumentosNino from './DocumentosNino';
+import GaleriaFotos from './components/GaleriaFotos';
 
 const PanelPerfiles = () => {
   const [ninos, setNinos] = useState([]);
@@ -25,6 +26,8 @@ const PanelPerfiles = () => {
   const [creandoGrupo, setCreandoGrupo] = useState(false);
 
   const [documentosAbiertosId, setDocumentosAbiertosId] = useState(null);
+  const [galeriaAbiertaId, setGaleriaAbiertaId] = useState(null);
+  const [fotoSeleccionada, setFotoSeleccionada] = useState(null);
 
   const cargarNinos = async () => {
     setLoading(true);
@@ -51,6 +54,10 @@ const PanelPerfiles = () => {
 
   const alternarDocumentos = (ninoId) => {
     setDocumentosAbiertosId(documentosAbiertosId === ninoId ? null : ninoId);
+  };
+
+  const alternarGaleria = (ninoId) => {
+    setGaleriaAbiertaId(galeriaAbiertaId === ninoId ? null : ninoId);
   };
 
   const iniciarEdicion = (nino) => {
@@ -129,6 +136,27 @@ const PanelPerfiles = () => {
 
   return (
     <div className="animate-in fade-in duration-500">
+      {/* MODAL DE FOTO EN GRANDE (galería) */}
+      {fotoSeleccionada && (
+        <div
+          className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in zoom-in duration-200"
+          onClick={() => setFotoSeleccionada(null)}
+        >
+          <button
+            className="absolute top-6 right-6 text-white bg-white/10 p-3 rounded-full hover:bg-white/20 transition-all"
+            onClick={() => setFotoSeleccionada(null)}
+          >
+            <X size={24} />
+          </button>
+          <img
+            src={fotoSeleccionada}
+            alt="Detalle"
+            className="max-w-full max-h-[85vh] rounded-3xl shadow-2xl object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+
       <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div className="flex items-center gap-4">
@@ -242,6 +270,12 @@ const PanelPerfiles = () => {
                         <FolderOpen size={14} /> Documentos
                       </button>
                       <button
+                        onClick={() => alternarGaleria(nino.id)}
+                        className={`flex items-center gap-2 text-[10px] font-black uppercase px-4 py-2.5 rounded-xl shadow-md transition-all active:scale-95 ${galeriaAbiertaId === nino.id ? 'bg-slate-700 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:border-brand-300'}`}
+                      >
+                        <ImageIcon size={14} /> Galería
+                      </button>
+                      <button
                         onClick={() => iniciarEdicion(nino)}
                         className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white text-[10px] font-black uppercase px-4 py-2.5 rounded-xl shadow-md transition-all active:scale-95"
                       >
@@ -255,6 +289,13 @@ const PanelPerfiles = () => {
                   <div className="mt-6 pt-6 border-t border-slate-200">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Documentos de inscripción</p>
                     <DocumentosNino ninoId={nino.id} />
+                  </div>
+                )}
+
+                {galeriaAbiertaId === nino.id && (
+                  <div className="mt-6 pt-6 border-t border-slate-200">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Galería de fotos</p>
+                    <GaleriaFotos hijoId={nino.id} rutaBase="/hijos" onFotoClick={setFotoSeleccionada} />
                   </div>
                 )}
 

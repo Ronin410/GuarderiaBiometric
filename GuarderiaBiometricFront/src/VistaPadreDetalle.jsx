@@ -7,12 +7,13 @@ import {
   X, // Importamos el icono de cerrar
   ClipboardList, IdCard, Wallet,
   Cake, MapPin, Phone, XCircle, Receipt,
-  CalendarOff, Plus, Loader2, Trash2, UtensilsCrossed, RotateCcw
+  CalendarOff, Plus, Loader2, Trash2, UtensilsCrossed, RotateCcw, Image as ImageIcon
 } from 'lucide-react';
 import { hoyLocal } from './utils/fecha';
 import { mostrarError, mostrarExito, confirmar } from './utils/alertas';
 import ReporteDiario from './components/ReporteDiario';
 import ReciboPago from './components/ReciboPago';
+import GaleriaFotos from './components/GaleriaFotos';
 
 const ESTADO_PAGO_INFO = {
   pagado: { label: 'Pagado', color: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: CheckCircle2 },
@@ -264,6 +265,7 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
               { key: 'pagos', label: 'Pagos', icon: Wallet },
               { key: 'ausencias', label: 'Ausencias', icon: CalendarOff },
               { key: 'comedor', label: 'Comedor', icon: UtensilsCrossed },
+              { key: 'galeria', label: 'Galería', icon: ImageIcon },
             ].map((tab) => {
               const Icono = tab.icon;
               return (
@@ -506,6 +508,14 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
                 );
               })
             )}
+          </div>
+        </div>
+      )}
+
+      {vista === 'galeria' && (
+        <div className="max-w-md mx-auto p-4">
+          <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-slate-100">
+            <GaleriaFotos hijoId={hijoId} rutaBase="/padre/hijos" onFotoClick={setFotoSeleccionada} />
           </div>
         </div>
       )}
