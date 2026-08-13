@@ -6,9 +6,11 @@ import {
   Calendar as CalendarIcon,
   X, // Importamos el icono de cerrar
   ClipboardList, IdCard, Wallet,
-  Cake, MapPin, Phone, XCircle, Receipt
+  Cake, MapPin, Phone, XCircle, Receipt,
+  CalendarOff, Plus, Loader2, Trash2
 } from 'lucide-react';
 import { hoyLocal } from './utils/fecha';
+import { mostrarError, mostrarExito, confirmar } from './utils/alertas';
 import ReporteDiario from './components/ReporteDiario';
 import ReciboPago from './components/ReciboPago';
 
@@ -31,6 +33,12 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
   const [loadingPagos, setLoadingPagos] = useState(false);
   const [reciboId, setReciboId] = useState(null);
 
+  const [ausencias, setAusencias] = useState([]);
+  const [loadingAusencias, setLoadingAusencias] = useState(false);
+  const [formAusencia, setFormAusencia] = useState({ fecha_inicio: '', fecha_fin: '', motivo: '' });
+  const [guardandoAusencia, setGuardandoAusencia] = useState(false);
+  const [cancelandoId, setCancelandoId] = useState(null);
+
   // ESTADO PARA LA FOTO EN GRANDE
   const [fotoSeleccionada, setFotoSeleccionada] = useState(null);
 
@@ -52,6 +60,57 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
   useEffect(() => {
     if (vista === 'bitacora') fetchDetalle(fechaSeleccionada);
   }, [hijoId, fechaSeleccionada, vista]);
+
+  const cargarAusencias = async () => {
+    setLoadingAusencias(true);
+    try {
+      const res = await api.get(`/padre/hijos/${hijoId}/ausencias`);
+      setAusencias(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error("Error al obtener las ausencias", err);
+      setAusencias([]);
+    } finally {
+      setLoadingAusencias(false);
+    }
+  };
+
+  useEffect(() => {
+    if (vista === 'ausencias') cargarAusencias();
+  }, [hijoId, vista]);
+
+  const reportarAusencia = async () => {
+    if (!formAusencia.fecha_inicio) {
+      mostrarError('Elige al menos la fecha de inicio');
+      return;
+    }
+    setGuardandoAusencia(true);
+    try {
+      await api.post(`/padre/hijos/${hijoId}/ausencias`, formAusencia);
+      mostrarExito('Le avisamos a la guardería que tu hijo no asistirá esos días');
+      setFormAusencia({ fecha_inicio: '', fecha_fin: '', motivo: '' });
+      cargarAusencias();
+    } catch (err) {
+      console.error("Error al reportar la ausencia", err);
+      mostrarError(err.response?.data?.error || 'No se pudo reportar la ausencia');
+    } finally {
+      setGuardandoAusencia(false);
+    }
+  };
+
+  const cancelarAusencia = async (ausencia) => {
+    const ok = await confirmar(`Se cancelará el aviso de ausencia del ${ausencia.fecha}.`, '¿Cancelar ausencia?');
+    if (!ok) return;
+    setCancelandoId(ausencia.id);
+    try {
+      await api.delete(`/padre/ausencias/${ausencia.id}`);
+      cargarAusencias();
+    } catch (err) {
+      console.error("Error al cancelar la ausencia", err);
+      mostrarError('No se pudo cancelar la ausencia');
+    } finally {
+      setCancelandoId(null);
+    }
+  };
 
   useEffect(() => {
     if (vista !== 'pagos') return;
@@ -140,6 +199,7 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
               { key: 'bitacora', label: 'Hoy', icon: ClipboardList },
               { key: 'expediente', label: 'Expediente', icon: IdCard },
               { key: 'pagos', label: 'Pagos', icon: Wallet },
+              { key: 'ausencias', label: 'Ausencias', icon: CalendarOff },
             ].map((tab) => {
               const Icono = tab.icon;
               return (
@@ -227,6 +287,75 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
               </div>
             ))
           )}
+        </div>
+      )}
+
+      {vista === 'ausencias' && (
+        <div className="max-w-md mx-auto p-4 space-y-4">
+          <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-slate-100 space-y-4">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-brand-100 text-brand-600 rounded-lg"><CalendarOff size={18} /></div>
+              <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest">Avisar una ausencia</h3>
+            </div>
+            <p className="text-[11px] text-slate-400 font-medium">Avísale a la guardería con anticipación si tu hijo no va a asistir uno o varios días.</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[9px] font-black text-slate-400 uppercase ml-1 mb-1 block">Desde</label>
+                <input
+                  type="date" min={hoyLocal()} value={formAusencia.fecha_inicio}
+                  onChange={(e) => setFormAusencia({ ...formAusencia, fecha_inicio: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-brand-500 text-xs font-bold"
+                />
+              </div>
+              <div>
+                <label className="text-[9px] font-black text-slate-400 uppercase ml-1 mb-1 block">Hasta (opcional)</label>
+                <input
+                  type="date" min={formAusencia.fecha_inicio || hoyLocal()} value={formAusencia.fecha_fin}
+                  onChange={(e) => setFormAusencia({ ...formAusencia, fecha_fin: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-brand-500 text-xs font-bold"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-[9px] font-black text-slate-400 uppercase ml-1 mb-1 block">Motivo (opcional)</label>
+              <input
+                type="text" value={formAusencia.motivo}
+                onChange={(e) => setFormAusencia({ ...formAusencia, motivo: e.target.value })}
+                placeholder="ej. Cita médica"
+                className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-brand-500 text-xs font-medium"
+              />
+            </div>
+            <button
+              onClick={reportarAusencia}
+              disabled={guardandoAusencia}
+              className="w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-black uppercase text-xs px-6 py-3 rounded-xl shadow-md transition-all active:scale-95"
+            >
+              {guardandoAusencia ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />} Avisar ausencia
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Próximas ausencias avisadas</h3>
+            {loadingAusencias ? (
+              <div className="py-8 text-center text-slate-400 font-black uppercase tracking-widest text-xs">Cargando...</div>
+            ) : ausencias.length === 0 ? (
+              <div className="bg-white p-8 rounded-[2rem] border border-dashed border-slate-200 text-center">
+                <p className="text-slate-400 font-bold uppercase text-[10px]">Sin ausencias avisadas</p>
+              </div>
+            ) : (
+              ausencias.map((a) => (
+                <div key={a.id} className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
+                  <div>
+                    <p className="font-black text-sm text-slate-800">{a.fecha}</p>
+                    {a.motivo && <p className="text-[10px] text-slate-400 font-bold mt-0.5">{a.motivo}</p>}
+                  </div>
+                  <button onClick={() => cancelarAusencia(a)} disabled={cancelandoId === a.id} title="Cancelar aviso" className="text-slate-300 hover:text-rose-500 hover:bg-rose-50 disabled:opacity-50 p-2 rounded-xl transition-colors shrink-0">
+                    {cancelandoId === a.id ? <Loader2 className="animate-spin" size={16} /> : <Trash2 size={16} />}
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       )}
 

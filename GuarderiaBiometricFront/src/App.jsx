@@ -8,7 +8,7 @@ import {
   ClipboardList, TrendingUp, ShieldCheck, ArrowRightCircle,
   Lock, LogOut, CheckCircle, KeyRound, RefreshCw, X, Send, Clock, LogOut as LogOutIcon,
   User, IdCard, Wallet, BarChart3, ShieldCheck as ShieldCheckIcon, UserCog, UtensilsCrossed,
-  CalendarDays, LayoutDashboard, Settings, Megaphone, MessageCircle
+  CalendarDays, LayoutDashboard, Settings, Megaphone, MessageCircle, CalendarOff
 } from 'lucide-react';
 
 // Componentes secundarios
@@ -24,6 +24,7 @@ import PanelMenu from './PanelMenu';
 import PanelCirculares from './PanelCirculares';
 import PanelHorarios from './PanelHorarios';
 import PanelChat from './PanelChat';
+import PanelAusencias from './PanelAusencias';
 import NavDropdown from './NavDropdown';
 import DashboardPadre from './DashboardPadre';
 import AvisoPrivacidadModal from './AvisoPrivacidadModal';
@@ -424,6 +425,7 @@ function MainApp() {
                 { tab: 'menu', label: 'Menú Semanal', Icon: UtensilsCrossed },
                 { tab: 'circulares', label: 'Circulares', Icon: Megaphone },
                 { tab: 'chat', label: 'Chat con Familias', Icon: MessageCircle },
+                { tab: 'ausencias', label: 'Ausencias Avisadas', Icon: CalendarOff },
               ]}
             />
             <NavDropdown
@@ -459,6 +461,7 @@ function MainApp() {
         {tab === 'menu' && <PanelMenu />}
         {tab === 'circulares' && <PanelCirculares />}
         {tab === 'chat' && <PanelChat />}
+        {tab === 'ausencias' && <PanelAusencias />}
         {tab === 'configuracion' && <PanelConfiguracion />}
         {tab === 'personal' && userRole === 'admin' && <PanelPersonal usuarioActualId={userId} />}
         {tab === 'horarios' && userRole === 'admin' && <PanelHorarios />}
