@@ -8,7 +8,7 @@ import {
   ClipboardList, TrendingUp, ShieldCheck, ArrowRightCircle,
   Lock, LogOut, CheckCircle, KeyRound, RefreshCw, X, Send, Clock, LogOut as LogOutIcon,
   User, IdCard, Wallet, BarChart3, ShieldCheck as ShieldCheckIcon, UserCog, UtensilsCrossed,
-  CalendarDays, LayoutDashboard, Settings, Megaphone, MessageCircle, CalendarOff
+  CalendarDays, LayoutDashboard, Settings, Megaphone, MessageCircle, CalendarOff, Soup
 } from 'lucide-react';
 
 // Componentes secundarios
@@ -26,6 +26,7 @@ import PanelHorarios from './PanelHorarios';
 import PanelChat from './PanelChat';
 import PanelAusencias from './PanelAusencias';
 import PanelCalendario from './PanelCalendario';
+import PanelComedor from './PanelComedor';
 import NavDropdown from './NavDropdown';
 import DashboardPadre from './DashboardPadre';
 import AvisoPrivacidadModal from './AvisoPrivacidadModal';
@@ -428,6 +429,7 @@ function MainApp() {
                 { tab: 'chat', label: 'Chat con Familias', Icon: MessageCircle },
                 { tab: 'ausencias', label: 'Ausencias Avisadas', Icon: CalendarOff },
                 { tab: 'calendario', label: 'Calendario Escolar', Icon: CalendarDays },
+                { tab: 'comedor', label: 'Pedidos de Comedor', Icon: Soup },
               ]}
             />
             <NavDropdown
@@ -465,6 +467,7 @@ function MainApp() {
         {tab === 'chat' && <PanelChat />}
         {tab === 'ausencias' && <PanelAusencias />}
         {tab === 'calendario' && <PanelCalendario />}
+        {tab === 'comedor' && <PanelComedor />}
         {tab === 'configuracion' && <PanelConfiguracion />}
         {tab === 'personal' && userRole === 'admin' && <PanelPersonal usuarioActualId={userId} />}
         {tab === 'horarios' && userRole === 'admin' && <PanelHorarios />}

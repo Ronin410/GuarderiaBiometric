@@ -7,7 +7,7 @@ import {
   X, // Importamos el icono de cerrar
   ClipboardList, IdCard, Wallet,
   Cake, MapPin, Phone, XCircle, Receipt,
-  CalendarOff, Plus, Loader2, Trash2
+  CalendarOff, Plus, Loader2, Trash2, UtensilsCrossed, RotateCcw
 } from 'lucide-react';
 import { hoyLocal } from './utils/fecha';
 import { mostrarError, mostrarExito, confirmar } from './utils/alertas';
@@ -38,6 +38,12 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
   const [formAusencia, setFormAusencia] = useState({ fecha_inicio: '', fecha_fin: '', motivo: '' });
   const [guardandoAusencia, setGuardandoAusencia] = useState(false);
   const [cancelandoId, setCancelandoId] = useState(null);
+
+  const [pedidosComedor, setPedidosComedor] = useState([]);
+  const [loadingComedor, setLoadingComedor] = useState(false);
+  const [formComedor, setFormComedor] = useState({ fecha: '', desayuno: true, comida: true, merienda: true, notas: '' });
+  const [guardandoComedor, setGuardandoComedor] = useState(false);
+  const [restableciendoFecha, setRestableciendoFecha] = useState(null);
 
   // ESTADO PARA LA FOTO EN GRANDE
   const [fotoSeleccionada, setFotoSeleccionada] = useState(null);
@@ -109,6 +115,63 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
       mostrarError('No se pudo cancelar la ausencia');
     } finally {
       setCancelandoId(null);
+    }
+  };
+
+  const cargarPedidosComedor = async () => {
+    setLoadingComedor(true);
+    try {
+      const res = await api.get(`/padre/hijos/${hijoId}/pedidos-comedor`);
+      setPedidosComedor(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error("Error al obtener los pedidos de comedor", err);
+      setPedidosComedor([]);
+    } finally {
+      setLoadingComedor(false);
+    }
+  };
+
+  useEffect(() => {
+    if (vista === 'comedor') cargarPedidosComedor();
+  }, [hijoId, vista]);
+
+  const guardarPedidoComedor = async () => {
+    if (!formComedor.fecha) {
+      mostrarError('Elige la fecha');
+      return;
+    }
+    if (formComedor.desayuno && formComedor.comida && formComedor.merienda && !formComedor.notas.trim()) {
+      mostrarError('Desmarca al menos una comida o agrega una nota -- si tu hijo come normal ese día no hace falta registrar nada');
+      return;
+    }
+    setGuardandoComedor(true);
+    try {
+      await api.put(`/padre/hijos/${hijoId}/pedidos-comedor/${formComedor.fecha}`, {
+        desayuno: formComedor.desayuno, comida: formComedor.comida, merienda: formComedor.merienda, notas: formComedor.notas,
+      });
+      mostrarExito('Le avisamos a la guardería');
+      setFormComedor({ fecha: '', desayuno: true, comida: true, merienda: true, notas: '' });
+      cargarPedidosComedor();
+    } catch (err) {
+      console.error("Error al guardar el pedido de comedor", err);
+      mostrarError(err.response?.data?.error || 'No se pudo guardar el aviso');
+    } finally {
+      setGuardandoComedor(false);
+    }
+  };
+
+  const restablecerPedidoComedor = async (pedido) => {
+    const ok = await confirmar(`Se volverá al comedor normal (las tres comidas) del ${pedido.fecha}.`, '¿Restablecer?');
+    if (!ok) return;
+    setRestableciendoFecha(pedido.fecha);
+    try {
+      await api.put(`/padre/hijos/${hijoId}/pedidos-comedor/${pedido.fecha}`, { desayuno: true, comida: true, merienda: true, notas: '' });
+      cargarPedidosComedor();
+    } catch (err) {
+      console.error("Error al restablecer el pedido de comedor", err);
+      mostrarError('No se pudo restablecer');
+    } finally {
+      setRestableciendoFecha(null);
     }
   };
 
@@ -200,6 +263,7 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
               { key: 'expediente', label: 'Expediente', icon: IdCard },
               { key: 'pagos', label: 'Pagos', icon: Wallet },
               { key: 'ausencias', label: 'Ausencias', icon: CalendarOff },
+              { key: 'comedor', label: 'Comedor', icon: UtensilsCrossed },
             ].map((tab) => {
               const Icono = tab.icon;
               return (
@@ -354,6 +418,93 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
                   </button>
                 </div>
               ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {vista === 'comedor' && (
+        <div className="max-w-md mx-auto p-4 space-y-4">
+          <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-slate-100 space-y-4">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-brand-100 text-brand-600 rounded-lg"><UtensilsCrossed size={18} /></div>
+              <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest">Pedidos de Comedor</h3>
+            </div>
+            <p className="text-[11px] text-slate-400 font-medium">Por defecto tu hijo come las tres comidas del día. Avísale a la guardería solo cuando algo cambie (no desayuna, alergias, instrucciones especiales).</p>
+
+            <div>
+              <label className="text-[9px] font-black text-slate-400 uppercase ml-1 mb-1 block">Fecha</label>
+              <input
+                type="date" min={hoyLocal()} value={formComedor.fecha}
+                onChange={(e) => setFormComedor({ ...formComedor, fecha: e.target.value })}
+                className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-brand-500 text-xs font-bold"
+              />
+            </div>
+
+            <div className="flex gap-4">
+              {[
+                { key: 'desayuno', label: 'Desayuno' },
+                { key: 'comida', label: 'Comida' },
+                { key: 'merienda', label: 'Merienda' },
+              ].map((comida) => (
+                <label key={comida.key} className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                  <input
+                    type="checkbox" checked={formComedor[comida.key]}
+                    onChange={(e) => setFormComedor({ ...formComedor, [comida.key]: e.target.checked })}
+                    className="w-4 h-4 accent-brand-600"
+                  />
+                  {comida.label}
+                </label>
+              ))}
+            </div>
+
+            <div>
+              <label className="text-[9px] font-black text-slate-400 uppercase ml-1 mb-1 block">Notas (opcional)</label>
+              <input
+                type="text" value={formComedor.notas}
+                onChange={(e) => setFormComedor({ ...formComedor, notas: e.target.value })}
+                placeholder="ej. Alergia a los cacahuates"
+                className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-brand-500 text-xs font-medium"
+              />
+            </div>
+
+            <button
+              onClick={guardarPedidoComedor}
+              disabled={guardandoComedor}
+              className="w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-black uppercase text-xs px-6 py-3 rounded-xl shadow-md transition-all active:scale-95"
+            >
+              {guardandoComedor ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />} Avisar
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Excepciones registradas</h3>
+            {loadingComedor ? (
+              <div className="py-8 text-center text-slate-400 font-black uppercase tracking-widest text-xs">Cargando...</div>
+            ) : pedidosComedor.length === 0 ? (
+              <div className="bg-white p-8 rounded-[2rem] border border-dashed border-slate-200 text-center">
+                <p className="text-slate-400 font-bold uppercase text-[10px]">Sin excepciones, come normal todos los días</p>
+              </div>
+            ) : (
+              pedidosComedor.map((p) => {
+                const faltantes = [
+                  !p.desayuno && 'Desayuno',
+                  !p.comida && 'Comida',
+                  !p.merienda && 'Merienda',
+                ].filter(Boolean);
+                return (
+                  <div key={p.id} className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-black text-sm text-slate-800">{p.fecha}</p>
+                      {faltantes.length > 0 && <p className="text-[10px] text-rose-500 font-bold mt-0.5">No come: {faltantes.join(', ')}</p>}
+                      {p.notas && <p className="text-[10px] text-slate-400 font-bold mt-0.5">{p.notas}</p>}
+                    </div>
+                    <button onClick={() => restablecerPedidoComedor(p)} disabled={restableciendoFecha === p.fecha} title="Restablecer al comedor normal" className="text-slate-300 hover:text-brand-600 hover:bg-brand-50 disabled:opacity-50 p-2 rounded-xl transition-colors shrink-0">
+                      {restableciendoFecha === p.fecha ? <Loader2 className="animate-spin" size={16} /> : <RotateCcw size={16} />}
+                    </button>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
