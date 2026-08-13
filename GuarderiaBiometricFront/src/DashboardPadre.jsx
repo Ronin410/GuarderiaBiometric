@@ -85,7 +85,17 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
         // 4. Últimas circulares (avisos generales de la guardería)
         try {
           const resCirculares = await api.get('/padre/circulares');
-          setCirculares((Array.isArray(resCirculares.data) ? resCirculares.data : []).slice(0, 3));
+          const ultimas = (Array.isArray(resCirculares.data) ? resCirculares.data : []).slice(0, 3);
+          setCirculares(ultimas);
+          // Se marcan como leídas justo las que se muestran aquí (no todas
+          // las que trae la API) -- así el conteo que ve staff refleja
+          // avisos vistos de verdad, no solo consultados. No debe frenar el
+          // dashboard si falla.
+          ultimas.forEach((cir) => {
+            api.post(`/padre/circulares/${cir.id}/leido`).catch((errLeido) => {
+              console.error('Error al marcar circular como leída', errLeido);
+            });
+          });
         } catch (errCirculares) {
           console.error("Error al cargar circulares", errCirculares);
         }

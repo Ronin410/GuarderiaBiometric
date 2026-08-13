@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from './axiosConfig';
-import { Megaphone, Plus, X, Send, Loader2, Trash2, CalendarClock } from 'lucide-react';
+import { Megaphone, Plus, X, Send, Loader2, Trash2, CalendarClock, Eye, ChevronDown, ChevronUp, CheckCheck } from 'lucide-react';
 import { mostrarError, mostrarExito, confirmar } from './utils/alertas';
 
 const FORM_VACIO = { titulo: '', contenido: '' };
@@ -16,6 +16,9 @@ const PanelCirculares = () => {
   const [form, setForm] = useState(FORM_VACIO);
   const [publicando, setPublicando] = useState(false);
   const [eliminandoId, setEliminandoId] = useState(null);
+  const [detalleAbierto, setDetalleAbierto] = useState(null);
+  const [lecturas, setLecturas] = useState([]);
+  const [cargandoLecturas, setCargandoLecturas] = useState(false);
 
   const cargar = async () => {
     setLoading(true);
@@ -64,6 +67,25 @@ const PanelCirculares = () => {
       mostrarError('No se pudo eliminar la circular');
     } finally {
       setEliminandoId(null);
+    }
+  };
+
+  const alternarDetalle = async (cir) => {
+    if (detalleAbierto === cir.id) {
+      setDetalleAbierto(null);
+      return;
+    }
+    setDetalleAbierto(cir.id);
+    setCargandoLecturas(true);
+    try {
+      const res = await api.get(`/circulares/${cir.id}/lecturas`);
+      setLecturas(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error('Error al cargar el detalle de lecturas:', err);
+      mostrarError('No se pudo cargar el detalle de lecturas');
+      setLecturas([]);
+    } finally {
+      setCargandoLecturas(false);
     }
   };
 
@@ -150,6 +172,35 @@ const PanelCirculares = () => {
                   </button>
                 </div>
                 <p className="mt-3 text-sm text-slate-600 font-medium whitespace-pre-wrap">{cir.contenido}</p>
+
+                <button
+                  onClick={() => alternarDetalle(cir)}
+                  className="mt-4 flex items-center gap-1.5 text-[10px] font-black uppercase text-slate-500 hover:text-brand-600 transition-colors"
+                >
+                  <Eye size={12} />
+                  {cir.leido_por} de {cir.total_familias} familias la han leído
+                  {detalleAbierto === cir.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                </button>
+
+                {detalleAbierto === cir.id && (
+                  <div className="mt-3 pt-3 border-t border-dashed border-slate-200">
+                    {cargandoLecturas ? (
+                      <p className="text-[10px] font-black text-slate-400 uppercase">Cargando...</p>
+                    ) : lecturas.length === 0 ? (
+                      <p className="text-[10px] font-black text-slate-400 uppercase">Ninguna familia la ha leído todavía</p>
+                    ) : (
+                      <ul className="space-y-1.5">
+                        {lecturas.map((l, i) => (
+                          <li key={i} className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                            <CheckCheck size={13} className="text-emerald-500 shrink-0" />
+                            {l.nombre}
+                            <span className="text-slate-300 font-medium">· {formatoFecha(l.leido_en)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
