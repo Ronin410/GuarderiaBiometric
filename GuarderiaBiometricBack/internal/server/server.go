@@ -79,6 +79,7 @@ func (s *Server) RegisterRoutes(r *gin.Engine) {
 	s.registrarRutasHorarios(r)
 	s.registrarRutasChat(r)
 	s.registrarRutasAusencias(r)
+	s.registrarRutasCalendario(r)
 	s.registrarRutasPagos(r)
 	s.registrarRutasReportes(r)
 	s.registrarRutasPush(r)

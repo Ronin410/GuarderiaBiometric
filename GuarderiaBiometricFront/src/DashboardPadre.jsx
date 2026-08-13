@@ -15,12 +15,22 @@ import {
   LayoutDashboard,
   UtensilsCrossed,
   Megaphone,
-  MessageCircle
+  MessageCircle,
+  CalendarDays
 } from 'lucide-react';
 import VistaPadreDetalle from './VistaPadreDetalle';
 import ChatPadre from './ChatPadre';
 import { suscribirseAPush, suscripcionActiva, pushSoportado } from './utils/push';
 import { hoyLocal } from './utils/fecha';
+
+const formatoFechaEvento = (iso) => {
+  try {
+    const [anio, mes, dia] = iso.split('-').map(Number);
+    return new Date(anio, mes - 1, dia).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+  } catch {
+    return iso;
+  }
+};
 
 const ESTADO_PAGO_INFO = {
   pagado: { label: 'Pagado', color: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: CheckCircle2 },
@@ -38,6 +48,7 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
   const [pagos, setPagos] = useState([]);
   const [menuHoy, setMenuHoy] = useState(null);
   const [circulares, setCirculares] = useState([]);
+  const [eventos, setEventos] = useState([]);
   const [notifEstado, setNotifEstado] = useState('default');
 
   useEffect(() => {
@@ -98,6 +109,14 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
           });
         } catch (errCirculares) {
           console.error("Error al cargar circulares", errCirculares);
+        }
+
+        // 5. Próximos eventos del calendario escolar
+        try {
+          const resEventos = await api.get('/padre/calendario');
+          setEventos((Array.isArray(resEventos.data) ? resEventos.data : []).slice(0, 3));
+        } catch (errEventos) {
+          console.error("Error al cargar el calendario", errEventos);
         }
 
       } catch (err) {
@@ -271,6 +290,22 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
                   <Megaphone size={14} className="text-brand-500 shrink-0" /> {cir.titulo}
                 </p>
                 <p className="text-xs text-slate-500 font-medium whitespace-pre-wrap">{cir.contenido}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* PRÓXIMOS EVENTOS DEL CALENDARIO */}
+        {eventos.length > 0 && (
+          <div className="space-y-3">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Próximos eventos</h3>
+            {eventos.map((ev) => (
+              <div key={ev.id} className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-3">
+                <div className="bg-slate-50 p-2.5 rounded-xl text-brand-500 shrink-0"><CalendarDays size={16} /></div>
+                <div className="min-w-0">
+                  <p className="font-black text-sm text-slate-900 truncate">{ev.titulo}</p>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase">{formatoFechaEvento(ev.fecha_inicio)}{ev.fecha_fin && ev.fecha_fin !== ev.fecha_inicio ? ` – ${formatoFechaEvento(ev.fecha_fin)}` : ''}</p>
+                </div>
               </div>
             ))}
           </div>

@@ -25,6 +25,7 @@ import PanelCirculares from './PanelCirculares';
 import PanelHorarios from './PanelHorarios';
 import PanelChat from './PanelChat';
 import PanelAusencias from './PanelAusencias';
+import PanelCalendario from './PanelCalendario';
 import NavDropdown from './NavDropdown';
 import DashboardPadre from './DashboardPadre';
 import AvisoPrivacidadModal from './AvisoPrivacidadModal';
@@ -426,6 +427,7 @@ function MainApp() {
                 { tab: 'circulares', label: 'Circulares', Icon: Megaphone },
                 { tab: 'chat', label: 'Chat con Familias', Icon: MessageCircle },
                 { tab: 'ausencias', label: 'Ausencias Avisadas', Icon: CalendarOff },
+                { tab: 'calendario', label: 'Calendario Escolar', Icon: CalendarDays },
               ]}
             />
             <NavDropdown
@@ -462,6 +464,7 @@ function MainApp() {
         {tab === 'circulares' && <PanelCirculares />}
         {tab === 'chat' && <PanelChat />}
         {tab === 'ausencias' && <PanelAusencias />}
+        {tab === 'calendario' && <PanelCalendario />}
         {tab === 'configuracion' && <PanelConfiguracion />}
         {tab === 'personal' && userRole === 'admin' && <PanelPersonal usuarioActualId={userId} />}
         {tab === 'horarios' && userRole === 'admin' && <PanelHorarios />}
