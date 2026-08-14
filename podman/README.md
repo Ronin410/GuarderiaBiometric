@@ -64,18 +64,26 @@ puede reiniciarse solo una o dos veces al principio (arrancó antes de que
 Postgres estuviera listo) — en unos segundos se estabiliza solo.
 
 **4. Aplicar los datos de prueba**
-Este paso sí necesita una línea de comando — desde Git Bash:
+Este paso sí necesita una línea de comando — desde Git Bash. `podman play
+kube` le agrega el nombre del pod como prefijo al nombre real del
+contenedor (no queda `guarderia-postgres` a secas), así que primero hay
+que averiguarlo:
+```bash
+podman ps --filter "pod=guarderia-pod" --format "{{.Names}}"
+```
+Con el nombre que te devuelva ahí (algo como `guarderia-pod-guarderia-postgres`):
 ```bash
 cd podman
-podman exec -i guarderia-postgres psql -U postgres -d guarderia \
+podman exec -i <nombre-real-de-postgres> psql -U postgres -d guarderia \
   < ../GuarderiaBiometricBack/internal/db/seeds/seed_dev.sql
 ```
-(o desde Podman Desktop: click derecho en el contenedor `guarderia-postgres`
-→ abrir una terminal dentro de él, y ahí corres `psql -U postgres -d
+(o desde Podman Desktop: click derecho en el contenedor de Postgres →
+abrir una terminal dentro de él, y ahí corres `psql -U postgres -d
 guarderia` y pegas el contenido de `seed_dev.sql`).
 
 **Para bajar todo**: pestaña Pods → selecciona `guarderia-pod` → Delete (o
-`podman pod rm -f guarderia-pod` desde Git Bash).
+`podman play kube --down kube.yaml` desde Git Bash, parado en `podman/` —
+es el contrario exacto de `play kube`, y conserva el volumen `guarderia-pgdata`).
 
 ---
 
