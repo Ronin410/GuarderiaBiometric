@@ -8,7 +8,8 @@ import {
   ClipboardList, TrendingUp, ShieldCheck, ArrowRightCircle,
   Lock, LogOut, CheckCircle, KeyRound, RefreshCw, X, Send, Clock, LogOut as LogOutIcon,
   User, IdCard, Wallet, BarChart3, ShieldCheck as ShieldCheckIcon, UserCog, UtensilsCrossed,
-  CalendarDays, LayoutDashboard, Settings, Megaphone, MessageCircle, CalendarOff, Soup, ClipboardCheck
+  CalendarDays, LayoutDashboard, Settings, Megaphone, MessageCircle, CalendarOff, Soup, ClipboardCheck,
+  BookOpen
 } from 'lucide-react';
 
 // Componentes secundarios
@@ -521,7 +522,11 @@ function MainApp() {
               );
             })()}
 
-            <button onClick={cerrarSesion} className="px-3 py-2 text-rose-500 hover:bg-rose-50 rounded-xl ml-2 border-l border-slate-100"><LogOut size={18} /></button>
+            <a
+              href="/manual.html" target="_blank" rel="noopener noreferrer" title="Manual del sistema"
+              className="px-3 py-2 text-slate-400 hover:text-brand-600 hover:bg-slate-50 rounded-xl ml-2 border-l border-slate-100 flex items-center"
+            ><BookOpen size={18} /></a>
+            <button onClick={cerrarSesion} className="px-3 py-2 text-rose-500 hover:bg-rose-50 rounded-xl" title="Cerrar sesión"><LogOut size={18} /></button>
           </div>
         </nav>
       </header>
