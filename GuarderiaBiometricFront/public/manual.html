@@ -1,0 +1,1283 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BioSafe — Manual</title>
+<style>
+  :root {
+    --bg: #faf8f5;
+    --surface: #ffffff;
+    --surface-alt: #f2eefb;
+    --text: #201d2b;
+    --text-muted: #6d6880;
+    --border: #e4e0ee;
+    --border-strong: #cfc9e2;
+    --accent: #5539e0;
+    --accent-soft: #ece6fc;
+    --accent-ink: #3d269e;
+    --good: #187a55;
+    --good-soft: #e3f5ec;
+    --warn: #a6650a;
+    --warn-soft: #faeed9;
+    --crit: #c23b3b;
+    --crit-soft: #fbe7e6;
+    --shadow: 0 1px 2px rgba(32,29,43,0.04), 0 8px 24px -12px rgba(32,29,43,0.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #15131e;
+      --surface: #1d1a29;
+      --surface-alt: #241f36;
+      --text: #ece9f7;
+      --text-muted: #a49dbe;
+      --border: #322c46;
+      --border-strong: #423a5c;
+      --accent: #a690ff;
+      --accent-soft: #2c2547;
+      --accent-ink: #d9cfff;
+      --good: #4cc38a;
+      --good-soft: #163227;
+      --warn: #e0a542;
+      --warn-soft: #372a12;
+      --crit: #f0736b;
+      --crit-soft: #3a1e1e;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #15131e;
+    --surface: #1d1a29;
+    --surface-alt: #241f36;
+    --text: #ece9f7;
+    --text-muted: #a49dbe;
+    --border: #322c46;
+    --border-strong: #423a5c;
+    --accent: #a690ff;
+    --accent-soft: #2c2547;
+    --accent-ink: #d9cfff;
+    --good: #4cc38a;
+    --good-soft: #163227;
+    --warn: #e0a542;
+    --warn-soft: #372a12;
+    --crit: #f0736b;
+    --crit-soft: #3a1e1e;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .font-display {
+    font-family: Georgia, "Iowan Old Style", "Palatino Linotype", "URW Palladio L", serif;
+  }
+  code, .mono {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Consolas, monospace;
+  }
+
+  a { color: var(--accent); }
+  a:focus-visible, button:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .shell {
+    display: grid;
+    grid-template-columns: 272px minmax(0, 1fr);
+    min-height: 100vh;
+  }
+
+  /* ---------- sidebar ---------- */
+  .sidebar {
+    background: var(--surface-alt);
+    border-right: 1px solid var(--border);
+    padding: 1.75rem 1.25rem 3rem;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.15rem;
+  }
+  .brand-mark {
+    width: 1.15rem; height: 1.15rem;
+    border-radius: 0.4rem;
+    background: var(--accent);
+    display: inline-block;
+    flex-shrink: 0;
+  }
+  .brand h1 {
+    font-size: 1.05rem;
+    margin: 0;
+    letter-spacing: 0.01em;
+  }
+  .brand-sub {
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 1.75rem;
+  }
+  .nav-group { margin-bottom: 1.4rem; }
+  .nav-group-title {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--text-muted);
+    margin: 0 0 0.45rem;
+    font-weight: 600;
+  }
+  .nav-group ul { list-style: none; margin: 0; padding: 0; }
+  .nav-group li a {
+    display: block;
+    padding: 0.28rem 0.5rem;
+    margin-left: -0.5rem;
+    border-radius: 0.4rem;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 0.855rem;
+  }
+  .nav-group li a:hover { background: var(--surface); color: var(--accent-ink); }
+
+  /* ---------- main content ---------- */
+  main {
+    padding: 3rem clamp(1.25rem, 4vw, 4rem) 6rem;
+    min-width: 0;
+  }
+  .measure { max-width: 40rem; }
+
+  header.intro h1 {
+    font-size: clamp(2rem, 4vw, 2.6rem);
+    margin: 0 0 0.6rem;
+    text-wrap: balance;
+  }
+  header.intro .lede {
+    font-size: 1.05rem;
+    color: var(--text-muted);
+    max-width: 42rem;
+  }
+
+  section.top-section {
+    margin-top: 4.5rem;
+    padding-top: 0.5rem;
+    scroll-margin-top: 1.5rem;
+  }
+  section.top-section > h2 {
+    font-size: 1.7rem;
+    margin: 0 0 0.35rem;
+    text-wrap: balance;
+  }
+  section.top-section > .section-kicker {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent-ink);
+    font-weight: 600;
+    margin: 0 0 0.4rem;
+  }
+  section.top-section > .section-intro {
+    color: var(--text-muted);
+    max-width: 44rem;
+    margin: 0 0 1.75rem;
+  }
+
+  h3.cat-title {
+    font-size: 1.35rem;
+    margin: 3rem 0 0.35rem;
+    scroll-margin-top: 1.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border);
+  }
+  h3.cat-title:first-of-type { border-top: none; margin-top: 2rem; }
+  .cat-intro {
+    color: var(--text-muted);
+    max-width: 42rem;
+    margin: 0 0 1.25rem;
+    font-size: 0.95rem;
+  }
+
+  /* role legend */
+  .role-legend {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.75rem;
+    margin: 1.5rem 0 0.5rem;
+  }
+  .role-card {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 0.7rem;
+    padding: 0.85rem 1rem;
+  }
+  .role-card .pill { margin-bottom: 0.4rem; }
+  .role-card p { margin: 0; font-size: 0.83rem; color: var(--text-muted); }
+
+  /* pills */
+  .pills { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+  .pill {
+    display: inline-block;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    padding: 0.16rem 0.5rem;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+    white-space: nowrap;
+  }
+  .pill.outline {
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    color: var(--text-muted);
+  }
+
+  /* manuals grid */
+  .manual-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+  }
+  article.manual {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0.9rem;
+    padding: 1.1rem 1.2rem 1.2rem;
+    scroll-margin-top: 1.5rem;
+    box-shadow: var(--shadow);
+  }
+  article.manual h4 {
+    margin: 0 0 0.3rem;
+    font-size: 1.02rem;
+  }
+  .manual-route {
+    margin: 0 0 0.65rem;
+    font-size: 0.74rem;
+    color: var(--text-muted);
+  }
+  .manual-route code { color: var(--accent-ink); }
+  article.manual ul {
+    margin: 0 0 0.6rem;
+    padding-left: 1.1rem;
+    font-size: 0.88rem;
+  }
+  article.manual ul li { margin-bottom: 0.3rem; }
+  article.manual ul li:last-child { margin-bottom: 0; }
+  .manual-note {
+    margin: 0.6rem 0 0;
+    padding-top: 0.6rem;
+    border-top: 1px dashed var(--border);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+  .manual-note b { color: var(--text); }
+
+  /* diagram figures */
+  figure.diagram {
+    margin: 1.5rem 0 2rem;
+    padding: 1.25rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    box-shadow: var(--shadow);
+  }
+  figure.diagram .diagram-scroll {
+    overflow-x: auto;
+    color: var(--text);
+  }
+  figure.diagram svg { display: block; max-width: 100%; height: auto; min-width: 560px; }
+  figure.diagram figcaption {
+    margin-top: 0.9rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  figure.diagram figcaption b { color: var(--text); }
+
+  .diagram-node-fill { fill: var(--surface); }
+  .diagram-node-stroke { stroke: var(--border-strong); }
+  .diagram-node-alt { fill: var(--accent-soft); }
+  .diagram-dim { stroke: var(--text-muted); }
+  .diagram-accent { stroke: var(--accent); }
+  .diagram-accent-fill { fill: var(--accent); }
+  text.diagram-label { fill: var(--text); font-size: 12px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  text.diagram-caption { fill: var(--text-muted); font-size: 10.5px; }
+
+  footer.doc-footer {
+    margin-top: 4rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+  }
+
+  @media (max-width: 860px) {
+    .shell { grid-template-columns: 1fr; }
+    .sidebar {
+      position: static;
+      height: auto;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 1.25rem;
+    }
+    .nav-group { margin-bottom: 0.9rem; }
+    main { padding: 2rem 1.25rem 4rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <nav class="sidebar" aria-label="Índice del manual">
+    <div class="brand"><span class="brand-mark" aria-hidden="true"></span><h1 class="font-display">BioSafe</h1></div>
+    <p class="brand-sub">Manual del sistema</p>
+
+    <div class="nav-group">
+      <p class="nav-group-title">Empezar aquí</p>
+      <ul>
+        <li><a href="#intro">Introducción y roles</a></li>
+        <li><a href="#infra">Infraestructura</a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <p class="nav-group-title">Procesos clave</p>
+      <ul>
+        <li><a href="#proc-auth">Sesión y autenticación</a></li>
+        <li><a href="#proc-bio">Reconocimiento facial</a></li>
+        <li><a href="#proc-pagos">Pagos: manual vs. en línea</a></li>
+        <li><a href="#proc-permisos">Permisos personalizados</a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <p class="nav-group-title">Kiosco</p>
+      <ul>
+        <li><a href="#kiosco-identificar">Identificación (asistencia)</a></li>
+        <li><a href="#kiosco-registro">Registro de tutores e hijos</a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <p class="nav-group-title">Alumnos</p>
+      <ul>
+        <li><a href="#alumnos-familia">Directorio de familias</a></li>
+        <li><a href="#alumnos-perfiles">Perfiles</a></li>
+        <li><a href="#alumnos-documentos">Documentos</a></li>
+        <li><a href="#alumnos-galeria">Galería de fotos</a></li>
+        <li><a href="#alumnos-grupos">Grupos</a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <p class="nav-group-title">Día a día</p>
+      <ul>
+        <li><a href="#dia-bitacora">Bitácora</a></li>
+        <li><a href="#dia-menu">Menú semanal</a></li>
+        <li><a href="#dia-circulares">Circulares</a></li>
+        <li><a href="#dia-chat">Chat con familias</a></li>
+        <li><a href="#dia-ausencias">Ausencias avisadas</a></li>
+        <li><a href="#dia-calendario">Calendario escolar</a></li>
+        <li><a href="#dia-comedor">Pedidos de comedor</a></li>
+        <li><a href="#dia-encuestas">Encuestas</a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <p class="nav-group-title">Administración</p>
+      <ul>
+        <li><a href="#admin-reportes">Reportes</a></li>
+        <li><a href="#admin-pagos">Pagos</a></li>
+        <li><a href="#admin-recibos">Recibos y recordatorios</a></li>
+        <li><a href="#admin-stripe">Pagos móviles (Stripe)</a></li>
+        <li><a href="#admin-estadisticas">Estadísticas</a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <p class="nav-group-title">Sistema</p>
+      <ul>
+        <li><a href="#sistema-config">Configuración / Aviso de privacidad</a></li>
+        <li><a href="#sistema-arco">Derechos ARCO</a></li>
+        <li><a href="#sistema-personal">Gestión de personal</a></li>
+        <li><a href="#sistema-permisos">Permisos personalizados</a></li>
+        <li><a href="#sistema-horarios">Horarios de personal</a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <p class="nav-group-title">Portal del padre</p>
+      <ul>
+        <li><a href="#padre-dashboard">Dashboard</a></li>
+        <li><a href="#padre-detalle">Detalle de un hijo</a></li>
+        <li><a href="#padre-push">Notificaciones push</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main>
+    <header class="intro" id="intro">
+      <h1 class="font-display">Manual de BioSafe</h1>
+      <p class="lede">Control de asistencia biométrico y administración de guardería: kiosco de identificación facial, panel de staff/administración y portal del padre. Este manual documenta cada pantalla y proceso por separado — úsalo como referencia, no como lectura de principio a fin.</p>
+
+      <div class="role-legend">
+        <div class="role-card">
+          <span class="pill">Admin</span>
+          <p>Control total: personal, permisos, horarios, configuración y todo lo que ve Staff.</p>
+        </div>
+        <div class="role-card">
+          <span class="pill">Staff</span>
+          <p>Operación diaria: kiosco, bitácora, pagos, comunicación. Un admin decide a qué secciones sensibles tiene acceso cada cuenta.</p>
+        </div>
+        <div class="role-card">
+          <span class="pill">Padre</span>
+          <p>Portal propio: solo los datos de sus hijos vinculados. Sin acceso al panel de staff.</p>
+        </div>
+        <div class="role-card">
+          <span class="pill">Kiosco</span>
+          <p>Pantalla compartida en recepción, sin sesión personal — la usa el staff para identificar y registrar tutores.</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- ================= INFRAESTRUCTURA ================= -->
+    <section class="top-section" id="infra">
+      <p class="section-kicker">Infraestructura</p>
+      <h2>Cómo están conectadas las piezas</h2>
+      <p class="section-intro">Una sola aplicación React sirve las tres vistas (kiosco, panel, portal); un backend en Go concentra toda la lógica y habla con Postgres y tres servicios externos. Stripe está integrado pero apagado hasta que se configure.</p>
+
+      <figure class="diagram">
+        <div class="diagram-scroll">
+          <svg viewBox="0 0 880 560" role="img" aria-label="Diagrama de infraestructura: los clientes Kiosco, Panel Staff/Admin y Portal del Padre corren la misma aplicación React, que habla por HTTPS con el backend Go. El backend lee y escribe en Postgres, llama a AWS Rekognition para el reconocimiento facial, sube y firma archivos en AWS S3, envía notificaciones push VAPID al navegador del padre, y tiene una integración con Stripe preparada pero apagada.">
+            <defs>
+              <marker id="arrow-infra" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" class="diagram-dim" fill="currentColor"></path>
+              </marker>
+            </defs>
+
+            <!-- Row A: clients -->
+            <rect x="35" y="24" width="250" height="56" rx="10" class="diagram-node-fill diagram-node-stroke" stroke-width="1.2"></rect>
+            <text x="160" y="57" text-anchor="middle" class="diagram-label">Kiosco</text>
+
+            <rect x="315" y="24" width="250" height="56" rx="10" class="diagram-node-fill diagram-node-stroke" stroke-width="1.2"></rect>
+            <text x="440" y="57" text-anchor="middle" class="diagram-label">Panel Staff / Admin</text>
+
+            <rect x="595" y="24" width="250" height="56" rx="10" class="diagram-node-fill diagram-node-stroke" stroke-width="1.2"></rect>
+            <text x="720" y="57" text-anchor="middle" class="diagram-label">Portal del Padre</text>
+
+            <!-- arrows to Frontend -->
+            <line x1="160" y1="80" x2="300" y2="130" class="diagram-dim" stroke-width="1.2" marker-end="url(#arrow-infra)"></line>
+            <line x1="440" y1="80" x2="440" y2="130" class="diagram-dim" stroke-width="1.2" marker-end="url(#arrow-infra)"></line>
+            <line x1="720" y1="80" x2="580" y2="130" class="diagram-dim" stroke-width="1.2" marker-end="url(#arrow-infra)"></line>
+
+            <!-- Row B: frontend -->
+            <rect x="190" y="130" width="500" height="50" rx="10" class="diagram-node-alt" stroke="var(--accent)" stroke-width="1.2"></rect>
+            <text x="440" y="160" text-anchor="middle" class="diagram-label">Frontend — React + Vite</text>
+
+            <line x1="440" y1="180" x2="440" y2="230" class="diagram-dim" stroke-width="1.2" marker-end="url(#arrow-infra)"></line>
+            <text x="452" y="208" class="diagram-caption">HTTPS · cookie httpOnly + CSRF</text>
+
+            <!-- Row C: backend -->
+            <rect x="290" y="230" width="300" height="60" rx="10" class="diagram-node-fill diagram-node-stroke" stroke="var(--accent)" stroke-width="1.6"></rect>
+            <text x="440" y="265" text-anchor="middle" class="diagram-label">Backend — Go + Gin</text>
+
+            <!-- Row D: five satellite boxes -->
+            <rect x="25" y="350" width="160" height="60" rx="10" class="diagram-node-fill diagram-node-stroke" stroke-width="1.2"></rect>
+            <text x="105" y="376" text-anchor="middle" class="diagram-label">Postgres</text>
+            <text x="105" y="392" text-anchor="middle" class="diagram-caption">datos + auth</text>
+
+            <rect x="195" y="350" width="170" height="60" rx="10" class="diagram-node-fill diagram-node-stroke" stroke-width="1.2"></rect>
+            <text x="280" y="376" text-anchor="middle" class="diagram-label">AWS Rekognition</text>
+            <text x="280" y="392" text-anchor="middle" class="diagram-caption">colección facial</text>
+
+            <rect x="375" y="350" width="150" height="60" rx="10" class="diagram-node-fill diagram-node-stroke" stroke-width="1.2"></rect>
+            <text x="450" y="376" text-anchor="middle" class="diagram-label">AWS S3</text>
+            <text x="450" y="392" text-anchor="middle" class="diagram-caption">fotos + documentos</text>
+
+            <rect x="535" y="350" width="150" height="60" rx="10" class="diagram-node-fill diagram-node-stroke" stroke-width="1.2"></rect>
+            <text x="610" y="376" text-anchor="middle" class="diagram-label">Web Push</text>
+            <text x="610" y="392" text-anchor="middle" class="diagram-caption">VAPID</text>
+
+            <rect x="705" y="350" width="150" height="60" rx="10" fill="none" stroke="var(--text-muted)" stroke-width="1.2" stroke-dasharray="5 4"></rect>
+            <text x="780" y="376" text-anchor="middle" class="diagram-label">Stripe</text>
+            <text x="780" y="392" text-anchor="middle" class="diagram-caption">preparado, apagado</text>
+
+            <!-- arrows backend -> row D -->
+            <line x1="360" y1="290" x2="130" y2="350" class="diagram-dim" stroke-width="1.1" marker-end="url(#arrow-infra)"></line>
+            <line x1="400" y1="290" x2="300" y2="350" class="diagram-dim" stroke-width="1.1" marker-end="url(#arrow-infra)"></line>
+            <line x1="440" y1="290" x2="450" y2="350" class="diagram-dim" stroke-width="1.1" marker-end="url(#arrow-infra)"></line>
+            <line x1="480" y1="290" x2="600" y2="350" class="diagram-dim" stroke-width="1.1" marker-end="url(#arrow-infra)"></line>
+            <line x1="520" y1="290" x2="770" y2="350" class="diagram-dim" stroke-width="1.1" stroke-dasharray="5 4" marker-end="url(#arrow-infra)"></line>
+
+            <!-- push -> parent browser -->
+            <line x1="610" y1="410" x2="610" y2="460" class="diagram-dim" stroke-width="1.2" stroke-dasharray="5 4" marker-end="url(#arrow-infra)"></line>
+            <rect x="460" y="460" width="300" height="46" rx="10" class="diagram-node-alt" stroke="var(--border-strong)" stroke-width="1.2"></rect>
+            <text x="610" y="488" text-anchor="middle" class="diagram-label">Notificación en el navegador del padre</text>
+          </svg>
+        </div>
+        <figcaption><b>Qué muestra:</b> las tres vistas de la app comparten un único frontend y un único backend. El backend es el único que toca Postgres, AWS y Stripe — el navegador nunca llama a esos servicios directo. La flecha punteada hacia Stripe indica que el código y la migración existen, pero la ruta responde "no disponible" mientras no haya llaves configuradas.</figcaption>
+      </figure>
+
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Frontend</h4>
+          <p class="manual-route">React + Vite · <code>GuarderiaBiometricFront</code></p>
+          <ul>
+            <li>Una sola SPA sirve Kiosco, Panel (staff/admin) y Portal del Padre; la vista depende del rol de la cookie de sesión, no de un build distinto.</li>
+            <li>PWA con service worker: recibe push y se puede instalar en el celular del padre.</li>
+            <li>Empaquetado como contenedor Docker con Nginx para producción.</li>
+          </ul>
+        </article>
+        <article class="manual">
+          <h4>Backend</h4>
+          <p class="manual-route">Go + Gin · <code>GuarderiaBiometricBack</code> · puerto 8099</p>
+          <ul>
+            <li>Un solo binario expone todas las rutas HTTP, agrupadas por dominio (pagos, bitácora, permisos, etc.).</li>
+            <li>Migraciones (golang-migrate) embebidas en el binario: se aplican solas al arrancar.</li>
+            <li>Multi-tenant: cada fila de datos está atada a un <code>guarderia_id</code>, para que varias guarderías compartan la misma base sin verse entre sí.</li>
+          </ul>
+        </article>
+        <article class="manual">
+          <h4>Datos y archivos</h4>
+          <p class="manual-route">PostgreSQL · AWS S3</p>
+          <ul>
+            <li>Postgres guarda todo lo estructurado: niños, pagos, bitácora, permisos, consentimientos.</li>
+            <li>S3 guarda binarios (fotos de bitácora, documentos de inscripción) en un bucket privado — el frontend nunca ve una URL pública, solo enlaces firmados de una hora.</li>
+          </ul>
+        </article>
+        <article class="manual">
+          <h4>Servicios externos</h4>
+          <p class="manual-route">AWS Rekognition · Web Push · Stripe</p>
+          <ul>
+            <li><b>Rekognition</b>: una colección de rostros por guardería, usada para registrar (indexar) e identificar (buscar) caras.</li>
+            <li><b>Web Push</b>: notificaciones al navegador del padre sin depender de ningún servicio de terceros de pago (par de llaves VAPID propio).</li>
+            <li><b>Stripe</b>: cobro de colegiatura con tarjeta — integrado, sin activar (ver <a href="#admin-stripe">Pagos móviles</a>).</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- ================= PROCESOS ================= -->
+    <section class="top-section" id="proc-auth">
+      <p class="section-kicker">Proceso</p>
+      <h2>Sesión y autenticación</h2>
+      <p class="section-intro">El token de sesión vive en una cookie <code>httpOnly</code> (invisible a JavaScript, a salvo de robo por XSS) en vez de en <code>localStorage</code>. Como el navegador manda esa cookie solo, una segunda cookie legible por JS ("csrf") se usa para probar que quien manda la petición es la propia página, no un sitio ajeno.</p>
+
+      <figure class="diagram">
+        <div class="diagram-scroll">
+          <svg viewBox="0 0 720 430" role="img" aria-label="Diagrama de secuencia: el navegador manda usuario y contraseña a /login, el backend valida contra Postgres y responde con dos cookies (el token de sesión httpOnly y un token CSRF legible). Las peticiones siguientes viajan con la cookie automática más un header X-CSRF-Token, y Auth() valida ambos antes de dejar pasar la petición.">
+            <defs>
+              <marker id="arrow-auth" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" class="diagram-dim" fill="currentColor"></path>
+              </marker>
+            </defs>
+
+            <!-- lifelines -->
+            <rect x="60" y="16" width="160" height="42" rx="8" class="diagram-node-fill diagram-node-stroke" stroke-width="1.2"></rect>
+            <text x="140" y="42" text-anchor="middle" class="diagram-label">Navegador</text>
+            <line x1="140" y1="58" x2="140" y2="400" class="diagram-dim" stroke-width="1" stroke-dasharray="3 4"></line>
+
+            <rect x="500" y="16" width="160" height="42" rx="8" class="diagram-node-fill diagram-node-stroke" stroke="var(--accent)" stroke-width="1.4"></rect>
+            <text x="580" y="42" text-anchor="middle" class="diagram-label">Backend</text>
+            <line x1="580" y1="58" x2="580" y2="400" class="diagram-dim" stroke-width="1" stroke-dasharray="3 4"></line>
+
+            <!-- step 1 -->
+            <line x1="140" y1="100" x2="580" y2="100" class="diagram-dim" stroke-width="1.2" marker-end="url(#arrow-auth)"></line>
+            <text x="360" y="92" text-anchor="middle" class="diagram-label">POST /login {usuario, password}</text>
+
+            <!-- step 2: self note at backend -->
+            <path d="M580,130 C660,130 660,168 580,168" fill="none" class="diagram-dim" stroke-width="1.1" marker-end="url(#arrow-auth)"></path>
+            <text x="592" y="153" class="diagram-caption">bcrypt.Compare contra Postgres</text>
+
+            <!-- step 3 -->
+            <line x1="580" y1="200" x2="140" y2="200" class="diagram-dim" stroke-width="1.2" marker-end="url(#arrow-auth)"></line>
+            <text x="360" y="192" text-anchor="middle" class="diagram-label">Set-Cookie: biosafe_token (httpOnly) + biosafe_csrf</text>
+
+            <!-- step 4 -->
+            <line x1="140" y1="255" x2="580" y2="255" class="diagram-accent" stroke-width="1.4" marker-end="url(#arrow-auth)"></line>
+            <text x="360" y="247" text-anchor="middle" class="diagram-label">peticiones siguientes: cookie + header X-CSRF-Token</text>
+
+            <!-- step 5: self note -->
+            <path d="M580,285 C660,285 660,323 580,323" fill="none" class="diagram-dim" stroke-width="1.1" marker-end="url(#arrow-auth)"></path>
+            <text x="592" y="308" class="diagram-caption">Auth(): valida JWT y compara CSRF</text>
+
+            <!-- step 6 -->
+            <line x1="580" y1="360" x2="140" y2="360" class="diagram-dim" stroke-width="1.2" marker-end="url(#arrow-auth)"></line>
+            <text x="360" y="352" text-anchor="middle" class="diagram-label">200 OK — o 401 / 403 si algo no cuadra</text>
+          </svg>
+        </div>
+        <figcaption><b>Qué muestra:</b> el paso 4 es la clave — como el navegador adjunta la cookie <i>automáticamente</i> en cualquier petición (incluida una de otro sitio), el header CSRF (que solo la propia página puede leer y poner) es lo que evita que un sitio ajeno actúe en tu nombre.</figcaption>
+      </figure>
+
+      <div class="manual-grid">
+        <article class="manual" id="proc-auth-detalle">
+          <h4>Cómo funciona</h4>
+          <p class="manual-route"><code>POST /login</code> · <code>GET /me</code> · <code>POST /logout</code></p>
+          <ul>
+            <li>Al recargar la página, el frontend llama a <code>/me</code> para restaurar la sesión — la cookie httpOnly es invisible a JS, así que no hay nada que leer en el cliente.</li>
+            <li>La sesión dura 24 horas; 5 minutos antes de expirar se avisa al usuario para que guarde su trabajo.</li>
+            <li><code>/logout</code> borra ambas cookies del lado del servidor (JavaScript no puede borrar una cookie httpOnly).</li>
+          </ul>
+          <p class="manual-note">Además del login, algunas pestañas sensibles piden un <b>PIN de 4 dígitos</b> propio de cada cuenta de staff, salvo que un admin le haya configurado <a href="#sistema-permisos">permisos personalizados</a> — ver ese apartado.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="top-section" id="proc-bio">
+      <p class="section-kicker">Proceso</p>
+      <h2>Reconocimiento facial</h2>
+      <p class="section-intro">Registro e identificación son dos caras de la misma colección de rostros en AWS Rekognition: una la llena (<code>IndexFaces</code>), la otra la consulta (<code>SearchFacesByImage</code>).</p>
+
+      <figure class="diagram">
+        <div class="diagram-scroll">
+          <svg viewBox="0 0 760 470" role="img" aria-label="Diagrama comparativo: el flujo de Registro captura un rostro y lo indexa en la colección de Rekognition de la guardería, luego crea al tutor y al hijo en Postgres. El flujo de Identificación captura un rostro y lo busca en esa misma colección; si hay coincidencia registra la asistencia y notifica al padre, si no la hay muestra un aviso de rostro no reconocido.">
+            <defs>
+              <marker id="arrow-bio" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" class="diagram-dim" fill="currentColor"></path>
+              </marker>
+            </defs>
+
+            <text x="170" y="20" text-anchor="middle" class="diagram-label" font-weight="600">REGISTRO</text>
+            <text x="590" y="20" text-anchor="middle" class="diagram-label" font-weight="600">IDENTIFICACIÓN</text>
+
+            <!-- left column -->
+            <rect x="30" y="34" width="280" height="46" rx="9" class="diagram-node-fill diagram-node-stroke" stroke-width="1.2"></rect>
+            <text x="170" y="61" text-anchor="middle" class="diagram-label">Aviso de privacidad aceptado</text>
+            <line x1="170" y1="80" x2="170" y2="122" class="diagram-dim" stroke-width="1.1" marker-end="url(#arrow-bio)"></line>
+
+            <rect x="30" y="122" width="280" height="46" rx="9" class="diagram-node-fill diagram-node-stroke" stroke-width="1.2"></rect>
+            <text x="170" y="149" text-anchor="middle" class="diagram-label">Captura de rostro (webcam)</text>
+            <line x1="170" y1="168" x2="170" y2="210" class="diagram-dim" stroke-width="1.1" marker-end="url(#arrow-bio)"></line>
+
+            <rect x="30" y="210" width="280" height="46" rx="9" class="diagram-node-fill diagram-node-stroke" stroke-width="1.2"></rect>
+            <text x="170" y="237" text-anchor="middle" class="diagram-label mono">POST /registrar</text>
+            <line x1="170" y1="256" x2="170" y2="298" class="diagram-dim" stroke-width="1.1" marker-end="url(#arrow-bio)"></line>
+
+            <rect x="30" y="298" width="280" height="46" rx="9" class="diagram-node-alt" stroke="var(--accent)" stroke-width="1.3"></rect>
+            <text x="170" y="325" text-anchor="middle" class="diagram-label">Rekognition: IndexFaces</text>
+            <line x1="170" y1="344" x2="170" y2="386" class="diagram-dim" stroke-width="1.1" marker-end="url(#arrow-bio)"></line>
+
+            <rect x="30" y="386" width="280" height="46" rx="9" class="diagram-node-fill diagram-node-stroke" stroke-width="1.2"></rect>
+            <text x="170" y="413" text-anchor="middle" class="diagram-label">Postgres: alta de tutor + hijo</text>
+
+            <!-- shared collection -->
+            <rect x="325" y="290" width="110" height="62" rx="10" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.4"></rect>
+            <text x="380" y="315" text-anchor="middle" class="diagram-label">Colección</text>
+            <text x="380" y="330" text-anchor="middle" class="diagram-label">facial</text>
+            <text x="380" y="345" text-anchor="middle" class="diagram-caption">por guardería</text>
+
+            <line x1="310" y1="321" x2="325" y2="321" class="diagram-accent" stroke-width="1.4" marker-end="url(#arrow-bio)"></line>
+            <line x1="435" y1="321" x2="450" y2="321" class="diagram-accent" stroke-width="1.4" marker-end="url(#arrow-bio)"></line>
+
+            <!-- right column -->
+            <rect x="450" y="122" width="280" height="46" rx="9" class="diagram-node-fill diagram-node-stroke" stroke-width="1.2"></rect>
+            <text x="590" y="149" text-anchor="middle" class="diagram-label">Captura de rostro (webcam)</text>
+            <line x1="590" y1="168" x2="590" y2="210" class="diagram-dim" stroke-width="1.1" marker-end="url(#arrow-bio)"></line>
+
+            <rect x="450" y="210" width="280" height="46" rx="9" class="diagram-node-fill diagram-node-stroke" stroke-width="1.2"></rect>
+            <text x="590" y="237" text-anchor="middle" class="diagram-label mono">POST /identificar</text>
+            <line x1="590" y1="256" x2="590" y2="298" class="diagram-dim" stroke-width="1.1" marker-end="url(#arrow-bio)"></line>
+
+            <rect x="450" y="298" width="280" height="46" rx="9" class="diagram-node-alt" stroke="var(--accent)" stroke-width="1.3"></rect>
+            <text x="590" y="325" text-anchor="middle" class="diagram-label">Rekognition: SearchFacesByImage</text>
+            <line x1="530" y1="344" x2="475" y2="386" class="diagram-dim" stroke-width="1.1" marker-end="url(#arrow-bio)"></line>
+            <line x1="650" y1="344" x2="705" y2="386" class="diagram-dim" stroke-width="1.1" marker-end="url(#arrow-bio)"></line>
+
+            <rect x="365" y="386" width="220" height="46" rx="9" fill="var(--good-soft)" stroke="var(--good)" stroke-width="1.2"></rect>
+            <text x="475" y="413" text-anchor="middle" class="diagram-label">Sí: asistencia + push al padre</text>
+
+            <rect x="595" y="386" width="165" height="46" rx="9" fill="var(--crit-soft)" stroke="var(--crit)" stroke-width="1.2"></rect>
+            <text x="677" y="413" text-anchor="middle" class="diagram-label">No: sin coincidencia</text>
+          </svg>
+        </div>
+        <figcaption><b>Qué muestra:</b> ambos flujos comparten una sola colección por guardería — nunca se comparan rostros entre guarderías distintas. <a href="#kiosco-registro">Registro</a> escribe en ella una vez por persona; <a href="#kiosco-identificar">Identificación</a> la consulta cada vez que alguien se para frente al kiosco.</figcaption>
+      </figure>
+    </section>
+
+    <section class="top-section" id="proc-pagos">
+      <p class="section-kicker">Proceso</p>
+      <h2>Pagos: captura manual vs. en línea</h2>
+      <p class="section-intro">Dos caminos muy distintos terminan escribiendo la misma fila en la tabla <code>pagos</code> — por eso da igual cómo se haya pagado a la hora de consultar el estado de cuenta, generar un recibo o ver el historial.</p>
+
+      <figure class="diagram">
+        <div class="diagram-scroll">
+          <svg viewBox="0 0 760 500" role="img" aria-label="Diagrama comparativo: el staff captura un pago manualmente desde el Panel de Pagos con POST /pagos. El padre, en cambio, pulsa Pagar en línea, el backend calcula el saldo pendiente y crea una sesión de Stripe Checkout; tras pagar con tarjeta, Stripe llama a un webhook que inserta el pago de forma idempotente. Ambos caminos terminan en la misma tabla de pagos, visible por igual en el estado de cuenta, el recibo y el portal del padre.">
+            <defs>
+              <marker id="arrow-pay" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" class="diagram-dim" fill="currentColor"></path>
+              </marker>
+            </defs>
+
+            <text x="170" y="20" text-anchor="middle" class="diagram-label" font-weight="600">CAPTURA MANUAL (STAFF)</text>
+            <text x="590" y="20" text-anchor="middle" class="diagram-label" font-weight="600">PAGO EN LÍNEA (PADRE)</text>
+
+            <!-- left -->
+            <rect x="30" y="34" width="280" height="46" rx="9" class="diagram-node-fill diagram-node-stroke" stroke-width="1.2"></rect>
+            <text x="170" y="61" text-anchor="middle" class="diagram-label">Panel de Pagos: captura monto</text>
+            <line x1="170" y1="80" x2="170" y2="122" class="diagram-dim" stroke-width="1.1" marker-end="url(#arrow-pay)"></line>
+
+            <rect x="30" y="122" width="280" height="46" rx="9" class="diagram-node-fill diagram-node-stroke" stroke-width="1.2"></rect>
+            <text x="170" y="149" text-anchor="middle" class="diagram-label mono">POST /pagos</text>
+            <line x1="240" y1="168" x2="330" y2="380" class="diagram-dim" stroke-width="1.2" marker-end="url(#arrow-pay)"></line>
+            <text x="150" y="230" class="diagram-caption">metodo_pago = efectivo / transferencia</text>
+
+            <!-- right -->
+            <rect x="450" y="34" width="280" height="46" rx="9" class="diagram-node-fill diagram-node-stroke" stroke-width="1.2"></rect>
+            <text x="590" y="61" text-anchor="middle" class="diagram-label">Botón "Pagar en línea"</text>
+            <line x1="590" y1="80" x2="590" y2="122" class="diagram-dim" stroke-width="1.1" marker-end="url(#arrow-pay)"></line>
+
+            <rect x="450" y="122" width="280" height="46" rx="9" class="diagram-node-fill diagram-node-stroke" stroke-width="1.2"></rect>
+            <text x="590" y="149" text-anchor="middle" class="diagram-label mono">POST /pagos-online/checkout</text>
+            <text x="590" y="163" text-anchor="middle" class="diagram-caption">saldo calculado en el servidor</text>
+            <line x1="590" y1="168" x2="590" y2="210" class="diagram-dim" stroke-width="1.1" marker-end="url(#arrow-pay)"></line>
+
+            <rect x="450" y="210" width="280" height="46" rx="9" class="diagram-node-alt" stroke="var(--accent)" stroke-width="1.3"></rect>
+            <text x="590" y="237" text-anchor="middle" class="diagram-label">Stripe Checkout (tarjeta)</text>
+            <line x1="590" y1="256" x2="590" y2="298" class="diagram-dim" stroke-width="1.1" marker-end="url(#arrow-pay)"></line>
+
+            <rect x="450" y="298" width="280" height="46" rx="9" class="diagram-node-fill diagram-node-stroke" stroke="var(--accent)" stroke-width="1.3"></rect>
+            <text x="590" y="320" text-anchor="middle" class="diagram-label mono">POST /webhooks/stripe</text>
+            <text x="590" y="335" text-anchor="middle" class="diagram-caption">firma verificada, idempotente</text>
+            <line x1="530" y1="344" x2="440" y2="380" class="diagram-dim" stroke-width="1.2" marker-end="url(#arrow-pay)"></line>
+
+            <!-- shared table -->
+            <rect x="230" y="380" width="300" height="52" rx="10" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.4"></rect>
+            <text x="380" y="411" text-anchor="middle" class="diagram-label">tabla pagos</text>
+
+            <line x1="380" y1="432" x2="380" y2="458" class="diagram-dim" stroke-width="1.2" marker-end="url(#arrow-pay)"></line>
+            <rect x="180" y="458" width="400" height="36" rx="9" class="diagram-node-fill diagram-node-stroke" stroke-width="1.1"></rect>
+            <text x="380" y="480" text-anchor="middle" class="diagram-label">Estado de cuenta · recibo · portal del padre</text>
+          </svg>
+        </div>
+        <figcaption><b>Qué muestra:</b> el pago en línea nunca inventa un monto — lo recalcula el backend a partir de la colegiatura pendiente real. El webhook es idempotente (un índice único evita duplicar el pago si Stripe reintenta el aviso), así que es seguro incluso si la confirmación llega dos veces.</figcaption>
+      </figure>
+    </section>
+
+    <section class="top-section" id="proc-permisos">
+      <p class="section-kicker">Proceso</p>
+      <h2>Permisos personalizados por docente</h2>
+      <p class="section-intro">Cada petición a una sección protegida pasa por esta decisión antes de llegar al handler. Reemplaza el candado de un solo PIN compartido por una regla explícita, evaluada en el servidor en cada llamada — no solo escondida del menú.</p>
+
+      <figure class="diagram">
+        <div class="diagram-scroll">
+          <svg viewBox="0 0 700 560" role="img" aria-label="Diagrama de decisión: una petición a una ruta protegida primero valida la cookie de sesión (401 si falta). Luego revisa el rol: admin siempre pasa, papá siempre recibe 403, y staff sigue a una segunda decisión. Si la cuenta de staff no tiene permisos personalizados, pasa con acceso completo por compatibilidad. Si sí los tiene, solo pasa si el área pedida está en su lista concedida; si no, recibe 403.">
+            <defs>
+              <marker id="arrow-perm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" class="diagram-dim" fill="currentColor"></path>
+              </marker>
+            </defs>
+
+            <rect x="190" y="16" width="260" height="46" rx="9" class="diagram-node-fill diagram-node-stroke" stroke-width="1.2"></rect>
+            <text x="320" y="43" text-anchor="middle" class="diagram-label">Petición a ruta protegida</text>
+            <line x1="320" y1="62" x2="320" y2="104" class="diagram-dim" stroke-width="1.2" marker-end="url(#arrow-perm)"></line>
+
+            <polygon points="320,104 420,144 320,184 220,144" class="diagram-node-fill diagram-node-stroke" stroke-width="1.2"></polygon>
+            <text x="320" y="140" text-anchor="middle" class="diagram-label">¿cookie JWT</text>
+            <text x="320" y="154" text-anchor="middle" class="diagram-label">válida?</text>
+
+            <line x1="420" y1="144" x2="520" y2="144" class="diagram-dim" stroke-width="1.1" marker-end="url(#arrow-perm)"></line>
+            <text x="470" y="136" text-anchor="middle" class="diagram-caption">no</text>
+            <rect x="520" y="121" width="150" height="46" rx="9" fill="var(--crit-soft)" stroke="var(--crit)" stroke-width="1.2"></rect>
+            <text x="595" y="148" text-anchor="middle" class="diagram-label">401 sin sesión</text>
+
+            <line x1="320" y1="184" x2="320" y2="226" class="diagram-dim" stroke-width="1.2" marker-end="url(#arrow-perm)"></line>
+            <text x="335" y="210" class="diagram-caption">sí</text>
+
+            <polygon points="320,226 420,266 320,306 220,266" class="diagram-node-fill diagram-node-stroke" stroke-width="1.2"></polygon>
+            <text x="320" y="262" text-anchor="middle" class="diagram-label">rol de la</text>
+            <text x="320" y="276" text-anchor="middle" class="diagram-label">cuenta</text>
+
+            <line x1="420" y1="248" x2="520" y2="220" class="diagram-dim" stroke-width="1.1" marker-end="url(#arrow-perm)"></line>
+            <text x="500" y="205" class="diagram-caption">admin</text>
+            <rect x="520" y="196" width="150" height="42" rx="9" fill="var(--good-soft)" stroke="var(--good)" stroke-width="1.2"></rect>
+            <text x="595" y="221" text-anchor="middle" class="diagram-label">acceso total</text>
+
+            <line x1="420" y1="284" x2="520" y2="310" class="diagram-dim" stroke-width="1.1" marker-end="url(#arrow-perm)"></line>
+            <text x="500" y="330" class="diagram-caption">papá</text>
+            <rect x="520" y="302" width="150" height="42" rx="9" fill="var(--crit-soft)" stroke="var(--crit)" stroke-width="1.2"></rect>
+            <text x="595" y="327" text-anchor="middle" class="diagram-label">403 restringido</text>
+
+            <line x1="320" y1="306" x2="320" y2="348" class="diagram-dim" stroke-width="1.2" marker-end="url(#arrow-perm)"></line>
+            <text x="336" y="332" class="diagram-caption">staff</text>
+
+            <polygon points="320,348 440,392 320,436 200,392" class="diagram-node-fill diagram-node-stroke" stroke-width="1.2"></polygon>
+            <text x="320" y="386" text-anchor="middle" class="diagram-label">¿permisos</text>
+            <text x="320" y="400" text-anchor="middle" class="diagram-label">personalizados?</text>
+
+            <line x1="440" y1="392" x2="540" y2="392" class="diagram-dim" stroke-width="1.1" marker-end="url(#arrow-perm)"></line>
+            <text x="490" y="384" text-anchor="middle" class="diagram-caption">no</text>
+            <rect x="540" y="369" width="150" height="46" rx="9" fill="var(--good-soft)" stroke="var(--good)" stroke-width="1.2"></rect>
+            <text x="615" y="389" text-anchor="middle" class="diagram-label">acceso completo</text>
+            <text x="615" y="403" text-anchor="middle" class="diagram-caption">cuenta sin configurar</text>
+
+            <line x1="320" y1="436" x2="320" y2="478" class="diagram-dim" stroke-width="1.2" marker-end="url(#arrow-perm)"></line>
+            <text x="332" y="460" class="diagram-caption">sí</text>
+
+            <polygon points="320,478 440,520 320,562 200,520" class="diagram-node-fill diagram-node-stroke" stroke-width="1.2"></polygon>
+            <text x="320" y="514" text-anchor="middle" class="diagram-label">¿área en su</text>
+            <text x="320" y="528" text-anchor="middle" class="diagram-label">lista?</text>
+
+            <line x1="440" y1="500" x2="530" y2="470" class="diagram-dim" stroke-width="1.1" marker-end="url(#arrow-perm)"></line>
+            <text x="500" y="456" class="diagram-caption">sí</text>
+            <rect x="530" y="447" width="150" height="42" rx="9" fill="var(--good-soft)" stroke="var(--good)" stroke-width="1.2"></rect>
+            <text x="605" y="472" text-anchor="middle" class="diagram-label">pasa al handler</text>
+
+            <line x1="440" y1="536" x2="530" y2="536" class="diagram-dim" stroke-width="1.1" marker-end="url(#arrow-perm)"></line>
+            <text x="490" y="528" text-anchor="middle" class="diagram-caption">no</text>
+            <rect x="530" y="513" width="150" height="42" rx="9" fill="var(--crit-soft)" stroke="var(--crit)" stroke-width="1.2"></rect>
+            <text x="605" y="538" text-anchor="middle" class="diagram-label">403 sin permiso</text>
+          </svg>
+        </div>
+        <figcaption><b>Qué muestra:</b> ninguna cuenta existente se rompe al desplegar esto — "sin permisos personalizados" (el estado de toda cuenta que un admin no haya tocado) sigue teniendo acceso completo, igual que antes. Detalle completo en <a href="#sistema-permisos">Sistema → Permisos personalizados</a>.</figcaption>
+      </figure>
+    </section>
+
+    <!-- ================= KIOSCO ================= -->
+    <section class="top-section" id="kiosco">
+      <p class="section-kicker">Pantallas</p>
+      <h2>Kiosco</h2>
+      <p class="section-intro">Pantalla compartida en recepción, sin login personal — dos botones siempre visibles, "Kiosco" y "Registro", sin PIN ni permisos de por medio.</p>
+
+      <h3 class="cat-title" id="kiosco-identificar">Identificación (asistencia)</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Marcar entrada o salida</h4>
+          <div class="pills"><span class="pill">Kiosco</span><span class="pill outline">Staff</span></div>
+          <p class="manual-route"><code>POST /identificar</code> · pestaña "Kiosco"</p>
+          <ul>
+            <li>El niño (o quien lo lleva) se para frente a la cámara; el sistema compara el rostro contra la colección de rostros de la guardería.</li>
+            <li>Con coincidencia, registra la asistencia (entrada la primera vez del día, salida la siguiente) y avisa al padre por notificación push.</li>
+            <li>Si llegan varios hermanos juntos, el staff confirma cuáles quedan marcados antes de cerrar el trámite.</li>
+          </ul>
+          <p class="manual-note">Staff puede corregir un estatus de asistencia a mano si el reconocimiento falló o hubo un error de horario.</p>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="kiosco-registro">Registro de tutores e hijos</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Enrolar un rostro nuevo</h4>
+          <div class="pills"><span class="pill">Kiosco</span><span class="pill outline">Staff</span></div>
+          <p class="manual-route"><code>POST /registrar</code> · pestaña "Registro"</p>
+          <ul>
+            <li>Antes de capturar el rostro, el tutor debe aceptar el Aviso de Privacidad configurado por el admin — sin texto configurado, el registro queda bloqueado.</li>
+            <li>Se captura el rostro y se escribe el nombre; el sistema indexa la cara en la colección facial de la guardería.</li>
+            <li>Crea al tutor y al hijo, y guarda el consentimiento aceptado (versión y fecha) para cumplimiento LFPDPPP.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- ================= ALUMNOS ================= -->
+    <section class="top-section" id="alumnos">
+      <p class="section-kicker">Pantallas</p>
+      <h2>Alumnos</h2>
+      <p class="section-intro">Menú "Alumnos" del panel: el directorio de familias y la ficha administrativa de cada niño.</p>
+
+      <h3 class="cat-title" id="alumnos-familia">Directorio de familias</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Buscar y gestionar tutores</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <p class="manual-route">área <code>familia</code> · pestaña "Familia"</p>
+          <ul>
+            <li>Busca tutores por nombre; cada uno muestra sus hijos vinculados.</li>
+            <li>Vincula o desvincula un hijo de un tutor, edita los datos del tutor, o da de alta un hermano nuevo sin re-enrolar el rostro del tutor.</li>
+            <li>Regenera el enlace público de bitácora de un niño (invalida el anterior, útil si se compartió de más).</li>
+          </ul>
+          <p class="manual-note">Los botones de exportar/eliminar una familia (derechos ARCO) viven aquí mismo — ver <a href="#sistema-arco">Sistema → Derechos ARCO</a>.</p>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="alumnos-perfiles">Perfiles</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Ficha administrativa del niño</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <p class="manual-route">área <code>perfiles</code> · pestaña "Perfiles"</p>
+          <ul>
+            <li>Datos completos por niño: fecha de nacimiento, dirección, contacto de emergencia, colegiatura mensual, grupo/salón.</li>
+            <li>Desde la misma ficha se abren sus documentos y su galería de fotos (ver abajo).</li>
+            <li>Activa o desactiva a un niño sin borrar su historial.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="alumnos-documentos">Documentos</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Documentos de inscripción</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <p class="manual-route">área <code>perfiles</code> · dentro de la ficha del niño</p>
+          <ul>
+            <li>Sube y descarga documentos por niño (acta, cartilla, comprobante, etc.), guardados en S3 de forma privada.</li>
+            <li>Puede eliminar un documento subido por error.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="alumnos-galeria">Galería de fotos</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Fotos consolidadas por niño</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Padre</span></div>
+          <p class="manual-route">área <code>perfiles</code> · pestaña "Galería"</p>
+          <ul>
+            <li>Reúne todas las fotos que el staff subió en la bitácora diaria, agrupadas por fecha, con vista ampliada.</li>
+            <li>El padre solo ve las fotos de sus propios hijos; el staff ve las de cualquier niño de la guardería.</li>
+          </ul>
+          <p class="manual-note">Cubre fotos, no video.</p>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="alumnos-grupos">Grupos</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Salones / clases</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <p class="manual-route"><code>/admin/grupos</code></p>
+          <ul>
+            <li>Crea, renombra o elimina grupos (ej. "Maternal A", "Preescolar").</li>
+            <li>Cada niño se asigna a un grupo desde su ficha de <a href="#alumnos-perfiles">Perfiles</a>.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- ================= DIA A DIA ================= -->
+    <section class="top-section" id="dia-a-dia">
+      <p class="section-kicker">Pantallas</p>
+      <h2>Día a día</h2>
+      <p class="section-intro">Menú "Día a Día": todo lo operativo y de comunicación entre la guardería y las familias.</p>
+
+      <h3 class="cat-title" id="dia-bitacora">Bitácora</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Registro diario del niño</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Padre</span></div>
+          <p class="manual-route">área <code>bitacora</code> · pestaña "Bitácora"</p>
+          <ul>
+            <li>Staff captura comidas, siestas, incidentes y notas del día, con foto opcional.</li>
+            <li>El padre ve el reporte del día de su hijo desde el portal, o desde un enlace público (sin necesidad de cuenta) que el staff puede compartir por WhatsApp.</li>
+            <li>Cada entrada nueva dispara una notificación push al padre.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="dia-menu">Menú semanal</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Desayuno, comida y merienda</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Padre</span></div>
+          <p class="manual-route">área <code>menu</code> · pestaña "Menú Semanal"</p>
+          <ul>
+            <li>Staff captura el menú de lunes a viernes; el padre lo ve en solo lectura.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="dia-circulares">Circulares</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Avisos con confirmación de lectura</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Padre</span></div>
+          <p class="manual-route">área <code>circulares</code> · pestaña "Circulares"</p>
+          <ul>
+            <li>Staff publica un aviso (título + contenido); se notifica por push a todas las familias.</li>
+            <li>Staff ve cuántas familias ya leyeron cada circular ("3 de 12 familias") y el detalle de quién falta.</li>
+            <li>Se marca como leída automáticamente cuando el padre la ve en su dashboard.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="dia-chat">Chat con familias</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Mensajería directa</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Padre</span></div>
+          <p class="manual-route">pestaña "Chat con Familias"</p>
+          <ul>
+            <li>Conversación privada entre la guardería y cada familia; staff ve la lista completa de conversaciones, el padre solo la suya.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="dia-ausencias">Ausencias avisadas</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>El padre avisa que su hijo no asistirá</h4>
+          <div class="pills"><span class="pill">Padre</span><span class="pill">Staff</span></div>
+          <p class="manual-route">pestaña "Ausencias Avisadas" (staff) · pestaña "Ausencias" (padre)</p>
+          <ul>
+            <li>El padre elige un rango de fechas (hasta 31 días, nunca fechas pasadas) y un motivo opcional; puede cancelar una ausencia futura.</li>
+            <li>Staff ve el listado agrupado por fecha, con el nombre del niño y el motivo.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="dia-calendario">Calendario escolar</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Eventos y fechas importantes</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Padre</span></div>
+          <p class="manual-route">pestaña "Calendario Escolar"</p>
+          <ul>
+            <li>Staff crea eventos con título, fecha y tipo (feriado, actividad, junta…), cada tipo con su color.</li>
+            <li>El padre ve el calendario y un resumen de próximos eventos en su dashboard, en solo lectura.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="dia-comedor">Pedidos de comedor</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Excepciones al menú por niño</h4>
+          <div class="pills"><span class="pill">Padre</span><span class="pill">Staff</span></div>
+          <p class="manual-route">pestaña "Pedidos de Comedor"</p>
+          <ul>
+            <li>Por defecto todos los niños comen todo — el padre solo marca excepciones puntuales (ej. "no desayuna" un día concreto, con nota opcional).</li>
+            <li>Staff ve el conteo de cuántos niños comen cada tiempo de comida por día, listo para cocina.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="dia-encuestas">Encuestas</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Consultar a las familias</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Padre</span></div>
+          <p class="manual-route">área <code>circulares</code>* · pestaña "Encuestas"</p>
+          <ul>
+            <li>Staff arma preguntas de opción múltiple y publica la encuesta; se notifica por push.</li>
+            <li>El padre responde una sola vez; staff ve los resultados agregados por pregunta.</li>
+            <li>Staff puede cerrar (dejar de recibir respuestas) o eliminar una encuesta.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- ================= ADMINISTRACION ================= -->
+    <section class="top-section" id="administracion">
+      <p class="section-kicker">Pantallas</p>
+      <h2>Administración</h2>
+      <p class="section-intro">Menú "Administración": todo lo relacionado con colegiaturas, asistencia agregada y cobranza.</p>
+
+      <h3 class="cat-title" id="admin-reportes">Reportes</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Asistencia detallada por rango de fechas</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <p class="manual-route">área <code>reportes</code> · pestaña "Reportes"</p>
+          <ul>
+            <li>Lista entradas/salidas por niño en un rango, marcando llegadas tarde (después de las 9:00) y ausencias.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="admin-pagos">Pagos</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Captura y estado de colegiaturas</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <p class="manual-route">área <code>pagos</code> · pestaña "Pagos"</p>
+          <ul>
+            <li>Registra un pago (colegiatura, inscripción, material u otro) con monto, periodo, método y observaciones.</li>
+            <li>Ve el estado de cada niño por periodo — pagado, parcial, pendiente o vencido — calculado contra la colegiatura mensual configurada.</li>
+            <li>Puede eliminar un pago capturado por error.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="admin-recibos">Recibos y recordatorios</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Comprobante y aviso de cobranza</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Padre</span></div>
+          <p class="manual-route">área <code>pagos</code> · dentro de Pagos</p>
+          <ul>
+            <li>Genera un recibo por cada pago, visible tanto para staff como para el padre en su propio historial.</li>
+            <li>Un botón manda recordatorios push a todas las familias con saldo pendiente del periodo.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="admin-stripe">Pagos móviles (Stripe)</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Cobro de colegiatura con tarjeta</h4>
+          <div class="pills"><span class="pill">Padre</span><span class="pill outline">Preparado, sin activar</span></div>
+          <p class="manual-route"><code>POST /pagos-online/checkout</code> · <code>POST /webhooks/stripe</code></p>
+          <ul>
+            <li>El padre paga el saldo pendiente de colegiatura del mes con tarjeta, vía Stripe Checkout.</li>
+            <li>El pago confirmado se registra solo, en la misma tabla que la captura manual — ver el <a href="#proc-pagos">diagrama del proceso</a>.</li>
+          </ul>
+          <p class="manual-note">Apagado hasta configurar <code>STRIPE_SECRET_KEY</code>, <code>STRIPE_PUBLISHABLE_KEY</code>, <code>STRIPE_WEBHOOK_SECRET</code> y <code>FRONTEND_URL</code>. Mientras tanto, el botón de pago en línea ni aparece.</p>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="admin-estadisticas">Estadísticas</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Resumen de asistencia</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <p class="manual-route">área <code>estadisticas</code> · pestaña "Estadísticas"</p>
+          <ul>
+            <li>Por niño y rango de fechas: días hábiles, días asistidos, ausencias, llegadas tarde y % de asistencia.</li>
+          </ul>
+          <p class="manual-note">No confundir con la pestaña "Reportes" — misma familia de datos, vista distinta.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ================= SISTEMA ================= -->
+    <section class="top-section" id="sistema">
+      <p class="section-kicker">Pantallas</p>
+      <h2>Sistema</h2>
+      <p class="section-intro">Menú "Sistema": configuración legal, cuentas de personal y quién puede ver qué. La sección de Personal y Horarios solo la ve una cuenta admin.</p>
+
+      <h3 class="cat-title" id="sistema-config">Configuración / Aviso de privacidad</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Texto legal de consentimiento</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <p class="manual-route">área <code>configuracion</code> · pestaña "Configuración"</p>
+          <ul>
+            <li>Redacta el Aviso de Privacidad (LFPDPPP) que se le muestra al tutor antes de enrolar su rostro en el kiosco.</li>
+            <li>Muestra estadísticas de cuántos tutores lo han aceptado.</li>
+          </ul>
+          <p class="manual-note">Sin este texto configurado, el kiosco bloquea el registro de nuevos tutores.</p>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="sistema-arco">Derechos ARCO</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Acceso, Rectificación, Cancelación, Oposición</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <p class="manual-route">área <code>familia</code> · dentro del Directorio de Familias</p>
+          <ul>
+            <li>Exporta todos los datos de una familia en un archivo descargable.</li>
+            <li>Elimina una familia por completo (hijos, pagos, consentimientos, fotos) cuando el tutor lo solicita.</li>
+          </ul>
+          <p class="manual-note">Ambas acciones quedan registradas en la bitácora de auditoría interna.</p>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="sistema-personal">Gestión de personal</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Cuentas de staff y admin</h4>
+          <div class="pills"><span class="pill">Admin</span></div>
+          <p class="manual-route"><code>/admin/personal</code> · pestaña "Personal"</p>
+          <ul>
+            <li>Da de alta cuentas de staff o admin (usuario, contraseña, PIN de 4 dígitos, rol).</li>
+            <li>Edita nombre, rol o estado de una cuenta; un admin no puede desactivarse ni degradarse a sí mismo.</li>
+            <li>Cambia el PIN o resetea la contraseña de cualquier cuenta de staff.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="sistema-permisos">Permisos personalizados</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Qué secciones ve cada cuenta de staff</h4>
+          <div class="pills"><span class="pill">Admin</span></div>
+          <p class="manual-route"><code>PUT /admin/personal/:id/permisos</code> · botón "Permisos" en Gestión de Personal</p>
+          <ul>
+            <li>Nueve áreas configurables: Familia, Bitácora, Reportes, Perfiles, Pagos, Estadísticas, Configuración, Menú y Circulares.</li>
+            <li>Sin personalizar (el estado de toda cuenta nueva): la cuenta conserva el acceso completo de siempre, tras su PIN.</li>
+            <li>Al personalizar, se elige exactamente qué áreas puede tocar esa cuenta — el resto le da 403 aunque llame a la API directo, no solo se le esconde del menú.</li>
+          </ul>
+          <p class="manual-note">Detalle técnico completo en <a href="#proc-permisos">Procesos → Permisos personalizados</a>. Personal y Horarios de Personal quedan fuera de este catálogo a propósito: nunca son delegables.</p>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="sistema-horarios">Horarios de personal</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Turnos y horas trabajadas</h4>
+          <div class="pills"><span class="pill">Admin</span></div>
+          <p class="manual-route"><code>/admin/horarios</code> · pestaña "Horarios de Personal"</p>
+          <ul>
+            <li>Define el turno esperado (hora de entrada/salida) de cada cuenta de staff por día de la semana.</li>
+            <li>Registra las horas realmente trabajadas por fecha, con observaciones — insumo para nómina.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- ================= PORTAL DEL PADRE ================= -->
+    <section class="top-section" id="portal-padre">
+      <p class="section-kicker">Pantallas</p>
+      <h2>Portal del padre</h2>
+      <p class="section-intro">Lo que ve un tutor al iniciar sesión como "Papá" — solo los datos de sus propios hijos, sin acceso al panel de staff.</p>
+
+      <h3 class="cat-title" id="padre-dashboard">Dashboard</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Punto de entrada del padre</h4>
+          <div class="pills"><span class="pill">Padre</span></div>
+          <p class="manual-route">pantalla inicial tras el login como "Papá"</p>
+          <ul>
+            <li>Resumen de pagos pendientes, selector de hijos si tiene más de uno, y activación de notificaciones push.</li>
+            <li>Tarjetas de Circulares recientes, Encuestas abiertas y próximos eventos del calendario.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="padre-detalle">Detalle de un hijo</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Todo sobre un niño en un solo lugar</h4>
+          <div class="pills"><span class="pill">Padre</span></div>
+          <p class="manual-route">al elegir un hijo desde el dashboard</p>
+          <ul>
+            <li><b>Hoy</b>: la bitácora y el reporte del día, con foto si el staff subió una.</li>
+            <li><b>Expediente</b>: los datos administrativos del niño, en solo lectura.</li>
+            <li><b>Pagos</b>: historial, recibo descargable y, si está activo, el botón de <a href="#admin-stripe">pago en línea</a>.</li>
+            <li><b>Ausencias</b>, <b>Comedor</b> y <b>Galería</b>: ver las secciones correspondientes en <a href="#dia-ausencias">Día a día</a> y <a href="#alumnos-galeria">Alumnos</a>.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="padre-push">Notificaciones push</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Avisos en tiempo real</h4>
+          <div class="pills"><span class="pill">Padre</span></div>
+          <p class="manual-route">botón de activar en el Dashboard</p>
+          <ul>
+            <li>Se activan una vez, pidiendo permiso del navegador; luego avisan de nueva bitácora, asistencia marcada, circulares y encuestas publicadas, y recordatorios de pago.</li>
+            <li>No dependen de ningún servicio de pago — funcionan con el par de llaves propio de la guardería (Web Push / VAPID).</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <footer class="doc-footer">
+      Manual de referencia de BioSafe — cada apartado documenta una función tal como existe hoy en el sistema. Para el detalle técnico exacto de rutas y datos, revisa el código fuente de la sección correspondiente.
+    </footer>
+  </main>
+</div>
+</body>
+</html>
