@@ -25,6 +25,22 @@ type Config struct {
 	// siempre.
 	TLSCertFile string
 	TLSKeyFile  string
+
+	// Pagos móviles (Stripe Checkout) -- todas vacías por defecto, lo que
+	// deja la función deshabilitada sin romper nada (igual que Vapid* para
+	// push): no hay plan de activarla todavía, solo dejar el terreno listo.
+	// Ver server.StripeHabilitado().
+	StripeSecretKey      string
+	StripePublishableKey string
+	StripeWebhookSecret  string
+	// StripeCurrency es el código ISO de 3 letras en minúsculas que Stripe
+	// espera (ej. "mxn", "usd"). "mxn" por defecto -- la app está en
+	// español de México y los montos ya se capturan así en /pagos.
+	StripeCurrency string
+	// FrontendURL arma las URLs de retorno del Checkout de Stripe
+	// (éxito/cancelado) -- ej. "https://miguarderia.com". Solo hace falta
+	// si StripeSecretKey está configurada.
+	FrontendURL string
 }
 
 func Load() Config {
@@ -41,5 +57,18 @@ func Load() Config {
 		VapidSubject:       os.Getenv("VAPID_SUBJECT"),
 		TLSCertFile:        os.Getenv("TLS_CERT_FILE"),
 		TLSKeyFile:         os.Getenv("TLS_KEY_FILE"),
+
+		StripeSecretKey:      os.Getenv("STRIPE_SECRET_KEY"),
+		StripePublishableKey: os.Getenv("STRIPE_PUBLISHABLE_KEY"),
+		StripeWebhookSecret:  os.Getenv("STRIPE_WEBHOOK_SECRET"),
+		StripeCurrency:       monedaOr(os.Getenv("STRIPE_CURRENCY"), "mxn"),
+		FrontendURL:          os.Getenv("FRONTEND_URL"),
 	}
+}
+
+func monedaOr(valor, porDefecto string) string {
+	if valor == "" {
+		return porDefecto
+	}
+	return valor
 }

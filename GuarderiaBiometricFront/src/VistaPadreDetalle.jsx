@@ -7,7 +7,8 @@ import {
   X, // Importamos el icono de cerrar
   ClipboardList, IdCard, Wallet,
   Cake, MapPin, Phone, XCircle, Receipt,
-  CalendarOff, Plus, Loader2, Trash2, UtensilsCrossed, RotateCcw, Image as ImageIcon
+  CalendarOff, Plus, Loader2, Trash2, UtensilsCrossed, RotateCcw, Image as ImageIcon,
+  CreditCard
 } from 'lucide-react';
 import { hoyLocal } from './utils/fecha';
 import { mostrarError, mostrarExito, confirmar } from './utils/alertas';
@@ -33,6 +34,12 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
   const [historialPagos, setHistorialPagos] = useState([]);
   const [loadingPagos, setLoadingPagos] = useState(false);
   const [reciboId, setReciboId] = useState(null);
+
+  // Pagos en línea (Stripe): sigue apagado hasta que la guardería configure
+  // sus llaves -- pagosEnLineaHabilitado se queda en false y el botón de
+  // "Pagar en línea" ni se intenta renderizar, sin más cambios visibles.
+  const [pagosEnLineaHabilitado, setPagosEnLineaHabilitado] = useState(false);
+  const [iniciandoPagoEnLinea, setIniciandoPagoEnLinea] = useState(false);
 
   const [ausencias, setAusencias] = useState([]);
   const [loadingAusencias, setLoadingAusencias] = useState(false);
@@ -191,7 +198,24 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
       }
     };
     cargarHistorialPagos();
+
+    api.get('/pagos-online/config')
+      .then((res) => setPagosEnLineaHabilitado(!!res.data?.habilitado))
+      .catch(() => setPagosEnLineaHabilitado(false));
   }, [hijoId, vista]);
+
+  const pagarColegiaturaEnLinea = async () => {
+    setIniciandoPagoEnLinea(true);
+    try {
+      const periodoActual = hoyLocal().slice(0, 7); // YYYY-MM
+      const res = await api.post('/padre/pagos-online/checkout', { hijo_id: String(hijoId), periodo: periodoActual });
+      window.location.href = res.data.url;
+    } catch (err) {
+      console.error('Error al iniciar el pago en línea', err);
+      mostrarError(err.response?.data?.error || 'No se pudo iniciar el pago en línea');
+      setIniciandoPagoEnLinea(false);
+    }
+  };
 
   const handleCambioFecha = (e) => {
     setFechaSeleccionada(e.target.value);
@@ -335,6 +359,16 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
 
       {vista === 'pagos' && (
         <div className="max-w-md mx-auto p-4 space-y-4">
+          {pagosEnLineaHabilitado && (
+            <button
+              onClick={pagarColegiaturaEnLinea}
+              disabled={iniciandoPagoEnLinea}
+              className="w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-black uppercase text-xs px-6 py-4 rounded-2xl shadow-md transition-all active:scale-95"
+            >
+              {iniciandoPagoEnLinea ? <Loader2 className="animate-spin" size={16} /> : <CreditCard size={16} />}
+              Pagar colegiatura de este mes en línea
+            </button>
+          )}
           {loadingPagos ? (
             <div className="py-20 text-center text-slate-400 font-black uppercase tracking-widest text-xs">Cargando...</div>
           ) : historialPagos.length === 0 ? (

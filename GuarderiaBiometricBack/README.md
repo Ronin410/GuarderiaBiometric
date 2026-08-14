@@ -18,6 +18,7 @@ API en Go (Gin) para el sistema biométrico de control de asistencia y administr
 3. Variables opcionales:
    - `ALLOWED_ORIGINS` — dominios permitidos por CORS, separados por comas. Si no se define, cae a `http://localhost:5173`/`https://localhost:5173` (uso local). **Importante:** el JWT vive en una cookie `SameSite=None; Secure` (ver `internal/middleware/auth.go`), así que este valor debe ser el origen HTTPS *exacto* del frontend en producción — no funciona con `*` ni con un origen HTTP.
    - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` — para notificaciones push. Sin ellas, el servidor arranca igual pero no envía notificaciones. Genera el par de claves una sola vez con `npx web-push generate-vapid-keys`.
+   - `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`, `FRONTEND_URL` — pagos en línea de colegiatura (Stripe Checkout). Sin `STRIPE_SECRET_KEY` el servidor arranca igual y la función queda deshabilitada por completo (el botón "Pagar en línea" ni aparece en el portal del padre). Para activarla: crea los productos/precio no hace falta, todo se genera al vuelo — solo necesitas la llave secreta y la publicable de tu cuenta de Stripe, `FRONTEND_URL` (el origen HTTPS del frontend, para las URLs de retorno del Checkout), y dar de alta un endpoint de webhook en el dashboard de Stripe apuntando a `POST /webhooks/stripe` suscrito al evento `checkout.session.completed` (de ahí sale `STRIPE_WEBHOOK_SECRET`). `STRIPE_CURRENCY` es opcional, `mxn` por defecto.
 
 ## Correr localmente
 

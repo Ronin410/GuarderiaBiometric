@@ -21,6 +21,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.20 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.9.11 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.19 // indirect
+	github.com/stripe/stripe-go/v82 v82.5.1 // indirect
 )
 
 require (

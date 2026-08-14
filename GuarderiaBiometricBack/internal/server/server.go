@@ -37,6 +37,13 @@ type Server struct {
 	VapidPrivateKey string
 	VapidSubject    string
 
+	// Pagos móviles (Stripe Checkout) -- ver StripeHabilitado().
+	StripeSecretKey      string
+	StripePublishableKey string
+	StripeWebhookSecret  string
+	StripeCurrency       string
+	FrontendURL          string
+
 	loginLimiter       *middleware.RateLimiter
 	pinLimiter         *middleware.RateLimiter
 	identificarLimiter *middleware.RateLimiter
@@ -58,6 +65,17 @@ func New() *Server {
 // resto de la app, a diferencia de JWT_SECRET).
 func (s *Server) PushConfigurado() bool {
 	return s.VapidPublicKey != "" && s.VapidPrivateKey != ""
+}
+
+// StripeHabilitado indica si el servidor tiene su llave secreta de Stripe
+// configurada. Sin ella, /pagos-online/config le dice al frontend que la
+// función no está disponible (oculta el botón de "Pagar en línea" por
+// completo) y /padre/pagos-online/checkout responde 501 -- pensado a
+// propósito para desplegarse "apagado": el código y la migración quedan
+// listos, pero nadie puede cobrar nada hasta que se configuren las
+// variables de entorno de Stripe.
+func (s *Server) StripeHabilitado() bool {
+	return s.StripeSecretKey != ""
 }
 
 // RegisterRoutes registra todas las rutas del backend sobre un *gin.Engine
@@ -84,6 +102,7 @@ func (s *Server) RegisterRoutes(r *gin.Engine) {
 	s.registrarRutasEncuestas(r)
 	s.registrarRutasGaleria(r)
 	s.registrarRutasPagos(r)
+	s.registrarRutasPagosOnline(r)
 	s.registrarRutasReportes(r)
 	s.registrarRutasPush(r)
 	s.registrarRutasPrivacidad(r)

@@ -39,6 +39,9 @@ func main() {
 	if !srv.PushConfigurado() {
 		log.Println("ADVERTENCIA: VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY no configuradas; las notificaciones push quedan deshabilitadas.")
 	}
+	if !srv.StripeHabilitado() {
+		log.Println("INFO: STRIPE_SECRET_KEY no configurada; los pagos en línea quedan deshabilitados (el resto de la app no se ve afectado).")
+	}
 
 	srv.RegisterRoutes(r)
 
@@ -97,5 +100,10 @@ func conectarServicios(cfg appconfig.Config) *server.Server {
 	srv.VapidPublicKey = cfg.VapidPublicKey
 	srv.VapidPrivateKey = cfg.VapidPrivateKey
 	srv.VapidSubject = cfg.VapidSubject
+	srv.StripeSecretKey = cfg.StripeSecretKey
+	srv.StripePublishableKey = cfg.StripePublishableKey
+	srv.StripeWebhookSecret = cfg.StripeWebhookSecret
+	srv.StripeCurrency = cfg.StripeCurrency
+	srv.FrontendURL = cfg.FrontendURL
 	return srv
 }
