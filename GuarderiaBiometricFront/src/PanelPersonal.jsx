@@ -2,11 +2,26 @@ import React, { useState, useEffect } from 'react';
 import api from './axiosConfig';
 import {
   UserCog, UserPlus, Edit3, Check, X, Loader2, KeyRound, Lock,
-  ShieldCheck, ShieldOff, Crown, Contact,
+  ShieldCheck, ShieldOff, Crown, Contact, ListChecks,
 } from 'lucide-react';
 import { mostrarExito, mostrarError, confirmar } from './utils/alertas';
 
 const FORM_NUEVO_VACIO = { username: '', nombre: '', password: '', rol: 'staff', pin: '' };
+
+// Mismo catálogo que AreasPermiso en el backend (personal.go) -- si se
+// agrega un área ahí, hay que reflejarla acá para que el admin pueda
+// concedérsela desde este panel.
+const AREAS_PERMISO = [
+  { area: 'familia', label: 'Familia (directorio de tutores)' },
+  { area: 'bitacora', label: 'Bitácora' },
+  { area: 'reportes', label: 'Reportes' },
+  { area: 'perfiles', label: 'Perfiles' },
+  { area: 'pagos', label: 'Pagos' },
+  { area: 'estadisticas', label: 'Estadísticas' },
+  { area: 'configuracion', label: 'Configuración' },
+  { area: 'menu', label: 'Menú Semanal' },
+  { area: 'circulares', label: 'Circulares' },
+];
 
 // PanelPersonal — "Gestión de personal": el admin crea cuentas de staff, les
 // configura el PIN administrativo, y puede editarlas o darlas de baja sin
@@ -33,6 +48,14 @@ const PanelPersonal = ({ usuarioActualId }) => {
   const [passValor, setPassValor] = useState('');
   const [guardandoPass, setGuardandoPass] = useState(false);
 
+  // permisosPersonalizado=false representa "sin personalizar" (permisos:
+  // null en el backend, acceso completo tras el PIN de siempre); en true,
+  // permisosSeleccion es la lista exacta de áreas concedidas.
+  const [permisosEditId, setPermisosEditId] = useState(null);
+  const [permisosPersonalizado, setPermisosPersonalizado] = useState(false);
+  const [permisosSeleccion, setPermisosSeleccion] = useState([]);
+  const [guardandoPermisos, setGuardandoPermisos] = useState(false);
+
   const cargarPersonal = async () => {
     setLoading(true);
     try {
@@ -52,6 +75,7 @@ const PanelPersonal = ({ usuarioActualId }) => {
     setEditandoId(null);
     setPinEditId(null);
     setPassEditId(null);
+    setPermisosEditId(null);
   };
 
   const crearCuenta = async () => {
@@ -168,6 +192,36 @@ const PanelPersonal = ({ usuarioActualId }) => {
     }
   };
 
+  const iniciarPermisos = (p) => {
+    cerrarTodosLosSubformularios();
+    setPermisosEditId(p.id);
+    setPermisosPersonalizado(p.permisos !== null && p.permisos !== undefined);
+    setPermisosSeleccion(p.permisos || []);
+  };
+
+  const alternarArea = (area) => {
+    setPermisosSeleccion((prev) => (
+      prev.includes(area) ? prev.filter((a) => a !== area) : [...prev, area]
+    ));
+  };
+
+  const guardarPermisos = async (id) => {
+    setGuardandoPermisos(true);
+    try {
+      await api.put(`/admin/personal/${id}/permisos`, {
+        permisos: permisosPersonalizado ? permisosSeleccion : null,
+      });
+      mostrarExito('Permisos actualizados');
+      setPermisosEditId(null);
+      cargarPersonal();
+    } catch (err) {
+      console.error('Error al actualizar permisos:', err);
+      mostrarError(err.response?.data?.error || 'No se pudo guardar');
+    } finally {
+      setGuardandoPermisos(false);
+    }
+  };
+
   return (
     <div className="animate-in fade-in duration-500">
       <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl">
@@ -240,12 +294,26 @@ const PanelPersonal = ({ usuarioActualId }) => {
                       </p>
                       <p className="text-[10px] text-brand-500 font-bold uppercase flex items-center gap-1 mt-1">
                         <Contact size={12} /> @{p.username} · {p.rol} · {p.activo ? 'Activo' : 'Desactivado'}
+                        {p.rol === 'staff' && (
+                          <span className="ml-1 text-slate-400 normal-case tracking-normal">
+                            · {p.permisos === null || p.permisos === undefined
+                              ? 'acceso completo (sin personalizar)'
+                              : p.permisos.length === 0
+                                ? 'sin secciones protegidas concedidas'
+                                : `${p.permisos.length} sección(es) concedida(s)`}
+                          </span>
+                        )}
                       </p>
                     </div>
                     {editandoId !== p.id && (
                       <div className="flex flex-wrap gap-2">
                         <button onClick={() => iniciarPin(p)} className="flex items-center gap-1.5 bg-white border border-slate-200 hover:border-brand-300 text-slate-600 text-[10px] font-black uppercase px-3 py-2 rounded-xl transition-all"><KeyRound size={13} /> PIN</button>
                         <button onClick={() => iniciarPassword(p)} className="flex items-center gap-1.5 bg-white border border-slate-200 hover:border-brand-300 text-slate-600 text-[10px] font-black uppercase px-3 py-2 rounded-xl transition-all"><Lock size={13} /> Contraseña</button>
+                        {p.rol === 'staff' && (
+                          // No tiene sentido para "admin": esa cuenta siempre tiene
+                          // acceso completo sin importar lo que diga permisos.
+                          <button onClick={() => iniciarPermisos(p)} className="flex items-center gap-1.5 bg-white border border-slate-200 hover:border-brand-300 text-slate-600 text-[10px] font-black uppercase px-3 py-2 rounded-xl transition-all"><ListChecks size={13} /> Permisos</button>
+                        )}
                         <button onClick={() => iniciarEdicion(p)} className="flex items-center gap-1.5 bg-brand-600 hover:bg-brand-700 text-white text-[10px] font-black uppercase px-3 py-2 rounded-xl shadow-md transition-all"><Edit3 size={13} /> Editar</button>
                         {!esUnoMismo && (
                           <button onClick={() => alternarActivo(p)} className={`flex items-center gap-1.5 text-[10px] font-black uppercase px-3 py-2 rounded-xl transition-all ${p.activo ? 'bg-rose-50 text-rose-600 hover:bg-rose-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}>
@@ -306,6 +374,45 @@ const PanelPersonal = ({ usuarioActualId }) => {
                       <button onClick={() => guardarPassword(p.id)} disabled={guardandoPass} className="px-5 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black uppercase text-xs shadow-md flex items-center gap-2 disabled:opacity-50">
                         {guardandoPass ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />} Guardar Contraseña
                       </button>
+                    </div>
+                  )}
+
+                  {permisosEditId === p.id && (
+                    <div className="mt-6 pt-6 border-t border-slate-200">
+                      <label className="flex items-center gap-2 mb-4 cursor-pointer w-fit">
+                        <input
+                          type="checkbox"
+                          checked={permisosPersonalizado}
+                          onChange={(e) => setPermisosPersonalizado(e.target.checked)}
+                          className="w-4 h-4 accent-brand-600"
+                        />
+                        <span className="text-xs font-bold text-slate-600">
+                          Personalizar el acceso de esta cuenta (si no, entra a todo tras el PIN, como siempre)
+                        </span>
+                      </label>
+
+                      {permisosPersonalizado && (
+                        <div className="grid sm:grid-cols-3 gap-2 mb-4">
+                          {AREAS_PERMISO.map(({ area, label }) => (
+                            <label key={area} className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 cursor-pointer text-xs font-bold text-slate-600">
+                              <input
+                                type="checkbox"
+                                checked={permisosSeleccion.includes(area)}
+                                onChange={() => alternarArea(area)}
+                                className="w-4 h-4 accent-brand-600"
+                              />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="flex gap-3 justify-end">
+                        <button onClick={() => setPermisosEditId(null)} className="px-4 py-3 rounded-xl text-slate-500 font-bold uppercase text-xs hover:bg-slate-100 flex items-center gap-2"><X size={16} /></button>
+                        <button onClick={() => guardarPermisos(p.id)} disabled={guardandoPermisos} className="px-5 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black uppercase text-xs shadow-md flex items-center gap-2 disabled:opacity-50">
+                          {guardandoPermisos ? <Loader2 className="animate-spin" size={16} /> : <Check size={16} />} Guardar Permisos
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>

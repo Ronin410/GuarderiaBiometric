@@ -55,6 +55,13 @@ function MainApp() {
   // vez de saltar directo a la pantalla de login.
   const [sesionCargando, setSesionCargando] = useState(true);
   const [expiraEn, setExpiraEn] = useState(null);
+  // null = cuenta sin permisos personalizados (comportamiento de siempre:
+  // el PIN de la cuenta desbloquea TODAS las pestañas protegidas por
+  // igual). Un array (incluso vacío) = la lista exacta de áreas que un
+  // admin le concedió a esta cuenta de staff -- ver AreasPermiso en el
+  // backend (personal.go). Para "admin" este valor no importa, siempre
+  // tiene acceso completo.
+  const [permisos, setPermisos] = useState(null);
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [tipoAcceso, setTipoAcceso] = useState('staff');
@@ -64,7 +71,32 @@ function MainApp() {
   const { tab: tabDeUrl } = useParams();
   const tab = tabDeUrl || 'identificar';
   const navigate = useNavigate();
-  const TABS_PROTEGIDAS = ['admin', 'bitacora', 'reportes', 'perfiles', 'pagos', 'estadisticas', 'configuracion', 'menu', 'circulares'];
+  // Mapea cada pestaña protegida a la clave de área que usa el backend
+  // (RequireArea) -- "admin" (nombre heredado de la URL, la pestaña se ve
+  // como "Familia" en el menú) es la única que no comparte literal con su
+  // área, para no confundirla con el rol "admin".
+  const AREA_DE_TAB = {
+    admin: 'familia', bitacora: 'bitacora', reportes: 'reportes',
+    perfiles: 'perfiles', pagos: 'pagos', estadisticas: 'estadisticas',
+    configuracion: 'configuracion', menu: 'menu', circulares: 'circulares',
+  };
+  const TABS_PROTEGIDAS = Object.keys(AREA_DE_TAB);
+
+  // true si esta cuenta puede entrar a `tabProtegida` -- admin siempre;
+  // staff sin permisos personalizados (permisos === null) también siempre
+  // (el PIN es lo que decide, no esto); staff personalizado solo si el
+  // área está en su lista.
+  const tienePermiso = (tabProtegida) => {
+    if (userRole === 'admin') return true;
+    if (permisos === null) return true;
+    return permisos.includes(AREA_DE_TAB[tabProtegida]);
+  };
+
+  // Quita del menú las pestañas protegidas que esta cuenta no tiene
+  // concedidas -- solo tiene efecto en cuentas ya personalizadas
+  // (permisos !== null); las demás pestañas (no protegidas, o cuentas sin
+  // personalizar) se muestran igual que siempre.
+  const filtrarProtegidos = (items) => items.filter(({ tab: t }) => !TABS_PROTEGIDAS.includes(t) || tienePermiso(t));
 
   const [loading, setLoading] = useState(false);
   const [showAdminPinModal, setShowAdminPinModal] = useState(false);
@@ -118,6 +150,9 @@ function MainApp() {
       slug: data.guarderia_slug || ''
     });
     setExpiraEn(data.expires_at || null);
+    // data.permisos: null = sin personalizar, array = lista exacta de
+    // áreas concedidas -- ver el comentario del estado `permisos`.
+    setPermisos(data.permisos ?? null);
   };
 
   useEffect(() => {
@@ -127,15 +162,22 @@ function MainApp() {
   // Guard de la pestaña de admin: cambiarTab() ya pedía el PIN al hacer clic en
   // el menú, pero con rutas reales alguien podría escribir /panel/pagos
   // directamente en la URL (o recargar ahí) sin pasar por ese clic. Este efecto
-  // cubre ese caso: si la pestaña activa (derivada de la URL) es protegida y
-  // el PIN no se ha validado en esta sesión, regresa al kiosco y pide el PIN.
+  // cubre ese caso: si la pestaña activa (derivada de la URL) es protegida,
+  // regresa al kiosco -- pidiendo el PIN (cuenta sin personalizar) o sin más
+  // trámite (cuenta personalizada sin ese permiso: el backend la rechazaría
+  // de todos modos, así que no tiene caso pedir un PIN que no cambiaría nada).
   useEffect(() => {
-    if (isLoggedIn && TABS_PROTEGIDAS.includes(tab) && userRole !== 'admin' && !pinVerificado) {
+    if (!isLoggedIn || !TABS_PROTEGIDAS.includes(tab) || userRole === 'admin') return;
+    if (permisos !== null) {
+      if (!tienePermiso(tab)) navigate('/panel/identificar', { replace: true });
+      return;
+    }
+    if (!pinVerificado) {
       setTabPendiente(tab);
       setShowAdminPinModal(true);
       navigate('/panel/identificar', { replace: true });
     }
-  }, [tab, userRole, isLoggedIn, pinVerificado]);
+  }, [tab, userRole, isLoggedIn, pinVerificado, permisos]);
 
   const manejarLoginPrincipal = async (e) => {
     if (e) e.preventDefault();
@@ -189,13 +231,23 @@ function MainApp() {
   }, [isLoggedIn, expiraEn]);
 
   const cambiarTab = (targetTab) => {
-    if (TABS_PROTEGIDAS.includes(targetTab) && userRole !== 'admin' && !pinVerificado) {
-      setTabPendiente(targetTab);
-      setShowAdminPinModal(true);
-    } else {
-      navigate('/panel/' + targetTab);
-      resetearProcesoEscaneo();
+    if (TABS_PROTEGIDAS.includes(targetTab) && userRole !== 'admin') {
+      if (permisos !== null) {
+        // Cuenta personalizada: ya sabemos si puede entrar sin preguntar
+        // nada (el menú ya le esconde las que no tiene, pero cubrimos
+        // igual una URL escrita a mano).
+        if (!tienePermiso(targetTab)) {
+          mostrarError('Tu cuenta no tiene permiso para acceder a esta sección. Pide a un administrador que te lo habilite.');
+          return;
+        }
+      } else if (!pinVerificado) {
+        setTabPendiente(targetTab);
+        setShowAdminPinModal(true);
+        return;
+      }
     }
+    navigate('/panel/' + targetTab);
+    resetearProcesoEscaneo();
   };
 
   const resetearProcesoEscaneo = () => {
@@ -414,16 +466,21 @@ function MainApp() {
             <button onClick={() => cambiarTab('identificar')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'identificar' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><ScanEye size={18} /> Kiosco</button>
             <button onClick={() => cambiarTab('registrar')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'registrar' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><UserPlus size={18} /> Registro</button>
 
-            <NavDropdown
-              label="Alumnos" Icon={Users} tabActual={tab} onSeleccionar={cambiarTab}
-              items={[
-                { tab: 'admin', label: 'Familia', Icon: Users },
-                { tab: 'perfiles', label: 'Perfiles', Icon: IdCard },
-              ]}
-            />
+            {filtrarProtegidos([
+              { tab: 'admin', label: 'Familia', Icon: Users },
+              { tab: 'perfiles', label: 'Perfiles', Icon: IdCard },
+            ]).length > 0 && (
+              <NavDropdown
+                label="Alumnos" Icon={Users} tabActual={tab} onSeleccionar={cambiarTab}
+                items={filtrarProtegidos([
+                  { tab: 'admin', label: 'Familia', Icon: Users },
+                  { tab: 'perfiles', label: 'Perfiles', Icon: IdCard },
+                ])}
+              />
+            )}
             <NavDropdown
               label="Día a Día" Icon={CalendarDays} tabActual={tab} onSeleccionar={cambiarTab}
-              items={[
+              items={filtrarProtegidos([
                 { tab: 'bitacora', label: 'Bitácora', Icon: ClipboardList },
                 { tab: 'menu', label: 'Menú Semanal', Icon: UtensilsCrossed },
                 { tab: 'circulares', label: 'Circulares', Icon: Megaphone },
@@ -432,26 +489,37 @@ function MainApp() {
                 { tab: 'calendario', label: 'Calendario Escolar', Icon: CalendarDays },
                 { tab: 'comedor', label: 'Pedidos de Comedor', Icon: Soup },
                 { tab: 'encuestas', label: 'Encuestas', Icon: ClipboardCheck },
-              ]}
+              ])}
             />
-            <NavDropdown
-              label="Administración" Icon={LayoutDashboard} tabActual={tab} onSeleccionar={cambiarTab}
-              items={[
-                { tab: 'reportes', label: 'Reportes', Icon: TrendingUp },
-                { tab: 'pagos', label: 'Pagos', Icon: Wallet },
-                { tab: 'estadisticas', label: 'Estadísticas', Icon: BarChart3 },
-              ]}
-            />
-            <NavDropdown
-              label="Sistema" Icon={Settings} tabActual={tab} onSeleccionar={cambiarTab}
-              items={[
-                { tab: 'configuracion', label: 'Configuración', Icon: ShieldCheckIcon },
+            {filtrarProtegidos([
+              { tab: 'reportes', label: 'Reportes', Icon: TrendingUp },
+              { tab: 'pagos', label: 'Pagos', Icon: Wallet },
+              { tab: 'estadisticas', label: 'Estadísticas', Icon: BarChart3 },
+            ]).length > 0 && (
+              <NavDropdown
+                label="Administración" Icon={LayoutDashboard} tabActual={tab} onSeleccionar={cambiarTab}
+                items={filtrarProtegidos([
+                  { tab: 'reportes', label: 'Reportes', Icon: TrendingUp },
+                  { tab: 'pagos', label: 'Pagos', Icon: Wallet },
+                  { tab: 'estadisticas', label: 'Estadísticas', Icon: BarChart3 },
+                ])}
+              />
+            )}
+            {(() => {
+              const itemsSistema = [
+                ...filtrarProtegidos([{ tab: 'configuracion', label: 'Configuración', Icon: ShieldCheckIcon }]),
                 ...(userRole === 'admin' ? [
                   { tab: 'personal', label: 'Personal', Icon: UserCog },
                   { tab: 'horarios', label: 'Horarios de Personal', Icon: Clock },
                 ] : []),
-              ]}
-            />
+              ];
+              return itemsSistema.length > 0 && (
+                <NavDropdown
+                  label="Sistema" Icon={Settings} tabActual={tab} onSeleccionar={cambiarTab}
+                  items={itemsSistema}
+                />
+              );
+            })()}
 
             <button onClick={cerrarSesion} className="px-3 py-2 text-rose-500 hover:bg-rose-50 rounded-xl ml-2 border-l border-slate-100"><LogOut size={18} /></button>
           </div>

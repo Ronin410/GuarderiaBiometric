@@ -36,7 +36,7 @@ type LecturaCircular struct {
 
 func (s *Server) registrarRutasCirculares(r *gin.Engine) {
 	auth := middleware.Auth(s.JWTKey)
-	staff := middleware.RequireStaff()
+	staff := middleware.RequireArea("circulares")
 
 	r.GET("/circulares", auth, staff, s.handleListarCircularesStaff)
 	r.POST("/circulares", auth, staff, s.handleCrearCircular)

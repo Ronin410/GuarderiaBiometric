@@ -21,7 +21,7 @@ type DiaMenu struct {
 
 func (s *Server) registrarRutasMenu(r *gin.Engine) {
 	auth := middleware.Auth(s.JWTKey)
-	staff := middleware.RequireStaff()
+	staff := middleware.RequireArea("menu")
 
 	r.GET("/menu-semanal", auth, staff, s.handleObtenerMenuSemanal)
 	r.PUT("/menu-semanal/:fecha", auth, staff, s.handleGuardarDiaMenu)

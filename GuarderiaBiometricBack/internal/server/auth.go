@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 
 	"biometrico/internal/middleware"
@@ -60,17 +61,18 @@ func (s *Server) handleLogin(c *gin.Context) {
 	var id, gID int
 	var passHash, rol, pinAdmin, gNombre, gSlug string
 	var activo bool
+	var permisos []string
 	// Nota: pin_admin se consulta solo para mantener la forma de la fila; nunca se
 	// expone en la respuesta. La verificación del PIN se hace en /verificar-pin.
 	query := `
 		SELECT
             u.id, u.guarderia_id, u.password_hash, u.rol, u.pin_admin,
-            g.nombre, g.slug, u.activo
+            g.nombre, g.slug, u.activo, u.permisos
         FROM usuarios u
         INNER JOIN guarderias g ON u.guarderia_id = g.id
         WHERE u.username = $1`
 
-	err := s.DBAuth.QueryRow(query, creds.Username).Scan(&id, &gID, &passHash, &rol, &pinAdmin, &gNombre, &gSlug, &activo)
+	err := s.DBAuth.QueryRow(query, creds.Username).Scan(&id, &gID, &passHash, &rol, &pinAdmin, &gNombre, &gSlug, &activo, pq.Array(&permisos))
 	if err != nil {
 		if err == sql.ErrNoRows {
 			fmt.Printf("Usuario no encontrado: %s\n", creds.Username)
@@ -116,6 +118,11 @@ func (s *Server) handleLogin(c *gin.Context) {
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 		},
 	}
+	// permisos == nil (columna NULL en BD, cuenta sin personalizar) se deja
+	// fuera del JWT a propósito -- ver el comentario de Claims.Permisos.
+	if permisos != nil {
+		claims.Permisos = &permisos
+	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenStr, err := token.SignedString(s.JWTKey)
@@ -149,6 +156,11 @@ func (s *Server) handleLogin(c *gin.Context) {
 		"rol":              rol,
 		"username":         creds.Username,
 		"expires_at":       expirationTime.Unix(),
+		// null = sin permisos personalizados (acceso completo tras el PIN,
+		// como siempre); array (incluso vacío) = la lista exacta de
+		// secciones permitidas. El frontend usa esto para decidir qué
+		// pestañas mostrar sin tener que volver a pedir el PIN por cada una.
+		"permisos": permisos,
 	})
 }
 
@@ -181,6 +193,14 @@ func (s *Server) handleMe(c *gin.Context) {
 		}
 	}
 
+	// Igual que en /login: si Auth() no puso "permisos" en el contexto es
+	// porque el JWT no lo traía (cuenta sin personalizar) -- permisos se
+	// queda en nil, que el JSON manda como null.
+	var permisos []string
+	if permisosRaw, ok := c.Get("permisos"); ok {
+		permisos, _ = permisosRaw.([]string)
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"user_id":          uid,
 		"guarderia_id":     gID,
@@ -189,6 +209,7 @@ func (s *Server) handleMe(c *gin.Context) {
 		"rol":              rol,
 		"username":         username,
 		"expires_at":       expiraEn,
+		"permisos":         permisos,
 	})
 }
 

@@ -17,16 +17,41 @@ import (
 // Personal es la fila que ve el panel "Gestión de personal" — nunca incluye
 // password_hash ni pin_admin (el PIN se cambia por un endpoint aparte, y
 // nunca se regresa su valor actual, mismo criterio que /verificar-pin).
+// Permisos va como slice normal (no *[]string): un valor nil se serializa
+// como JSON null ("sin personalizar, acceso completo") y un slice vacío
+// no-nil como [] ("sin acceso a nada") -- exactamente la distinción que
+// necesita el frontend, sin tener que inventar un envoltorio aparte.
 type Personal struct {
-	ID        int     `json:"id"`
-	Username  string  `json:"username"`
-	Nombre    *string `json:"nombre"`
-	Rol       string  `json:"rol"`
-	Activo    bool    `json:"activo"`
-	CreatedAt string  `json:"created_at"`
+	ID        int      `json:"id"`
+	Username  string   `json:"username"`
+	Nombre    *string  `json:"nombre"`
+	Rol       string   `json:"rol"`
+	Activo    bool     `json:"activo"`
+	CreatedAt string   `json:"created_at"`
+	Permisos  []string `json:"permisos"`
 }
 
 var pinRegex = regexp.MustCompile(`^\d{4}$`)
+
+// AreasPermiso enumera las secciones que un admin puede conceder o quitar
+// individualmente a una cuenta de staff -- las mismas 9 pestañas que hoy
+// exige el PIN por igual (TABS_PROTEGIDAS en App.jsx). "familia" es la única
+// que no comparte literal con el nombre de su pestaña en la URL (que es
+// "admin", por herencia histórica) -- se usa el nombre visible en la UI
+// ("Familia", el directorio de tutores) para no confundirla con el rol admin.
+var AreasPermiso = []string{
+	"familia", "bitacora", "reportes", "perfiles", "pagos",
+	"estadisticas", "configuracion", "menu", "circulares",
+}
+
+func areaPermisoValida(area string) bool {
+	for _, a := range AreasPermiso {
+		if a == area {
+			return true
+		}
+	}
+	return false
+}
 
 func (s *Server) registrarRutasPersonal(r *gin.Engine) {
 	auth := middleware.Auth(s.JWTKey)
@@ -37,6 +62,7 @@ func (s *Server) registrarRutasPersonal(r *gin.Engine) {
 	r.PUT("/admin/personal/:id", auth, admin, s.handleActualizarPersonal)
 	r.PUT("/admin/personal/:id/pin", auth, admin, s.handleActualizarPinPersonal)
 	r.PUT("/admin/personal/:id/password", auth, admin, s.handleResetPasswordPersonal)
+	r.PUT("/admin/personal/:id/permisos", auth, admin, s.handleActualizarPermisosPersonal)
 }
 
 // handleListarPersonal regresa las cuentas de personal (admin/staff) de la
@@ -47,7 +73,7 @@ func (s *Server) handleListarPersonal(c *gin.Context) {
 	gID, _ := c.Get("guarderia_id")
 
 	rows, err := s.DBAuth.Query(
-		`SELECT id, username, nombre, rol, activo, created_at
+		`SELECT id, username, nombre, rol, activo, created_at, permisos
          FROM usuarios
          WHERE guarderia_id = $1 AND rol IN ('admin', 'staff')
          ORDER BY created_at ASC`,
@@ -62,7 +88,7 @@ func (s *Server) handleListarPersonal(c *gin.Context) {
 	personal := []Personal{}
 	for rows.Next() {
 		var p Personal
-		if err := rows.Scan(&p.ID, &p.Username, &p.Nombre, &p.Rol, &p.Activo, &p.CreatedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.Username, &p.Nombre, &p.Rol, &p.Activo, &p.CreatedAt, pq.Array(&p.Permisos)); err != nil {
 			continue
 		}
 		personal = append(personal, p)
@@ -270,6 +296,64 @@ func (s *Server) handleResetPasswordPersonal(c *gin.Context) {
 
 	s.registrarAcceso("personal_password_reset", gID, adminID, "contraseña reseteada para cuenta "+targetID, c.ClientIP())
 	c.JSON(http.StatusOK, gin.H{"message": "Contraseña actualizada"})
+}
+
+// handleActualizarPermisosPersonal es "permisos personalizados por
+// docente": reemplaza el candado de un PIN compartido -- que, una vez
+// conocido, desbloqueaba TODAS las secciones sensibles por igual y sin que
+// el backend volviera a revisar nada -- por una lista explícita de qué
+// secciones puede tocar cada cuenta de staff, exigida por RequireArea en
+// cada request, no solo escondida del menú.
+//
+// permisos: null (u omitido en el body) regresa la cuenta al
+// comportamiento de siempre: acceso completo, para no obligar a configurar
+// cada cuenta existente de golpe al desplegar esto. permisos: [] (array
+// vacío, pero presente) dado explícito dejar a la cuenta sin acceso a
+// ninguna sección protegida.
+func (s *Server) handleActualizarPermisosPersonal(c *gin.Context) {
+	gID, _ := c.Get("guarderia_id")
+	adminID, _ := c.Get("user_id")
+	targetID := c.Param("id")
+
+	var input struct {
+		Permisos *[]string `json:"permisos"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Datos inválidos"})
+		return
+	}
+
+	var res sql.Result
+	var err error
+	if input.Permisos == nil {
+		res, err = s.DBAuth.Exec(
+			`UPDATE usuarios SET permisos = NULL WHERE id = $1 AND guarderia_id = $2 AND rol IN ('admin', 'staff')`,
+			targetID, gID,
+		)
+	} else {
+		for _, area := range *input.Permisos {
+			if !areaPermisoValida(area) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Área de permiso desconocida: " + area})
+				return
+			}
+		}
+		res, err = s.DBAuth.Exec(
+			`UPDATE usuarios SET permisos = $1 WHERE id = $2 AND guarderia_id = $3 AND rol IN ('admin', 'staff')`,
+			pq.Array(*input.Permisos), targetID, gID,
+		)
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo actualizar los permisos"})
+		return
+	}
+	if filas, _ := res.RowsAffected(); filas == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Cuenta no encontrada"})
+		return
+	}
+
+	s.registrarAcceso("personal_permisos_actualizados", gID, adminID,
+		"permisos actualizados para cuenta "+targetID, c.ClientIP())
+	c.JSON(http.StatusOK, gin.H{"message": "Permisos actualizados"})
 }
 
 // esUsernameDuplicado detecta el error de unique_violation de Postgres

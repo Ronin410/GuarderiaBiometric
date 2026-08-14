@@ -23,7 +23,7 @@ type FotoGaleria struct {
 
 func (s *Server) registrarRutasGaleria(r *gin.Engine) {
 	auth := middleware.Auth(s.JWTKey)
-	staff := middleware.RequireStaff()
+	staff := middleware.RequireArea("perfiles")
 
 	r.GET("/hijos/:id/galeria", auth, staff, s.handleGaleriaStaff)
 	r.GET("/padre/hijos/:hijoId/galeria", auth, s.handleGaleriaPadre)

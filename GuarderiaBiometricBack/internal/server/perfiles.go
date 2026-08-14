@@ -26,7 +26,7 @@ type NinoPerfil struct {
 
 func (s *Server) registrarRutasPerfiles(r *gin.Engine) {
 	auth := middleware.Auth(s.JWTKey)
-	staff := middleware.RequireStaff()
+	staff := middleware.RequireArea("perfiles")
 
 	// --- LISTA COMPLETA DE NIÑOS CON DATOS EXTENDIDOS (Panel de Administración) ---
 	r.GET("/admin/ninos", auth, staff, func(c *gin.Context) {

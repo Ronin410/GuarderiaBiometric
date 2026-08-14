@@ -47,7 +47,7 @@ type DocumentoNino struct {
 
 func (s *Server) registrarRutasDocumentos(r *gin.Engine) {
 	auth := middleware.Auth(s.JWTKey)
-	staff := middleware.RequireStaff()
+	staff := middleware.RequireArea("perfiles")
 
 	r.GET("/hijos/:id/documentos", auth, staff, s.handleListarDocumentos)
 	r.POST("/hijos/:id/documentos", auth, staff, s.handleSubirDocumento)

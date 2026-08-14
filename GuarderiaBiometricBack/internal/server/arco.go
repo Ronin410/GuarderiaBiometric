@@ -20,9 +20,9 @@ import (
 // padre pueda pedir copia de sus datos, o que se borren.
 func (s *Server) registrarRutasArco(r *gin.Engine) {
 	auth := middleware.Auth(s.JWTKey)
-	staff := middleware.RequireStaff()
-	r.GET("/admin/familias/:padre_id/exportar", auth, staff, s.handleExportarFamilia)
-	r.DELETE("/admin/familias/:padre_id", auth, staff, s.handleEliminarFamilia)
+	familia := middleware.RequireArea("familia")
+	r.GET("/admin/familias/:padre_id/exportar", auth, familia, s.handleExportarFamilia)
+	r.DELETE("/admin/familias/:padre_id", auth, familia, s.handleEliminarFamilia)
 }
 
 type consentimientoExport struct {

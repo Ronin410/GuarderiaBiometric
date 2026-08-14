@@ -12,7 +12,7 @@ import (
 
 func (s *Server) registrarRutasPrivacidad(r *gin.Engine) {
 	auth := middleware.Auth(s.JWTKey)
-	staff := middleware.RequireStaff()
+	staff := middleware.RequireArea("configuracion")
 	r.GET("/aviso-privacidad", auth, s.handleObtenerAviso)
 	r.PUT("/admin/aviso-privacidad", auth, staff, s.handleActualizarAviso)
 	r.GET("/admin/aviso-privacidad/estadisticas", auth, staff, s.handleEstadisticasAviso)

@@ -27,7 +27,11 @@ type ResumenAsistenciaNino struct {
 }
 
 func (s *Server) registrarRutasReportes(r *gin.Engine) {
-	r.GET("/reportes/asistencia-resumen", middleware.Auth(s.JWTKey), middleware.RequireStaff(), func(c *gin.Context) {
+	// Nota: esta ruta alimenta la pestaña "Estadísticas" del panel (área de
+	// permisos "estadisticas"), no la pestaña "Reportes" (esa es
+	// /reportes-asistencia, en bitacora.go) -- nombres parecidos, pestañas
+	// distintas.
+	r.GET("/reportes/asistencia-resumen", middleware.Auth(s.JWTKey), middleware.RequireArea("estadisticas"), func(c *gin.Context) {
 		gID, _ := c.Get("guarderia_id")
 
 		loc := zonaMazatlan()

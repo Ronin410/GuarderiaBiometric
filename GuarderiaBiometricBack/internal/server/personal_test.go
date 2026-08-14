@@ -126,12 +126,12 @@ func TestCrearPersonal(t *testing.T) {
 
 func TestListarPersonal(t *testing.T) {
 	srv, mock := nuevoServidorDePrueba(t)
-	columnas := []string{"id", "username", "nombre", "rol", "activo", "created_at"}
+	columnas := []string{"id", "username", "nombre", "rol", "activo", "created_at", "permisos"}
 	mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE guarderia_id = \\$1").
 		WithArgs(1).
 		WillReturnRows(sqlmock.NewRows(columnas).
-			AddRow(1, "admin_demo", "Admin Demo", "admin", true, "2026-01-01T00:00:00Z").
-			AddRow(2, "staff_demo", nil, "staff", true, "2026-01-02T00:00:00Z"))
+			AddRow(1, "admin_demo", "Admin Demo", "admin", true, "2026-01-01T00:00:00Z", nil).
+			AddRow(2, "staff_demo", nil, "staff", true, "2026-01-02T00:00:00Z", "{pagos,menu}"))
 
 	r := nuevoRouterDePrueba(srv)
 	req := jsonRequest(http.MethodGet, "/admin/personal", nil)
@@ -148,6 +148,12 @@ func TestListarPersonal(t *testing.T) {
 	}
 	if len(personal) != 2 {
 		t.Fatalf("se esperaban 2 cuentas, se recibieron %d", len(personal))
+	}
+	if personal[0].Permisos != nil {
+		t.Errorf("admin_demo no tiene permisos personalizados en la BD (columna NULL); se esperaba nil, se obtuvo %v", personal[0].Permisos)
+	}
+	if len(personal[1].Permisos) != 2 || personal[1].Permisos[0] != "pagos" || personal[1].Permisos[1] != "menu" {
+		t.Errorf("permisos de staff_demo = %v; esperado [pagos menu]", personal[1].Permisos)
 	}
 }
 
@@ -167,4 +173,82 @@ func TestActualizarPersonalNoPuedeAutodesactivarse(t *testing.T) {
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("código = %d; esperado 400 al intentar autodesactivarse (body: %s)", w.Code, w.Body.String())
 	}
+}
+
+func TestActualizarPermisosPersonal(t *testing.T) {
+	t.Run("array de áreas válidas -> guarda esa lista exacta", func(t *testing.T) {
+		srv, mock := nuevoServidorDePrueba(t)
+		r := nuevoRouterDePrueba(srv)
+
+		mock.ExpectExec("UPDATE usuarios SET permisos = (.|\n)*WHERE id = \\$2 AND guarderia_id = \\$3").
+			WithArgs(pq.Array([]string{"pagos", "menu"}), "5", 1).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+
+		req := jsonRequest(http.MethodPut, "/admin/personal/5/permisos", map[string]any{
+			"permisos": []string{"pagos", "menu"},
+		})
+		autenticarRequestPrueba(t, req, srv.JWTKey, "admin", time.Hour)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("código = %d; esperado 200 (body: %s)", w.Code, w.Body.String())
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("expectativas de sqlmock no cumplidas: %v", err)
+		}
+	})
+
+	t.Run("permisos null (u omitido) -> vuelve la cuenta a acceso completo", func(t *testing.T) {
+		srv, mock := nuevoServidorDePrueba(t)
+		r := nuevoRouterDePrueba(srv)
+
+		mock.ExpectExec("UPDATE usuarios SET permisos = NULL WHERE id = \\$1 AND guarderia_id = \\$2").
+			WithArgs("5", 1).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+
+		req := jsonRequest(http.MethodPut, "/admin/personal/5/permisos", map[string]any{})
+		autenticarRequestPrueba(t, req, srv.JWTKey, "admin", time.Hour)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("código = %d; esperado 200 (body: %s)", w.Code, w.Body.String())
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("expectativas de sqlmock no cumplidas: %v", err)
+		}
+	})
+
+	t.Run("área desconocida -> 400, sin tocar la BD", func(t *testing.T) {
+		srv, _ := nuevoServidorDePrueba(t)
+		r := nuevoRouterDePrueba(srv)
+
+		req := jsonRequest(http.MethodPut, "/admin/personal/5/permisos", map[string]any{
+			"permisos": []string{"pagos", "contabilidad-secreta"},
+		})
+		autenticarRequestPrueba(t, req, srv.JWTKey, "admin", time.Hour)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("código = %d; esperado 400 (body: %s)", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("staff no puede tocar los permisos de nadie", func(t *testing.T) {
+		srv, _ := nuevoServidorDePrueba(t)
+		r := nuevoRouterDePrueba(srv)
+
+		req := jsonRequest(http.MethodPut, "/admin/personal/5/permisos", map[string]any{
+			"permisos": []string{"pagos"},
+		})
+		autenticarRequestPrueba(t, req, srv.JWTKey, "staff", time.Hour)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusForbidden {
+			t.Fatalf("código = %d; esperado 403 (body: %s)", w.Code, w.Body.String())
+		}
+	})
 }

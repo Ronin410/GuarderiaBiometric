@@ -18,22 +18,30 @@ type VinculacionRequest struct {
 
 func (s *Server) registrarRutasHijos(r *gin.Engine) {
 	auth := middleware.Auth(s.JWTKey)
-	staff := middleware.RequireStaff()
+	// Todas estas son operaciones del directorio de tutores (pestaña
+	// "Familia" en el panel) -- salvo /padre/:id/hijos, que un padre
+	// también llama para su propio expediente y por eso se queda solo con
+	// auth, sin exigir el área. Antes de "permisos personalizados por
+	// docente" ninguna de estas (salvo regenerar-token) pedía ni siquiera
+	// RequireStaff: cualquier JWT válido, incluido uno de rol "papa", podía
+	// llamarlas directo sin pasar por la UI. familia cierra ese hueco de
+	// paso, no solo agrega la personalización.
+	familia := middleware.RequireArea("familia")
 
-	r.POST("/registrar-hijo", auth, s.handleRegistrarHijo)
+	r.POST("/registrar-hijo", auth, familia, s.handleRegistrarHijo)
 	r.GET("/padre/:id/hijos", auth, s.handleHijosDePadre)
-	r.POST("/vincular-tutor", auth, s.handleVincularTutor)
-	r.GET("/buscar-hijos", auth, s.handleBuscarHijos)
-	r.GET("/buscar-padres", auth, s.handleBuscarPadres)
-	r.POST("/desvincular-hijo", auth, s.handleDesvincularHijo)
-	r.POST("/actualizar-padre", auth, s.handleActualizarPadre)
-	r.PATCH("/hijos/:id/desactivar", auth, s.handleDesactivarHijo)
-	r.PUT("/hijos/:id", auth, s.handleEditarNombreHijo)
-	r.PATCH("/hijos/:id/activar", auth, s.handleActivarHijo)
+	r.POST("/vincular-tutor", auth, familia, s.handleVincularTutor)
+	r.GET("/buscar-hijos", auth, familia, s.handleBuscarHijos)
+	r.GET("/buscar-padres", auth, familia, s.handleBuscarPadres)
+	r.POST("/desvincular-hijo", auth, familia, s.handleDesvincularHijo)
+	r.POST("/actualizar-padre", auth, familia, s.handleActualizarPadre)
+	r.PATCH("/hijos/:id/desactivar", auth, familia, s.handleDesactivarHijo)
+	r.PUT("/hijos/:id", auth, familia, s.handleEditarNombreHijo)
+	r.PATCH("/hijos/:id/activar", auth, familia, s.handleActivarHijo)
 	// El enlace público de bitácora es permanente (el papá lo revisita cada día), así
 	// que no expira solo por tiempo. Esto le da al staff una forma de invalidar un
 	// link comprometido/reenviado de más al instante.
-	r.POST("/hijos/:id/regenerar-token", auth, staff, s.handleRegenerarToken)
+	r.POST("/hijos/:id/regenerar-token", auth, familia, s.handleRegenerarToken)
 }
 
 func (s *Server) handleRegistrarHijo(c *gin.Context) {

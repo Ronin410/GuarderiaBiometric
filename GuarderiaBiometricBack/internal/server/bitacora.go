@@ -14,10 +14,18 @@ import (
 
 func (s *Server) registrarRutasBitacora(r *gin.Engine) {
 	auth := middleware.Auth(s.JWTKey)
+	// "reportes" y "bitacora" son áreas distintas en el catálogo de permisos
+	// (coinciden con pestañas separadas del panel: Reportes vs Bitácora),
+	// aunque ambas viven en este mismo archivo.
+	bitacoraArea := middleware.RequireArea("bitacora")
+	reportesArea := middleware.RequireArea("reportes")
 
-	r.GET("/bitacora", auth, s.handleBitacora)
-	r.GET("/reportes-asistencia", auth, s.handleReportesAsistencia)
-	r.POST("/seguimiento", auth, s.handleGuardarSeguimiento)
+	r.GET("/bitacora", auth, bitacoraArea, s.handleBitacora)
+	r.GET("/reportes-asistencia", auth, reportesArea, s.handleReportesAsistencia)
+	r.POST("/seguimiento", auth, bitacoraArea, s.handleGuardarSeguimiento)
+	// Sin área a propósito: un padre también llama esto para ver la
+	// bitácora de SU hijo (VistaPadreDetalle), y RequireArea rechazaría
+	// cualquier cuenta que no sea admin/staff.
 	r.GET("/seguimiento/:hijo_id", auth, s.handleObtenerSeguimiento)
 	// Nota: sin AuthMiddleware a propósito, para que sea accesible vía link de WhatsApp.
 	r.GET("/publico/seguimiento/:token", s.handleSeguimientoPublico)

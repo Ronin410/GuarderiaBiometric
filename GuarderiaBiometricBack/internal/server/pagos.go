@@ -43,7 +43,7 @@ type EstadoPagoNino struct {
 
 func (s *Server) registrarRutasPagos(r *gin.Engine) {
 	auth := middleware.Auth(s.JWTKey)
-	staff := middleware.RequireStaff()
+	staff := middleware.RequireArea("pagos")
 
 	// --- REGISTRAR UN PAGO ---
 	r.POST("/pagos", auth, staff, func(c *gin.Context) {

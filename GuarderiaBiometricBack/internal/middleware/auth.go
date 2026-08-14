@@ -23,11 +23,16 @@ const (
 )
 
 // Claims es la forma del JWT que emite /login y que Auth() valida en cada
-// request autenticado.
+// request autenticado. Permisos va con puntero + omitempty a propósito: nil
+// (el JSON del token ni siquiera trae el campo) distingue "esta cuenta de
+// staff no tiene permisos personalizados, acceso completo de siempre" de un
+// slice vacío "*[]string{}", que significa "sin acceso a ninguna sección
+// protegida" — ver RequireArea.
 type Claims struct {
-	UserID      int    `json:"user_id"`
-	GuarderiaID int    `json:"guarderia_id"`
-	Rol         string `json:"rol"`
+	UserID      int       `json:"user_id"`
+	GuarderiaID int       `json:"guarderia_id"`
+	Rol         string    `json:"rol"`
+	Permisos    *[]string `json:"permisos,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -71,6 +76,14 @@ func Auth(jwtKey []byte) gin.HandlerFunc {
 		if claims.ExpiresAt != nil {
 			c.Set("token_exp", claims.ExpiresAt.Time)
 		}
+		// Solo se publica en el contexto si la cuenta tiene permisos
+		// personalizados (claims.Permisos != nil) — RequireArea distingue
+		// "la clave 'permisos' no existe en el contexto" (sin personalizar,
+		// acceso completo) de "existe pero está vacía" (sin acceso a nada)
+		// con c.Get(), así que no hay que poner un valor centinela.
+		if claims.Permisos != nil {
+			c.Set("permisos", *claims.Permisos)
+		}
 		c.Next()
 	}
 }
@@ -88,6 +101,51 @@ func RequireStaff() gin.HandlerFunc {
 			return
 		}
 		c.Next()
+	}
+}
+
+// RequireArea exige acceso a una sección concreta (ej. "pagos", "reportes")
+// en vez de a todo el panel por igual como RequireStaff — es "permisos
+// personalizados por docente": antes, cualquier staff que conociera SU
+// PROPIO PIN (por diseño, /verificar-pin ya lo compara contra el pin_admin
+// de quien está logueado, no uno compartido) desbloqueaba TODAS las
+// secciones protegidas del frontend por igual, y el backend no volvía a
+// revisar nada — cualquier cuenta de staff podía llamar esas rutas
+// directamente sin pasar por el PIN. RequireArea sí lo exige en el backend:
+//   - admin: pasa siempre (control total, igual que con RequireStaff).
+//   - staff sin permisos personalizados (la cuenta no tiene nada
+//     configurado todavía): pasa siempre — mismo comportamiento de hoy,
+//     para no romper ninguna cuenta de golpe al desplegar esto.
+//   - staff con permisos personalizados: pasa solo si `area` está en su
+//     lista.
+//   - papa: nunca pasa, igual que RequireStaff.
+func RequireArea(area string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		rol, _ := c.Get("rol")
+		if rol == "admin" {
+			c.Next()
+			return
+		}
+		if rol != "staff" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Acceso restringido al personal de la guardería"})
+			c.Abort()
+			return
+		}
+
+		permisosRaw, personalizado := c.Get("permisos")
+		if !personalizado {
+			c.Next()
+			return
+		}
+		permisos, _ := permisosRaw.([]string)
+		for _, p := range permisos {
+			if p == area {
+				c.Next()
+				return
+			}
+		}
+		c.JSON(http.StatusForbidden, gin.H{"error": "Tu cuenta no tiene permiso para acceder a esta sección"})
+		c.Abort()
 	}
 }
 

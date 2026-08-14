@@ -3,6 +3,7 @@ package middleware
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -137,6 +138,60 @@ func TestRequireStaff(t *testing.T) {
 			r.ServeHTTP(w, req)
 			if w.Code != c.codigoEsperado {
 				t.Errorf("rol %q: código = %d; esperado %d", c.rol, w.Code, c.codigoEsperado)
+			}
+		})
+	}
+}
+
+func TestRequireArea(t *testing.T) {
+	// Simula lo que hace Auth(): pone "rol" siempre, y "permisos" solo
+	// cuando la cuenta trae permisos personalizados (el caso "sin
+	// personalizar" se representa con la ausencia de la clave, no con nil).
+	r := gin.New()
+	r.GET("/pagos-o-lo-que-sea",
+		func(c *gin.Context) {
+			c.Set("rol", c.GetHeader("X-Rol-Prueba"))
+			if permisosCSV := c.GetHeader("X-Permisos-Prueba"); permisosCSV != "" || c.GetHeader("X-Personalizado-Prueba") == "1" {
+				var permisos []string
+				if permisosCSV != "" {
+					permisos = strings.Split(permisosCSV, ",")
+				}
+				c.Set("permisos", permisos)
+			}
+			c.Next()
+		},
+		RequireArea("pagos"),
+		func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"ok": true}) },
+	)
+
+	casos := []struct {
+		nombre         string
+		rol            string
+		personalizado  bool
+		permisos       string
+		codigoEsperado int
+	}{
+		{"admin siempre pasa", "admin", false, "", http.StatusOK},
+		{"admin con permisos personalizados (irrelevante) igual pasa", "admin", true, "menu", http.StatusOK},
+		{"staff sin personalizar -> acceso completo (legacy)", "staff", false, "", http.StatusOK},
+		{"staff personalizado CON el área -> pasa", "staff", true, "bitacora,pagos", http.StatusOK},
+		{"staff personalizado SIN el área -> 403", "staff", true, "bitacora,menu", http.StatusForbidden},
+		{"staff personalizado a lista vacía -> 403", "staff", true, "", http.StatusForbidden},
+		{"papa nunca pasa, tenga o no personalizado", "papa", false, "", http.StatusForbidden},
+	}
+
+	for _, c := range casos {
+		t.Run(c.nombre, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/pagos-o-lo-que-sea", nil)
+			req.Header.Set("X-Rol-Prueba", c.rol)
+			if c.personalizado {
+				req.Header.Set("X-Personalizado-Prueba", "1")
+				req.Header.Set("X-Permisos-Prueba", c.permisos)
+			}
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+			if w.Code != c.codigoEsperado {
+				t.Errorf("código = %d; esperado %d (body: %s)", w.Code, c.codigoEsperado, w.Body.String())
 			}
 		})
 	}

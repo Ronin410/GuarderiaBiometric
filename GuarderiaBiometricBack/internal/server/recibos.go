@@ -30,7 +30,7 @@ type ReciboPago struct {
 
 func (s *Server) registrarRutasRecibos(r *gin.Engine) {
 	auth := middleware.Auth(s.JWTKey)
-	staff := middleware.RequireStaff()
+	staff := middleware.RequireArea("pagos")
 
 	r.GET("/pagos/:id/recibo", auth, staff, s.handleObtenerRecibo)
 	// Mismo handler para el portal del padre -- la diferencia es que aquí
