@@ -57,7 +57,23 @@ services:
       # wget viene incluido en busybox (base de la imagen alpine final del
       # backend) — no hace falta instalar nada extra para este chequeo.
       # --no-check-certificate porque el certificado es autofirmado.
-      test: ["CMD", "wget", "--no-check-certificate", "-q", "-O", "/dev/null", "https://localhost:8099/aviso-privacidad"]
+      #
+      # /aviso-privacidad exige sesión (401 sin cookie) -- lo que de verdad
+      # importa acá no es el código de estado, sino si el servidor YA está
+      # respondiendo HTTP (equivalente al curl sin -f que usaba run.sh, al
+      # que tampoco le importaba el código). El wget de BusyBox no tiene el
+      # esquema de códigos de salida de GNU wget (401 y "no hay nadie
+      # escuchando" dan el MISMO código de salida, 1, así que no sirve para
+      # distinguirlos) -- por eso se usa -S para imprimir la línea de
+      # estado HTTP y se busca "200" o "401" ahí en vez de mirar el código
+      # de salida. Probado contra BusyBox 1.36 de verdad (la misma versión
+      # de la imagen alpine:3.20 del backend), no es una suposición.
+      test:
+        - CMD-SHELL
+        - >-
+          wget -q -S -O /dev/null --no-check-certificate
+          https://localhost:8099/aviso-privacidad 2>&1
+          | grep -qE "HTTP/[0-9.]+ (200|401)"
       interval: 2s
       timeout: 3s
       retries: 60
