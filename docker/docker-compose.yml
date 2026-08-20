@@ -1,0 +1,99 @@
+# Equivalente en Docker de podman/run.sh: mismos tres servicios (Postgres +
+# backend + frontend), mismos Dockerfiles, mismo seed de datos de prueba —
+# solo cambia cómo se orquestan. La diferencia de fondo frente al pod de
+# Podman: aquí cada contenedor tiene su propia red y se habla con los demás
+# por el NOMBRE DEL SERVICIO (Compose trae su propio DNS interno), no por
+# "localhost" compartido — por eso docker/backend.env.example apunta
+# DATABASE_URL a "postgres", no a 127.0.0.1.
+#
+# Uso:
+#   cd docker
+#   cp backend.env.example backend.env   # una sola vez
+#   docker compose up --build
+#
+# Para bajar todo (conserva los datos):     docker compose down
+# Para bajar todo y borrar los datos:       docker compose down -v
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: guarderia-postgres
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: guarderia
+    ports:
+      # host:contenedor — 5433 y no 5432, para no chocar con un Postgres
+      # local que ya tengas corriendo. El backend se conecta por dentro de
+      # la red de Compose a postgres:5432 (ver backend.env); eso no pasa
+      # por este puerto expuesto al host.
+      - "5433:5432"
+    volumes:
+      - guarderia-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  backend:
+    build:
+      context: ../GuarderiaBiometricBack
+      dockerfile: Dockerfile
+    image: guarderia-backend:local
+    container_name: guarderia-backend
+    env_file:
+      - backend.env
+    ports:
+      - "8099:8099"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # El backend aplica las migraciones al arrancar y necesita a Postgres
+    # arriba para eso; con la espera de "service_healthy" de arriba casi
+    # nunca hace falta, pero por si acaso se reinicia solo (igual que el pod
+    # de Podman) en vez de quedarse caído.
+    restart: on-failure
+    healthcheck:
+      # wget viene incluido en busybox (base de la imagen alpine final del
+      # backend) — no hace falta instalar nada extra para este chequeo.
+      # --no-check-certificate porque el certificado es autofirmado.
+      test: ["CMD", "wget", "--no-check-certificate", "-q", "-O", "/dev/null", "https://localhost:8099/aviso-privacidad"]
+      interval: 2s
+      timeout: 3s
+      retries: 60
+      start_period: 5s
+
+  # Servicio de un solo uso: aplica seed_dev.sql y termina. Depende de que
+  # el backend ya esté "healthy" (con las migraciones ya aplicadas) — sin
+  # eso las tablas que necesita el seed todavía no existirían.
+  seed:
+    image: postgres:16-alpine
+    container_name: guarderia-seed
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: postgres
+    volumes:
+      - ../GuarderiaBiometricBack/internal/db/seeds/seed_dev.sql:/seed.sql:ro
+    entrypoint: ["psql", "-h", "postgres", "-U", "postgres", "-d", "guarderia", "-f", "/seed.sql"]
+    restart: "no"
+
+  frontend:
+    build:
+      context: ../GuarderiaBiometricFront
+      dockerfile: Dockerfile
+      args:
+        # Se hornea en el bundle en tiempo de build (Vite reemplaza
+        # import.meta.env.* de forma estática) — si cambias el puerto del
+        # backend hay que reconstruir esta imagen, no basta con reiniciar.
+        VITE_API_URL: https://localhost:8099
+    image: guarderia-frontend:local
+    container_name: guarderia-frontend
+    ports:
+      - "5173:8080"
+    depends_on:
+      - backend
+
+volumes:
+  guarderia-pgdata:
