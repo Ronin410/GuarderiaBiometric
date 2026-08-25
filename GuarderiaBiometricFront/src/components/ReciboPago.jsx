@@ -104,7 +104,7 @@ const ReciboPago = ({ pagoId, rutaBase = '/pagos', onVolver }) => {
           <p className="text-2xl font-black text-brand-700">${Number(recibo.monto).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
         </div>
 
-        <p className="text-center text-[9px] text-slate-300 font-bold uppercase tracking-widest mt-8">Generado por BioSafe</p>
+        <p className="text-center text-[9px] text-slate-300 font-bold uppercase tracking-widest mt-8">Generado por Pasitos</p>
       </div>
     </div>
   );

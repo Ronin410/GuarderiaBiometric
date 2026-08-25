@@ -8,11 +8,11 @@ self.addEventListener('push', (event) => {
   try {
     data = event.data ? event.data.json() : {};
   } catch {
-    data = { titulo: 'BioSafe', cuerpo: event.data ? event.data.text() : '' };
+    data = { titulo: 'Pasitos', cuerpo: event.data ? event.data.text() : '' };
   }
 
   event.waitUntil(
-    self.registration.showNotification(data.titulo || 'BioSafe', {
+    self.registration.showNotification(data.titulo || 'Pasitos', {
       body: data.cuerpo || '',
       icon: '/logo192.png',
       badge: '/logo192.png',

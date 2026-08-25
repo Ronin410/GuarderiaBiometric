@@ -1,4 +1,4 @@
-# Funcionalidades — BioSafe (Sistema Biométrico para Guarderías)
+# Funcionalidades — Pasitos (Sistema Biométrico para Guarderías)
 
 > Documento de referencia de todo lo que hace la plataforma hoy, organizado por quién lo usa. Última actualización: incluye el módulo de Administración (Perfiles/Pagos/Estadísticas) y las notificaciones push + portal del papá ampliado.
 

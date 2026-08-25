@@ -417,7 +417,7 @@ function MainApp() {
           <div className="inline-block bg-brand-600 p-4 rounded-3xl shadow-lg mb-6">
             <ShieldCheck size={40} className="text-white" />
           </div>
-          <h1 className="text-3xl font-black text-slate-900 uppercase mb-2">BioSafe</h1>
+          <h1 className="text-3xl font-black text-slate-900 uppercase mb-2">Pasitos</h1>
           <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest mb-6">Selecciona tu perfil</p>
           
           <div className="flex bg-slate-100 p-1.5 rounded-2xl mb-8 border border-slate-200">
@@ -457,7 +457,7 @@ function MainApp() {
         <div className="flex items-center gap-3">
           <div className="bg-brand-600 p-2 rounded-xl shadow-md"><ShieldCheck size={20} className="text-white" /></div>
           <div className="text-center sm:text-left">
-            <h1 className="text-xl font-black uppercase leading-none text-slate-900">BioSafe</h1>
+            <h1 className="text-xl font-black uppercase leading-none text-slate-900">Pasitos</h1>
             <p className="text-[9px] text-brand-600 font-bold uppercase tracking-widest">{guarderiaInfo.nombre || 'Kiosk'}</p>
           </div>
         </div>

@@ -91,7 +91,7 @@ const PanelReportes = () => {
             <ShieldCheck size={32} />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tighter uppercase leading-none">BIOSAFE</h1>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tighter uppercase leading-none">PASITOS</h1>
             <p className="text-[10px] font-bold text-brand-600 uppercase tracking-[0.2em] mt-1">SISTEMA DE CONTROL DIARIO</p>
           </div>
         </div>

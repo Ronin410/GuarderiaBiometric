@@ -1,4 +1,4 @@
-# BioSafe — Frontend
+# Pasitos — Frontend
 
 App web (React + Vite, instalable como PWA) para el sistema biométrico de guarderías: kiosco de identificación facial, bitácora diaria, panel de administración (Perfiles, Pagos, Estadísticas) y portal para los papás con notificaciones push.
 

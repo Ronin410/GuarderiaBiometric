@@ -83,7 +83,7 @@ const ReportePublico = () => {
                 <ShieldCheck size={24} className="text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">BioSafe</h1>
+                <h1 className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">Pasitos</h1>
                 <p className="text-[9px] font-bold text-brand-500 uppercase tracking-widest">Reporte Diario</p>
               </div>
             </div>
@@ -128,7 +128,7 @@ const ReportePublico = () => {
       
       {/* FOOTER */}
       <footer className="text-center py-10">
-        <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.3em]">BioSafe Security System</p>
+        <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.3em]">Protegido por Pasitos</p>
       </footer>
     </div>
   );

@@ -197,7 +197,7 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
           <div className="bg-brand-600 p-2 rounded-xl text-white">
             <LayoutDashboard size={18} />
           </div>
-          <span className="font-black text-slate-900 uppercase tracking-tighter text-sm">BIOSAFE <span className="text-brand-600">FAMILIA</span></span>
+          <span className="font-black text-slate-900 uppercase tracking-tighter text-sm">PASITOS <span className="text-brand-600">FAMILIA</span></span>
         </div>
         <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-rose-500 transition-colors">
           <LogOut size={20} />
@@ -383,7 +383,7 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
 
         {/* FOOTER */}
         <div className="text-center pt-8">
-            <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.4em]">Protegido por BioSafe System</p>
+            <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.4em]">Protegido por Pasitos</p>
         </div>
       </div>
     </div>

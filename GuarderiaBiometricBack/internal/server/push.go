@@ -104,7 +104,7 @@ func (s *Server) notificarEvento(hijoID int, evento string, detalle string) {
 		titulo = "💰 Recordatorio de pago"
 		cuerpo = "La colegiatura de " + nombre + " del periodo " + detalle + " sigue pendiente."
 	default:
-		titulo = "BioSafe"
+		titulo = "Pasitos"
 		cuerpo = nombre + ": " + detalle
 	}
 

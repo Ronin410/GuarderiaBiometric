@@ -1,4 +1,4 @@
-# BioSafe — Backend
+# Pasitos — Backend
 
 API en Go (Gin) para el sistema biométrico de control de asistencia y administración de guarderías. Identificación facial (AWS Rekognition), fotos de bitácora (AWS S3), base de datos PostgreSQL, notificaciones push (Web Push/VAPID, sin servicios de terceros).
 
