@@ -771,8 +771,8 @@ function MainApp() {
       {mostrarModalGestion && padreSeleccionado && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
           <div className="bg-white w-full max-w-4xl rounded-[2.5rem] shadow-2xl overflow-hidden relative border-t-8 border-t-brand-600 max-h-[90vh] flex flex-col">
-            <button onClick={() => { setMostrarModalGestion(false); cargarTodosLosPadres(); }} className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 z-10 p-2"><X size={32} /></button>
-            <div className="overflow-y-auto flex-1">
+            <button onClick={() => { setMostrarModalGestion(false); cargarTodosLosPadres(); }} className="absolute top-4 right-4 sm:top-6 sm:right-6 bg-white/80 backdrop-blur-sm rounded-full text-slate-400 hover:text-slate-600 z-10 p-2"><X size={24} className="sm:hidden" /><X size={32} className="hidden sm:block" /></button>
+            <div className="overflow-y-auto overflow-x-hidden flex-1">
               <GestionHijos padreId={padreSeleccionado.id} nombrePadre={padreSeleccionado.nombre} onFinalizar={() => { setMostrarModalGestion(false); cargarTodosLosPadres(); }} />
             </div>
           </div>

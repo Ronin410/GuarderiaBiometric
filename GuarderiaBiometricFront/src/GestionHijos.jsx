@@ -286,15 +286,15 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
   };
 
   return (
-    <div className="p-4 md:p-8 bg-white text-slate-900 max-h-[90vh] overflow-y-auto rounded-[2rem] md:rounded-[2.5rem] relative">
+    <div className="p-4 md:p-8 bg-white text-slate-900 max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-[2rem] md:rounded-[2.5rem] relative">
       
       {/* SECCIÓN TUTOR */}
-      <div className="flex justify-between items-start mb-10 border-b border-slate-100 pb-8 pr-2 md:pr-12">
-        <div className="flex-1 w-full">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-5 mb-10 border-b border-slate-100 pb-8 pr-10 sm:pr-16">
+        <div className="flex-1 w-full min-w-0">
           <p className="text-brand-600 font-black uppercase text-[10px] tracking-[0.2em] mb-2">Tutor Registrado</p>
           {editandoTutor ? (
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-              <input 
+              <input
                 autoFocus
                 value={nombreTutorEdit}
                 onChange={(e) => setNombreTutorEdit(e.target.value)}
@@ -306,34 +306,34 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-5 group">
-              <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter text-slate-900 leading-none">{nombreTutorEdit}</h2>
-              <button onClick={() => setEditandoTutor(true)} className="p-2.5 bg-brand-50 rounded-xl text-brand-600 hover:bg-brand-100 transition-all md:opacity-0 group-hover:opacity-100">
+            <div className="flex items-center gap-3 sm:gap-5 group min-w-0">
+              <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black uppercase tracking-tighter text-slate-900 leading-tight break-words">{nombreTutorEdit}</h2>
+              <button onClick={() => setEditandoTutor(true)} className="p-2.5 bg-brand-50 rounded-xl text-brand-600 hover:bg-brand-100 transition-all shrink-0 md:opacity-0 group-hover:opacity-100">
                 <Edit3 size={20} />
               </button>
             </div>
           )}
         </div>
 
-        <div className="flex gap-2 shrink-0">
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto sm:justify-end">
           <button
             onClick={() => setMostrarFormCuenta(!mostrarFormCuenta)}
             title="Crear cuenta del portal (si no marcaste la casilla al registrar su rostro)"
-            className="flex items-center gap-2 text-[9px] font-black uppercase bg-brand-50 hover:bg-brand-100 text-brand-600 px-3 py-2.5 rounded-xl transition-all"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 whitespace-nowrap text-[9px] font-black uppercase bg-brand-50 hover:bg-brand-100 text-brand-600 px-3 py-2.5 rounded-xl transition-all"
           >
             <KeyRound size={14} /> Crear cuenta
           </button>
           <button
             onClick={manejarExportarDatosArco}
             title="Exportar datos (ARCO)"
-            className="flex items-center gap-2 text-[9px] font-black uppercase bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-2.5 rounded-xl transition-all"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 whitespace-nowrap text-[9px] font-black uppercase bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-2.5 rounded-xl transition-all"
           >
             <Download size={14} /> Exportar
           </button>
           <button
             onClick={manejarEliminarDatosArco}
             title="Eliminar datos del tutor (ARCO)"
-            className="flex items-center gap-2 text-[9px] font-black uppercase bg-rose-50 hover:bg-rose-100 text-rose-600 px-3 py-2.5 rounded-xl transition-all"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 whitespace-nowrap text-[9px] font-black uppercase bg-rose-50 hover:bg-rose-100 text-rose-600 px-3 py-2.5 rounded-xl transition-all"
           >
             <Trash2 size={14} /> Eliminar Tutor
           </button>
@@ -360,7 +360,7 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
           <button
             onClick={manejarCrearCuenta}
             disabled={creandoCuenta}
-            className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white text-xs font-black uppercase px-5 py-3 rounded-xl transition-all active:scale-95"
+            className="w-full sm:w-auto bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white text-xs font-black uppercase px-5 py-3 rounded-xl transition-all active:scale-95"
           >
             {creandoCuenta ? 'Creando...' : 'Crear cuenta'}
           </button>
@@ -426,10 +426,10 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
             {hijosRelacionados
               .filter(h => verBajas ? true : h.activo !== false)
               .map((h) => (
-              <div key={h.id} className={`flex flex-col sm:flex-row items-center justify-between p-5 rounded-[1.5rem] border transition-all gap-4 ${!h.activo ? 'bg-slate-100 opacity-60 grayscale border-dashed border-slate-300' : 'bg-slate-50 border-slate-100'}`}>
-                
-                <div className="flex items-center gap-4 w-full flex-1">
-                  <div className={`hidden xs:block p-4 rounded-2xl shadow-sm ${!h.activo ? 'bg-slate-200 text-slate-400' : h.persistente ? 'bg-brand-100 text-brand-600' : 'bg-amber-100 text-amber-600 animate-pulse'}`}>
+              <div key={h.id} className={`flex flex-col lg:flex-row lg:items-center justify-between p-5 rounded-[1.5rem] border transition-all gap-4 ${!h.activo ? 'bg-slate-100 opacity-60 grayscale border-dashed border-slate-300' : 'bg-slate-50 border-slate-100'}`}>
+
+                <div className="flex items-center gap-4 w-full flex-1 min-w-0">
+                  <div className={`hidden sm:block shrink-0 p-4 rounded-2xl shadow-sm ${!h.activo ? 'bg-slate-200 text-slate-400' : h.persistente ? 'bg-brand-100 text-brand-600' : 'bg-amber-100 text-amber-600 animate-pulse'}`}>
                     <Baby size={24}/>
                   </div>
                   
@@ -477,16 +477,16 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
                 
                 {/* BOTONES DE ACCIÓN */}
                 {!editandoHijoId && (
-                  <div className="flex gap-2 w-full sm:w-auto justify-end border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-200">
+                  <div className="flex flex-wrap gap-2 w-full lg:w-auto justify-end border-t lg:border-t-0 pt-3 lg:pt-0 border-slate-200">
                     {h.persistente && (
                       h.activo ? (
                         <>
-                          <button onClick={() => manejarRegenerarToken(h)} title="Regenerar enlace de bitácora" className="flex-1 sm:flex-none text-slate-400 hover:text-brand-600 hover:bg-brand-50 p-3 rounded-xl border border-slate-200 sm:border-none flex justify-center"><RefreshCw size={22}/></button>
-                          <button onClick={() => manejarBajaHijo(h)} title="Baja del sistema" className="flex-1 sm:flex-none text-slate-400 hover:text-rose-500 hover:bg-rose-50 p-3 rounded-xl border border-slate-200 sm:border-none flex justify-center"><UserX size={22}/></button>
-                          <button onClick={() => manejarDesvincular(h)} title="Desvincular tutor" className="flex-1 sm:flex-none text-slate-400 hover:text-amber-600 hover:bg-amber-50 p-3 rounded-xl border border-slate-200 sm:border-none flex justify-center"><Link2Off size={22}/></button>
+                          <button onClick={() => manejarRegenerarToken(h)} title="Regenerar enlace de bitácora" className="flex-1 lg:flex-none text-slate-400 hover:text-brand-600 hover:bg-brand-50 p-3 rounded-xl border border-slate-200 lg:border-none flex justify-center"><RefreshCw size={22}/></button>
+                          <button onClick={() => manejarBajaHijo(h)} title="Baja del sistema" className="flex-1 lg:flex-none text-slate-400 hover:text-rose-500 hover:bg-rose-50 p-3 rounded-xl border border-slate-200 lg:border-none flex justify-center"><UserX size={22}/></button>
+                          <button onClick={() => manejarDesvincular(h)} title="Desvincular tutor" className="flex-1 lg:flex-none text-slate-400 hover:text-amber-600 hover:bg-amber-50 p-3 rounded-xl border border-slate-200 lg:border-none flex justify-center"><Link2Off size={22}/></button>
                         </>
                       ) : (
-                        <button onClick={() => manejarAltaHijo(h)} title="Reactivar Alumno" className="w-full sm:w-auto text-emerald-500 bg-emerald-50 p-3 rounded-xl flex justify-center"><RotateCcw size={22}/></button>
+                        <button onClick={() => manejarAltaHijo(h)} title="Reactivar Alumno" className="w-full lg:w-auto text-emerald-500 bg-emerald-50 p-3 rounded-xl flex justify-center"><RotateCcw size={22}/></button>
                       )
                     )}
                     {!h.persistente && (
