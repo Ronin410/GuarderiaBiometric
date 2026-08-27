@@ -41,6 +41,11 @@ type Config struct {
 	// (éxito/cancelado) -- ej. "https://miguarderia.com". Solo hace falta
 	// si StripeSecretKey está configurada.
 	FrontendURL string
+
+	// PlatformAdminKey protege /plataforma/solicitudes (revisar/aprobar
+	// altas de guardería nueva) -- vacía por defecto, deja esas rutas
+	// deshabilitadas. Ver middleware.RequirePlatformKey.
+	PlatformAdminKey string
 }
 
 func Load() Config {
@@ -63,6 +68,8 @@ func Load() Config {
 		StripeWebhookSecret:  os.Getenv("STRIPE_WEBHOOK_SECRET"),
 		StripeCurrency:       monedaOr(os.Getenv("STRIPE_CURRENCY"), "mxn"),
 		FrontendURL:          os.Getenv("FRONTEND_URL"),
+
+		PlatformAdminKey: os.Getenv("PLATFORM_ADMIN_KEY"),
 	}
 }
 

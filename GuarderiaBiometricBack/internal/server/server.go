@@ -44,6 +44,9 @@ type Server struct {
 	StripeCurrency       string
 	FrontendURL          string
 
+	// Ver middleware.RequirePlatformKey.
+	PlatformAdminKey string
+
 	loginLimiter       *middleware.RateLimiter
 	pinLimiter         *middleware.RateLimiter
 	identificarLimiter *middleware.RateLimiter
@@ -107,4 +110,5 @@ func (s *Server) RegisterRoutes(r *gin.Engine) {
 	s.registrarRutasPush(r)
 	s.registrarRutasPrivacidad(r)
 	s.registrarRutasArco(r)
+	s.registrarRutasSolicitudes(r)
 }

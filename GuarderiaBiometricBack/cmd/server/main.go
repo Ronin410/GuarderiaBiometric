@@ -42,6 +42,9 @@ func main() {
 	if !srv.StripeHabilitado() {
 		log.Println("INFO: STRIPE_SECRET_KEY no configurada; los pagos en línea quedan deshabilitados (el resto de la app no se ve afectado).")
 	}
+	if srv.PlatformAdminKey == "" {
+		log.Println("INFO: PLATFORM_ADMIN_KEY no configurada; las solicitudes de alta de guardería se pueden recibir pero no revisar/aprobar desde /plataforma.")
+	}
 
 	srv.RegisterRoutes(r)
 
@@ -105,5 +108,6 @@ func conectarServicios(cfg appconfig.Config) *server.Server {
 	srv.StripeWebhookSecret = cfg.StripeWebhookSecret
 	srv.StripeCurrency = cfg.StripeCurrency
 	srv.FrontendURL = cfg.FrontendURL
+	srv.PlatformAdminKey = cfg.PlatformAdminKey
 	return srv
 }

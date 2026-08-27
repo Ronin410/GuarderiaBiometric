@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/rekognition"
 	"github.com/aws/aws-sdk-go-v2/service/rekognition/types"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 
 	"biometrico/internal/middleware"
 )
@@ -59,6 +60,14 @@ func (s *Server) handleRegistrar(c *gin.Context) {
 		Nombre      string `json:"nombre"`
 		Imagen      string `json:"imagen"`
 		AceptaAviso bool   `json:"acepta_aviso"`
+		// Campos opcionales -- si el staff activa "crear cuenta del portal"
+		// en el momento (el tutor está presente ahí mismo), esto crea junto
+		// con el rostro una cuenta de acceso rol "papa" para VistaPadre/
+		// DashboardPadre. Sin ellos, el registro se comporta exactamente
+		// igual que antes: solo queda el dato biométrico en `padres`.
+		CrearCuenta bool   `json:"crear_cuenta"`
+		Username    string `json:"username"`
+		Password    string `json:"password"`
 	}
 	c.BindJSON(&input)
 
@@ -81,6 +90,30 @@ func (s *Server) handleRegistrar(c *gin.Context) {
 	if !input.AceptaAviso {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Debes mostrar el Aviso de Privacidad y obtener la aceptación del tutor antes de registrar su rostro."})
 		return
+	}
+
+	// Validar la cuenta ANTES de tocar Rekognition -- así un usuario/
+	// contraseña inválidos no dejan un rostro ya indexado sin una cuenta que
+	// lo acompañe (el registro biométrico solo, sin cuenta, sigue siendo
+	// válido y es justo el comportamiento de antes; lo que no queremos es
+	// fallar A MEDIAS después de ya haber gastado la llamada a Rekognition).
+	input.Username = strings.TrimSpace(input.Username)
+	var passwordHashCuenta string
+	if input.CrearCuenta {
+		if len(input.Username) < 3 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "El usuario del portal debe tener al menos 3 caracteres"})
+			return
+		}
+		if len(input.Password) < 8 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "La contraseña del portal debe tener al menos 8 caracteres"})
+			return
+		}
+		hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al procesar la contraseña"})
+			return
+		}
+		passwordHashCuenta = string(hash)
 	}
 
 	imgBytes, _ := base64.StdEncoding.DecodeString(input.Imagen)
@@ -124,7 +157,39 @@ func (s *Server) handleRegistrar(c *gin.Context) {
 		log.Printf("No se pudo registrar el consentimiento del padre %d: %v", nuevoPadreID, err)
 	}
 
-	c.JSON(200, gin.H{"status": "OK", "padre_id": nuevoPadreID})
+	respuesta := gin.H{"status": "OK", "padre_id": nuevoPadreID}
+
+	// El portal del papá (DashboardPadre.jsx) resuelve "quién soy" con el
+	// user_id del JWT usado directo como padre_id (ver el comodín "0" en
+	// handleHijosDePadre, y el mismo criterio en pagos.go/recibos.go/
+	// pagos_online.go) -- por eso esta cuenta se crea forzando
+	// usuarios.id = padres.id, en vez de agregar una columna de relación
+	// nueva y tener que tocar las cuatro consultas que ya asumen esa
+	// igualdad. setval() empuja la secuencia de usuarios más allá de este id
+	// explícito para que el próximo alta de personal (secuencial, sin id
+	// explícito) no choque con él.
+	if input.CrearCuenta {
+		_, errCuenta := s.DBAuth.Exec(
+			`INSERT INTO usuarios (id, guarderia_id, username, password_hash, pin_admin, rol, nombre, activo)
+             VALUES ($1, $2, $3, $4, '0000', 'papa', $5, true)`,
+			nuevoPadreID, gID, input.Username, passwordHashCuenta, input.Nombre,
+		)
+		if errCuenta != nil {
+			if esUsernameDuplicado(errCuenta) {
+				respuesta["cuenta_error"] = "El rostro se registró, pero ese nombre de usuario ya existe. Crea la cuenta del portal por separado con otro usuario."
+			} else {
+				log.Printf("No se pudo crear la cuenta de portal para el padre %d: %v", nuevoPadreID, errCuenta)
+				respuesta["cuenta_error"] = "El rostro se registró, pero no se pudo crear la cuenta del portal. Inténtalo de nuevo por separado."
+			}
+		} else {
+			if _, errSeq := s.DBAuth.Exec(`SELECT setval('usuarios_id_seq', (SELECT MAX(id) FROM usuarios))`); errSeq != nil {
+				log.Printf("No se pudo reacomodar la secuencia de usuarios tras crear la cuenta del padre %d: %v", nuevoPadreID, errSeq)
+			}
+			respuesta["cuenta_creada"] = true
+		}
+	}
+
+	c.JSON(200, respuesta)
 }
 
 func (s *Server) handleIdentificar(c *gin.Context) {

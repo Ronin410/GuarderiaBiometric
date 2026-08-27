@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Webcam from 'react-webcam';
 import api from './axiosConfig'; 
 // Importar componentes de rutas
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useParams, Link } from 'react-router-dom';
 import {
   UserPlus, ScanEye, Baby, AlertCircle, Users, Search,
   ClipboardList, TrendingUp, ShieldCheck, ArrowRightCircle,
@@ -34,6 +34,8 @@ import AvisoPrivacidadModal from './AvisoPrivacidadModal';
 import { mostrarError, mostrarExito, mostrarAviso, confirmar as confirmarAccion } from './utils/alertas';
 import { segundosHastaExpirar } from './utils/sesion';
 import ReportePublico from './ReportePublico'; // <-- Tu nueva ruta pública
+import RegistroGuarderia from './RegistroGuarderia';
+import PanelPlataforma from './PanelPlataforma';
 
 const videoConstraints = {
   width: { ideal: 720 },
@@ -112,10 +114,16 @@ function MainApp() {
 
   const avisoExpiracionMostrado = useRef(false);
   const webcamRef = useRef(null);
-  const [nombre, setNombre] = useState(''); 
+  const [nombre, setNombre] = useState('');
   const [resultado, setResultado] = useState(null);
   const [seleccionados, setSeleccionados] = useState([]);
   const [formAsistencia, setFormAsistencia] = useState({});
+  // Cuenta del portal del papá, opcional al registrar su rostro -- el tutor
+  // está presente en el kiosco en ese momento, así que puede quedar lista de
+  // una vez (ver el comentario de handleRegistrar en el backend).
+  const [crearCuentaPortal, setCrearCuentaPortal] = useState(false);
+  const [usernamePortal, setUsernamePortal] = useState('');
+  const [passwordPortal, setPasswordPortal] = useState('');
 
   const [padreSeleccionado, setPadreSeleccionado] = useState(null);
   const [tutoresEncontrados, setTutoresEncontrados] = useState([]);
@@ -258,6 +266,9 @@ function MainApp() {
     setNombre('');
     setSeleccionados([]);
     setFormAsistencia({});
+    setCrearCuentaPortal(false);
+    setUsernamePortal('');
+    setPasswordPortal('');
   };
 
   const verificarPinAdmin = async () => {
@@ -280,6 +291,16 @@ function MainApp() {
     if (endpoint === 'registrar' && !nombre.trim()) {
       mostrarError("No has escrito un nombre para el registro.");
       return;
+    }
+    if (endpoint === 'registrar' && crearCuentaPortal) {
+      if (usernamePortal.trim().length < 3) {
+        mostrarError("El usuario del portal debe tener al menos 3 caracteres.");
+        return;
+      }
+      if (passwordPortal.length < 8) {
+        mostrarError("La contraseña del portal debe tener al menos 8 caracteres.");
+        return;
+      }
     }
     if (endpoint === 'registrar' && !avisoAceptado) {
       await verificarYMostrarAvisoPrivacidad();
@@ -326,19 +347,27 @@ function MainApp() {
     try {
       const payload = {
         imagen: base64Image,
-        ...(endpoint === 'registrar' && { nombre, acepta_aviso: true })
+        ...(endpoint === 'registrar' && {
+          nombre, acepta_aviso: true,
+          ...(crearCuentaPortal && { crear_cuenta: true, username: usernamePortal.trim(), password: passwordPortal }),
+        })
       };
       const response = await api.post(`/${endpoint}`, payload);
-      
-      setResultado({ 
-        type: 'success', 
-        data: { 
-          ...response.data, 
-          nombre: endpoint === 'registrar' ? nombre : (response.data.nombre || response.data.padre) 
-        } 
+
+      setResultado({
+        type: 'success',
+        data: {
+          ...response.data,
+          nombre: endpoint === 'registrar' ? nombre : (response.data.nombre || response.data.padre)
+        }
       });
 
       if (endpoint === 'registrar') {
+        if (response.data.cuenta_error) {
+          mostrarError(response.data.cuenta_error);
+        } else if (response.data.cuenta_creada) {
+          mostrarExito('Rostro y cuenta del portal creados correctamente.');
+        }
         setPadreSeleccionado({ id: response.data.padre_id, nombre });
         setMostrarModalGestion(true);
       }
@@ -444,6 +473,10 @@ function MainApp() {
               Entrar al Panel
             </button>
           </form>
+
+          <Link to="/registro-guarderia" className="block mt-6 text-slate-400 hover:text-brand-600 font-bold text-[11px] uppercase tracking-widest transition-colors">
+            ¿Tienes una guardería? Solicita tu alta
+          </Link>
         </div>
       </div>
     );
@@ -617,9 +650,23 @@ function MainApp() {
           <div className="flex flex-col items-center gap-8 animate-in fade-in duration-500">
             <div className="w-full max-w-md space-y-6">
                {tab === 'registrar' && (
-                 <div className="space-y-2">
-                   <label className="text-[10px] font-black uppercase text-slate-400 ml-4 tracking-widest">Nombre Completo del Tutor</label>
-                   <input type="text" placeholder="Ej. Juan Pérez" value={nombre} onChange={(e) => setNombre(e.target.value)} className="w-full bg-white border border-slate-200 p-4 rounded-2xl text-slate-900 focus:ring-2 focus:ring-brand-500 outline-none shadow-sm" />
+                 <div className="space-y-3">
+                   <div className="space-y-2">
+                     <label className="text-[10px] font-black uppercase text-slate-400 ml-4 tracking-widest">Nombre Completo del Tutor</label>
+                     <input type="text" placeholder="Ej. Juan Pérez" value={nombre} onChange={(e) => setNombre(e.target.value)} className="w-full bg-white border border-slate-200 p-4 rounded-2xl text-slate-900 focus:ring-2 focus:ring-brand-500 outline-none shadow-sm" />
+                   </div>
+
+                   <label className="flex items-center gap-3 bg-white border border-slate-200 p-4 rounded-2xl shadow-sm cursor-pointer">
+                     <input type="checkbox" checked={crearCuentaPortal} onChange={(e) => setCrearCuentaPortal(e.target.checked)} className="w-5 h-5 rounded-md accent-brand-600" />
+                     <span className="text-xs font-bold text-slate-600">Crear también su cuenta del portal (el tutor está aquí)</span>
+                   </label>
+
+                   {crearCuentaPortal && (
+                     <div className="grid grid-cols-2 gap-2 animate-in fade-in duration-200">
+                       <input type="text" placeholder="Usuario" value={usernamePortal} onChange={(e) => setUsernamePortal(e.target.value)} className="w-full bg-white border border-slate-200 p-4 rounded-2xl text-slate-900 focus:ring-2 focus:ring-brand-500 outline-none shadow-sm" />
+                       <input type="password" placeholder="Contraseña" value={passwordPortal} onChange={(e) => setPasswordPortal(e.target.value)} className="w-full bg-white border border-slate-200 p-4 rounded-2xl text-slate-900 focus:ring-2 focus:ring-brand-500 outline-none shadow-sm" />
+                     </div>
+                   )}
                  </div>
                )}
                <div className="relative rounded-[3.5rem] overflow-hidden border-8 border-white bg-slate-200 shadow-2xl aspect-[3/4] mx-auto w-full">
@@ -759,6 +806,12 @@ function App() {
       <Routes>
         {/* Ruta para el reporte del padre (pública) */}
         <Route path="/seguimiento/:token" element={<ReportePublico />} />
+
+        {/* Alta de guardería nueva (pública, con aprobación manual -- ver
+            solicitudes.go) y revisión de esas solicitudes (protegida por
+            PLATFORM_ADMIN_KEY, no por el login normal de guarderías). */}
+        <Route path="/registro-guarderia" element={<RegistroGuarderia />} />
+        <Route path="/plataforma" element={<PanelPlataforma />} />
 
         {/* Panel de personal: la pestaña activa vive en la URL, así sobrevive
             a un refresh y el botón "atrás" del navegador funciona. */}

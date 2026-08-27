@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"crypto/subtle"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -146,6 +147,33 @@ func RequireArea(area string) gin.HandlerFunc {
 		}
 		c.JSON(http.StatusForbidden, gin.H{"error": "Tu cuenta no tiene permiso para acceder a esta sección"})
 		c.Abort()
+	}
+}
+
+// RequirePlatformKey protege las rutas de operación de la plataforma
+// (revisar/aprobar solicitudes de guardería nueva) — no son de una guardería
+// en particular, así que no tiene sentido pedir el JWT normal de Auth().
+// En vez de eso, comparan un header contra una llave compartida que solo
+// conoce el dueño de la plataforma (PLATFORM_ADMIN_KEY). platformKey vacía
+// (no configurada) deshabilita estas rutas por completo -- mismo criterio
+// que StripeHabilitado()/PushConfigurado(): sin configurar, la función
+// simplemente no está disponible, en vez de quedar abierta por accidente.
+// subtle.ConstantTimeCompare evita que timing attacks puedan adivinar la
+// llave carácter por carácter comparando cuánto tarda una comparación normal.
+func RequirePlatformKey(platformKey string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if platformKey == "" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "No encontrado"})
+			c.Abort()
+			return
+		}
+		header := c.GetHeader("X-Platform-Key")
+		if header == "" || subtle.ConstantTimeCompare([]byte(header), []byte(platformKey)) != 1 {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Llave de plataforma inválida"})
+			c.Abort()
+			return
+		}
+		c.Next()
 	}
 }
 
