@@ -41,6 +41,49 @@ h1, h2, h3 {
   font-family: 'Lora', Georgia, serif;
 }
 
+/* Scrollbar delgado en vez del scrollbar nativo del SO (grueso, con
+   flechas) que se ve en listas internas con overflow -- .custom-scrollbar
+   para usar sobre fondos claros (modales, listas blancas), .custom-scrollbar-dark
+   para usar sobre fondos oscuros (el sidebar). Firefox usa
+   scrollbar-width/color; Chrome/Safari/Edge usan los pseudo-elementos
+   ::-webkit-scrollbar-*, hay que definir ambos. */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #d6cdb8 transparent;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #d6cdb8;
+  border-radius: 999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #c2b79c;
+}
+
+.custom-scrollbar-dark {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+.custom-scrollbar-dark::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar-dark::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar-dark::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+}
+.custom-scrollbar-dark::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.4);
+}
+
 /* 1. CONFIGURACIÓN PARA PWA Y PANTALLA COMPLETA */
 html, body, #root {
   height: 100%;

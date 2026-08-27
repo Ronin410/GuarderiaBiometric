@@ -460,7 +460,7 @@ function MainApp() {
   const seccionesNav = [
     {
       items: [
-        { tab: 'identificar', label: 'Kiosco', Icon: ScanEye },
+        { tab: 'identificar', label: 'Recepción', Icon: ScanEye },
         { tab: 'registrar', label: 'Registro', Icon: UserPlus },
       ],
     },
@@ -518,7 +518,7 @@ function MainApp() {
         <span className="text-white font-black uppercase tracking-tight text-base">Pasitos</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto flex flex-col gap-5 mt-6 pr-1 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto flex flex-col gap-5 mt-6 pr-1 custom-scrollbar-dark">
         {seccionesNav.map((seccion, i) => (
           <div key={i} className="space-y-1">
             {seccion.label && (
@@ -542,7 +542,7 @@ function MainApp() {
           <LogOut size={17} className="shrink-0" /> Cerrar sesión
         </button>
         <div className="p-3 bg-forest-dark rounded-xl text-white/70 text-[11px] leading-relaxed">
-          <p className="font-bold text-white mb-0.5 truncate">{guarderiaInfo.nombre || 'Kiosk'}</p>
+          <p className="font-bold text-white mb-0.5 truncate">{guarderiaInfo.nombre || 'Guardería'}</p>
           Sesión: {username || 'staff'}
         </div>
       </div>
@@ -574,7 +574,7 @@ function MainApp() {
           <button onClick={cerrarSesion} className="p-1 text-rose-500" title="Cerrar sesión"><LogOut size={20} /></button>
         </div>
 
-        <main className="flex-1 w-full max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
+        <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6 lg:pb-8 pt-8 sm:pt-10 lg:pt-12">
         {tab === 'reportes' && <PanelReportes />}
         {tab === 'bitacora' && <VistaBitacora />}
         {tab === 'perfiles' && <PanelPerfiles />}
