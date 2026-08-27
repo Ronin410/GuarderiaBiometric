@@ -357,9 +357,15 @@ func (s *Server) handleActualizarPermisosPersonal(c *gin.Context) {
 }
 
 // esUsernameDuplicado detecta el error de unique_violation de Postgres
-// (código 23505) sobre usuarios.username, para devolver un 409 legible en
-// vez de un 500 genérico.
+// (código 23505) específicamente sobre usuarios.username, para devolver un
+// mensaje legible en vez de uno genérico. Revisa el nombre de la
+// restricción (no solo el código 23505) a propósito: ese mismo código
+// también salta por chocar contra la PRIMARY KEY -- asistencia.go fuerza un
+// id explícito al crear la cuenta del portal junto con el rostro, así que
+// un choque de id ahí es una posibilidad real, y reportarlo como "usuario
+// ya existe" sería engañoso (el usuario pedido podía estar libre; lo que
+// chocó fue el id).
 func esUsernameDuplicado(err error) bool {
 	pqErr, ok := err.(*pq.Error)
-	return ok && pqErr.Code == "23505"
+	return ok && pqErr.Code == "23505" && pqErr.Constraint == "usuarios_username_key"
 }

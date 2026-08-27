@@ -162,9 +162,52 @@ func (s *Server) handleRegistrar(c *gin.Context) {
 	}
 
 	faceID := *indexRes.FaceRecords[0].Face.FaceId
+
+	// El portal del papá resuelve "quién soy" asumiendo usuarios.id ==
+	// padres.id para una cuenta rol "papa" -- no es un criterio inventado
+	// aquí, es la convención que YA usa el resto del backend en al menos
+	// 10 archivos (hijos.go, pagos.go, recibos.go, chat.go, push.go,
+	// arco.go, encuestas.go, pagos_online.go, y ausencias.go/comedor.go/
+	// galeria.go vía hijoPerteneceAPadre). Cambiar esa convención habría
+	// significado tocar todos esos sitios; en vez de eso, cuando se crea
+	// la cuenta junto con el rostro, se calcula un id que en ESE MOMENTO
+	// esté libre en las dos tablas a la vez (son secuencias
+	// independientes, así que no basta con dejar que cada una asigne el
+	// suyo por separado) y se fuerza en ambas.
+	//
+	// Esto se detectó así en producción: la cuenta admin de una guardería
+	// nueva siempre ocupa usuarios.id=1 (se crea al aprobar la solicitud,
+	// antes que cualquier padre), y el primer padre registrado también
+	// caía en id=1 por su propia secuencia -- el INSERT a usuarios
+	// chocaba contra el id, no contra el username, pero el mensaje decía
+	// "usuario ya existe" porque el chequeo de antes no distinguía una
+	// cosa de la otra.
 	var nuevoPadreID int
-	s.DB.QueryRow("INSERT INTO padres (nombre, face_id, guarderia_id) VALUES ($1, $2, $3) RETURNING id",
-		input.Nombre, faceID, gID).Scan(&nuevoPadreID)
+	if input.CrearCuenta {
+		if err := s.DB.QueryRow(`
+            SELECT GREATEST(
+                COALESCE((SELECT MAX(id) FROM padres), 0),
+                COALESCE((SELECT MAX(id) FROM usuarios), 0)
+            ) + 1`).Scan(&nuevoPadreID); err != nil {
+			log.Printf("No se pudo calcular el siguiente id compartido padres/usuarios: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo completar el registro. Intenta de nuevo."})
+			return
+		}
+		if _, err := s.DB.Exec(
+			"INSERT INTO padres (id, nombre, face_id, guarderia_id) VALUES ($1, $2, $3, $4)",
+			nuevoPadreID, input.Nombre, faceID, gID,
+		); err != nil {
+			log.Printf("No se pudo crear el padre %d: %v", nuevoPadreID, err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo completar el registro. Intenta de nuevo."})
+			return
+		}
+		if _, err := s.DB.Exec(`SELECT setval('padres_id_seq', (SELECT MAX(id) FROM padres))`); err != nil {
+			log.Printf("No se pudo reacomodar la secuencia de padres tras crear el padre %d: %v", nuevoPadreID, err)
+		}
+	} else {
+		s.DB.QueryRow("INSERT INTO padres (nombre, face_id, guarderia_id) VALUES ($1, $2, $3) RETURNING id",
+			input.Nombre, faceID, gID).Scan(&nuevoPadreID)
+	}
 
 	_, err = s.DB.Exec(
 		`INSERT INTO consentimientos (padre_id, padre_nombre_historico, guarderia_id, version_aviso, ip)
@@ -177,16 +220,10 @@ func (s *Server) handleRegistrar(c *gin.Context) {
 
 	respuesta := gin.H{"status": "OK", "padre_id": nuevoPadreID}
 
-	// El portal del papá (DashboardPadre.jsx) resuelve "quién soy" con el
-	// user_id del JWT usado directo como padre_id (ver el comodín "0" en
-	// handleHijosDePadre, y el mismo criterio en pagos.go/recibos.go/
-	// pagos_online.go) -- por eso esta cuenta se crea forzando
-	// usuarios.id = padres.id, en vez de agregar una columna de relación
-	// nueva y tener que tocar las cuatro consultas que ya asumen esa
-	// igualdad. setval() empuja la secuencia de usuarios más allá de este id
-	// explícito para que el próximo alta de personal (secuencial, sin id
-	// explícito) no choque con él.
 	if input.CrearCuenta {
+		// setval() empuja la secuencia de usuarios más allá de este id
+		// explícito para que la próxima alta de personal (secuencial, sin
+		// id explícito) no choque con él.
 		_, errCuenta := s.DBAuth.Exec(
 			`INSERT INTO usuarios (id, guarderia_id, username, password_hash, pin_admin, rol, nombre, activo)
              VALUES ($1, $2, $3, $4, '0000', 'papa', $5, true)`,

@@ -110,7 +110,7 @@ func TestCrearPersonal(t *testing.T) {
 	t.Run("username duplicado -> 409", func(t *testing.T) {
 		srv, mock := nuevoServidorDePrueba(t)
 		mock.ExpectQuery("INSERT INTO usuarios").
-			WillReturnError(&pq.Error{Code: "23505"})
+			WillReturnError(&pq.Error{Code: "23505", Constraint: "usuarios_username_key"})
 
 		r := nuevoRouterDePrueba(srv)
 		req := jsonRequest(http.MethodPost, "/admin/personal", cuerpoValido)
