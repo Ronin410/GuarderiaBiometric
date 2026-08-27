@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { RefreshCw, X, WifiOff } from 'lucide-react';
 
@@ -37,16 +37,20 @@ const ActualizarApp = () => {
   // updateServiceWorker(true) solo manda el mensaje SKIP_WAITING -- el
   // "true" no recarga nada por sí solo (verificado con un service worker
   // real: el listener que la librería arma para recargar automáticamente NO
-  // se disparó de forma confiable con injectManifest). Recargar de una vez
-  // que el navegador confirma el cambio de controller (controllerchange, el
-  // evento real del browser, no el envoltorio de la librería) es lo que sí
-  // se comprobó que funciona siempre.
-  useEffect(() => {
-    if (!('serviceWorker' in navigator)) return;
-    const recargarAlCambiarController = () => window.location.reload();
-    navigator.serviceWorker.addEventListener('controllerchange', recargarAlCambiarController);
-    return () => navigator.serviceWorker.removeEventListener('controllerchange', recargarAlCambiarController);
-  }, []);
+  // se disparó de forma confiable con injectManifest). Recargar al
+  // confirmar el cambio de controller (controllerchange, el evento real del
+  // navegador) sí se comprobó que funciona siempre -- PERO el listener se
+  // arma aquí, en el clic, y no de forma global: clients.claim() en sw.js
+  // también dispara controllerchange la primerísima vez que un Service
+  // Worker nuevo toma control de una pestaña que cargó antes de que
+  // existiera (instalación normal, no una actualización) -- un listener
+  // global recargaba de más justo en esa primera visita de cualquiera.
+  const actualizar = () => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload(), { once: true });
+    }
+    updateServiceWorker(true);
+  };
 
   if (!offlineReady && !needRefresh) return null;
 
@@ -65,7 +69,7 @@ const ActualizarApp = () => {
           )}
           {needRefresh && (
             <button
-              onClick={() => updateServiceWorker(true)}
+              onClick={actualizar}
               className="mt-3 bg-brand-600 hover:bg-brand-700 text-white text-xs font-black uppercase px-4 py-2 rounded-xl transition-all active:scale-95"
             >
               Actualizar ahora

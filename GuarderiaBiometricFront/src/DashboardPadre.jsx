@@ -24,6 +24,7 @@ import ChatPadre from './ChatPadre';
 import EncuestasPadre from './EncuestasPadre';
 import { suscribirseAPush, suscripcionActiva, pushSoportado } from './utils/push';
 import { hoyLocal } from './utils/fecha';
+import InstalarApp from './components/InstalarApp';
 
 const formatoFechaEvento = (iso) => {
   try {
@@ -215,6 +216,8 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
             ¿De quién deseas ver el reporte hoy?
           </p>
         </div>
+
+        <InstalarApp />
 
         {/* INFO CARD */}
         <div className="bg-brand-50 border border-brand-100 p-4 rounded-[2rem] flex items-center gap-4">
