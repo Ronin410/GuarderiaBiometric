@@ -30,7 +30,7 @@ func main() {
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     middleware.ParseAllowedOrigins(cfg.AllowedOriginsRaw),
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With", "X-Guarderia-Slug", "X-CSRF-Token"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Requested-With", "X-Guarderia-Slug", "X-CSRF-Token", "X-Platform-Key"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
