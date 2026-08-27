@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Webcam from 'react-webcam';
-import api from './axiosConfig'; 
+import api, { setCsrfToken } from './axiosConfig';
 // Importar componentes de rutas
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useParams, Link } from 'react-router-dom';
 import {
@@ -152,6 +152,11 @@ function MainApp() {
   }, []);
 
   const hidratarSesion = (data) => {
+    // csrf_token viaja en el body de /login y /me, no en la cookie -- ver
+    // el comentario en axiosConfig.js sobre por qué (frontend y backend en
+    // dominios de verdad distintos, no solo puertos, cuando esto corre en
+    // Render en vez de local).
+    setCsrfToken(data.csrf_token);
     setIsLoggedIn(true);
     setUserRole(data.rol);
     setUserId(data.user_id);
@@ -211,6 +216,7 @@ function MainApp() {
     } catch (error) {
       console.error("Error al cerrar sesión:", error);
     }
+    setCsrfToken(null);
     setIsLoggedIn(false);
     setUserRole(null);
     window.location.reload();

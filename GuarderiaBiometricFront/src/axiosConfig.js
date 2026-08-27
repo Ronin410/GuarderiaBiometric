@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { leerCookie } from './utils/csrf';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'https://guarderiabiometricback.onrender.com',
@@ -10,17 +9,30 @@ const api = axios.create({
   withCredentials: true,
 });
 
+// El token CSRF viaja en memoria, no se lee de document.cookie -- cuando
+// frontend y backend viven en dominios de verdad distintos (ej. Render:
+// pasitos-frontend.onrender.com / pasitos-backend-xxxx.onrender.com, no solo
+// puertos distintos de "localhost" como en desarrollo local) la cookie
+// biosafe_csrf pertenece al DOMINIO DEL BACKEND -- document.cookie en una
+// página servida desde el frontend nunca puede leerla, sea cual sea su
+// SameSite (eso solo decide si el navegador ADJUNTA la cookie a la
+// petición, no si OTRO dominio puede leerla vía JS). setCsrfToken() la
+// guarda aquí a partir de lo que /login y /me regresan en el body de la
+// respuesta -- ver App.jsx (hidratarSesion) y auth.go (handleLogin/handleMe).
+let csrfTokenEnMemoria = null;
+
+export function setCsrfToken(token) {
+  csrfTokenEnMemoria = token || null;
+}
+
 const METODOS_MUTABLES = ['post', 'put', 'patch', 'delete'];
 
 // INTERCEPTOR DE PETICIÓN: en peticiones que modifican datos, reenvía el
-// token CSRF que el backend dejó en una cookie legible por JS. GET no lo
-// necesita (no muta nada, y así no penaliza cache/prefetch).
+// token CSRF guardado en memoria. GET no lo necesita (no muta nada, y así
+// no penaliza cache/prefetch).
 api.interceptors.request.use((config) => {
-  if (METODOS_MUTABLES.includes((config.method || '').toLowerCase())) {
-    const csrfToken = leerCookie('biosafe_csrf');
-    if (csrfToken) {
-      config.headers['X-CSRF-Token'] = csrfToken;
-    }
+  if (METODOS_MUTABLES.includes((config.method || '').toLowerCase()) && csrfTokenEnMemoria) {
+    config.headers['X-CSRF-Token'] = csrfTokenEnMemoria;
   }
   return config;
 }, (error) => {

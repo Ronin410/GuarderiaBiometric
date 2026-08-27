@@ -161,6 +161,12 @@ func (s *Server) handleLogin(c *gin.Context) {
 		// secciones permitidas. El frontend usa esto para decidir qué
 		// pestañas mostrar sin tener que volver a pedir el PIN por cada una.
 		"permisos": permisos,
+		// El frontend lo guarda en memoria y lo reenvía en X-CSRF-Token en
+		// cada petición que modifica datos -- no puede leerlo de la cookie
+		// biosafe_csrf vía document.cookie cuando frontend y backend viven
+		// en dominios de verdad distintos (ver el comentario de SameSite
+		// arriba, y el de axiosConfig.js en el frontend).
+		"csrf_token": csrfToken,
 	})
 }
 
@@ -201,6 +207,14 @@ func (s *Server) handleMe(c *gin.Context) {
 		permisos, _ = permisosRaw.([]string)
 	}
 
+	// El backend sí puede leer la cookie biosafe_csrf (vive en su propio
+	// dominio) aunque el frontend no pueda -- se la regresa en el body para
+	// que, al recargar la página, App.jsx vuelva a tener el valor en
+	// memoria sin haber pasado por /login otra vez. Vacío si por lo que sea
+	// no llegó (no debería pasar con una sesión válida, pero no hay razón
+	// para tronar /me por eso).
+	csrfToken, _ := c.Cookie(middleware.CookieCSRF)
+
 	c.JSON(http.StatusOK, gin.H{
 		"user_id":          uid,
 		"guarderia_id":     gID,
@@ -210,6 +224,7 @@ func (s *Server) handleMe(c *gin.Context) {
 		"username":         username,
 		"expires_at":       expiraEn,
 		"permisos":         permisos,
+		"csrf_token":       csrfToken,
 	})
 }
 
