@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"golang.org/x/crypto/bcrypt"
@@ -170,6 +171,115 @@ func TestLogin(t *testing.T) {
 
 		if w.Code != http.StatusUnauthorized {
 			t.Fatalf("código = %d; esperado 401 (body: %s)", w.Code, w.Body.String())
+		}
+	})
+}
+
+// TestMe cubre la sesión deslizante de /me: los papás reciben un JWT
+// renovado con la ventana completa de 90 días en cada llamada (que ocurre
+// cada vez que abren la app), mientras que admin/staff conservan su sesión
+// corta de siempre sin renovación automática.
+func TestMe(t *testing.T) {
+	columnasMe := []string{"username", "nombre", "slug"}
+
+	t.Run("papá -> se renueva a ~90 días y llega cookie nueva", func(t *testing.T) {
+		mockDB, mock, err := sqlmock.New()
+		if err != nil {
+			t.Fatalf("sqlmock: %v", err)
+		}
+		defer mockDB.Close()
+
+		srv := New()
+		srv.DBAuth = mockDB
+		srv.JWTKey = []byte("clave-de-prueba-solo-para-tests")
+
+		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.id = \\$1").
+			WithArgs(1).
+			WillReturnRows(sqlmock.NewRows(columnasMe).AddRow("papa_demo", "Guardería Demo", "demo"))
+
+		r := nuevoRouterDePrueba(srv)
+		req := httptest.NewRequest(http.MethodGet, "/me", nil)
+		// El token original casi está por expirar (1 hora) -- justo el caso
+		// que la sesión deslizante debe evitar que le explote en la cara.
+		autenticarRequestPrueba(t, req, srv.JWTKey, "papa", 1*time.Hour)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("código = %d; esperado 200 (body: %s)", w.Code, w.Body.String())
+		}
+		var resp map[string]any
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("respuesta no es JSON válido: %v", err)
+		}
+
+		expiraEn, _ := resp["expires_at"].(float64)
+		faltan := time.Until(time.Unix(int64(expiraEn), 0))
+		if faltan < 89*24*time.Hour {
+			t.Errorf("expires_at debería reflejar la renovación a ~90 días, pero faltan solo %v", faltan)
+		}
+
+		var cookieRenovada *http.Cookie
+		for _, ck := range w.Result().Cookies() {
+			if ck.Name == middleware.CookieToken {
+				cookieRenovada = ck
+			}
+		}
+		if cookieRenovada == nil {
+			t.Fatalf("se esperaba un Set-Cookie nuevo para %s tras renovar la sesión del papá", middleware.CookieToken)
+		}
+		if cookieRenovada.MaxAge < 89*24*60*60 {
+			t.Errorf("MaxAge de la cookie renovada = %d; esperado ~90 días", cookieRenovada.MaxAge)
+		}
+
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("expectativas de sqlmock no cumplidas: %v", err)
+		}
+	})
+
+	t.Run("admin -> NO se renueva, conserva su sesión corta", func(t *testing.T) {
+		mockDB, mock, err := sqlmock.New()
+		if err != nil {
+			t.Fatalf("sqlmock: %v", err)
+		}
+		defer mockDB.Close()
+
+		srv := New()
+		srv.DBAuth = mockDB
+		srv.JWTKey = []byte("clave-de-prueba-solo-para-tests")
+
+		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.id = \\$1").
+			WithArgs(1).
+			WillReturnRows(sqlmock.NewRows(columnasMe).AddRow("admin_demo", "Guardería Demo", "demo"))
+
+		r := nuevoRouterDePrueba(srv)
+		req := httptest.NewRequest(http.MethodGet, "/me", nil)
+		autenticarRequestPrueba(t, req, srv.JWTKey, "admin", 1*time.Hour)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("código = %d; esperado 200 (body: %s)", w.Code, w.Body.String())
+		}
+		var resp map[string]any
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("respuesta no es JSON válido: %v", err)
+		}
+
+		expiraEn, _ := resp["expires_at"].(float64)
+		faltan := time.Until(time.Unix(int64(expiraEn), 0))
+		if faltan > 2*time.Hour {
+			t.Errorf("admin/staff no debe renovarse: faltan %v para expirar, se esperaba ~1 hora (la del token original)", faltan)
+		}
+
+		for _, ck := range w.Result().Cookies() {
+			if ck.Name == middleware.CookieToken {
+				t.Errorf("admin/staff no debe recibir una cookie de sesión nueva en /me, se encontró: %v", ck)
+			}
+		}
+
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("expectativas de sqlmock no cumplidas: %v", err)
 		}
 	})
 }

@@ -23,10 +23,29 @@ type PinRequest struct {
 	Pin string `json:"pin"`
 }
 
-// duracionCookieSegundos es la vida de las cookies de sesión (biosafe_token
-// y biosafe_csrf) — coincide con la expiración del JWT (24h) para que
-// ambas cosas caduquen juntas.
-const duracionCookieSegundos = 24 * 60 * 60
+// Vida de las cookies de sesión (biosafe_token y biosafe_csrf) -- coincide
+// con la expiración del JWT para que ambas cosas caduquen juntas.
+//
+// Distinta según el rol a propósito: admin/staff manejan datos sensibles de
+// TODAS las familias de la guardería (domicilios, pagos, expedientes) y se
+// quedan con la sesión corta de siempre -- se re-loguean cada día. Un papá
+// solo ve lo de sus propios hijos y en su mayoría es lectura (bitácora,
+// pagos, circulares); pedirle credenciales seguido no suma seguridad real
+// aquí y sí rompe el caso de uso (que la PWA se quede abierta en su
+// celular, entrando rápido cuando quiera ver algo). handleMe además
+// renueva la sesión del papá en cada visita (ver más abajo) -- mientras
+// siga abriendo la app de vez en cuando, nunca la ve expirar.
+const (
+	duracionCookieSegundosStaff = 24 * 60 * 60
+	duracionCookieSegundosPapa  = 90 * 24 * 60 * 60
+)
+
+func duracionSesion(rol string) int {
+	if rol == "papa" {
+		return duracionCookieSegundosPapa
+	}
+	return duracionCookieSegundosStaff
+}
 
 func (s *Server) registrarRutasAuth(r *gin.Engine) {
 	r.POST("/login", s.loginLimiter.Middleware(), s.handleLogin)
@@ -110,7 +129,8 @@ func (s *Server) handleLogin(c *gin.Context) {
 		return
 	}
 
-	expirationTime := time.Now().Add(24 * time.Hour)
+	duracion := duracionSesion(rol)
+	expirationTime := time.Now().Add(time.Duration(duracion) * time.Second)
 	claims := &middleware.Claims{
 		UserID:      id,
 		GuarderiaID: gID,
@@ -146,8 +166,8 @@ func (s *Server) handleLogin(c *gin.Context) {
 	// mandaría la cookie con Lax en las peticiones del frontend. None exige
 	// Secure, que ya cumplimos (Render termina TLS en producción).
 	c.SetSameSite(http.SameSiteNoneMode)
-	c.SetCookie(middleware.CookieToken, tokenStr, duracionCookieSegundos, "/", "", true, true)
-	c.SetCookie(middleware.CookieCSRF, csrfToken, duracionCookieSegundos, "/", "", true, false)
+	c.SetCookie(middleware.CookieToken, tokenStr, duracion, "/", "", true, true)
+	c.SetCookie(middleware.CookieCSRF, csrfToken, duracion, "/", "", true, false)
 
 	log.Printf("Login exitoso: %s", creds.Username)
 	s.registrarAcceso("login_exitoso", gID, id, creds.Username, c.ClientIP())
@@ -218,6 +238,39 @@ func (s *Server) handleMe(c *gin.Context) {
 	// no llegó (no debería pasar con una sesión válida, pero no hay razón
 	// para tronar /me por eso).
 	csrfToken, _ := c.Cookie(middleware.CookieCSRF)
+
+	// Sesión deslizante SOLO para "papa": cada vez que abre la app (que es
+	// justo cuando se llama /me) se le emite un JWT nuevo con la ventana
+	// completa de otros 90 días -- mientras siga abriendo la app de vez en
+	// cuando, nunca la ve expirar de verdad. admin/staff NO se tocan aquí a
+	// propósito: se quedan con la sesión corta de siempre, sin renovación
+	// automática (ver duracionSesion más arriba).
+	if uidInt, okUID := uid.(int); okUID && rol == "papa" {
+		if gIDInt, okGID := gID.(int); okGID {
+			duracion := duracionSesion("papa")
+			expirationTime := time.Now().Add(time.Duration(duracion) * time.Second)
+			claims := &middleware.Claims{
+				UserID:      uidInt,
+				GuarderiaID: gIDInt,
+				Rol:         "papa",
+				RegisteredClaims: jwt.RegisteredClaims{
+					ExpiresAt: jwt.NewNumericDate(expirationTime),
+				},
+			}
+			if permisos != nil {
+				claims.Permisos = &permisos
+			}
+			token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+			if tokenStr, err := token.SignedString(s.JWTKey); err != nil {
+				log.Printf("No se pudo renovar la sesión del padre %v: %v", uid, err)
+			} else {
+				c.SetSameSite(http.SameSiteNoneMode)
+				c.SetCookie(middleware.CookieToken, tokenStr, duracion, "/", "", true, true)
+				c.SetCookie(middleware.CookieCSRF, csrfToken, duracion, "/", "", true, false)
+				expiraEn = expirationTime.Unix()
+			}
+		}
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"user_id":          uid,
