@@ -4,7 +4,7 @@ import api from './axiosConfig';
 import {
   UserPlus, Search, Baby, Save, X, Edit3,
   Loader2, Check, RotateCcw, Eye, EyeOff, UserX, Link2Off, RefreshCw,
-  Download, Trash2
+  Download, Trash2, KeyRound
 } from 'lucide-react';
 import { mostrarExito, mostrarError, confirmar } from './utils/alertas';
 
@@ -22,6 +22,13 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
 
   const [editandoHijoId, setEditandoHijoId] = useState(null);
   const [nombreHijoEdit, setNombreHijoEdit] = useState('');
+
+  // Cuenta del portal para un tutor que ya existe -- para cuando su rostro
+  // se registró sin marcar "crear cuenta" en el kiosco en su momento.
+  const [mostrarFormCuenta, setMostrarFormCuenta] = useState(false);
+  const [usernameCuenta, setUsernameCuenta] = useState('');
+  const [passwordCuenta, setPasswordCuenta] = useState('');
+  const [creandoCuenta, setCreandoCuenta] = useState(false);
 
   const cargarHijosActuales = async () => {
     if (!padreId) return;
@@ -166,6 +173,33 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
     }
   };
 
+  const manejarCrearCuenta = async () => {
+    if (usernameCuenta.trim().length < 3) {
+      mostrarError('El usuario debe tener al menos 3 caracteres');
+      return;
+    }
+    if (passwordCuenta.length < 8) {
+      mostrarError('La contraseña debe tener al menos 8 caracteres');
+      return;
+    }
+    setCreandoCuenta(true);
+    try {
+      await api.post(`/padres/${padreId}/crear-cuenta`, {
+        username: usernameCuenta.trim(),
+        password: passwordCuenta,
+      });
+      mostrarExito('Cuenta del portal creada');
+      setMostrarFormCuenta(false);
+      setUsernameCuenta('');
+      setPasswordCuenta('');
+    } catch (err) {
+      console.error('Error al crear la cuenta del portal:', err);
+      mostrarError(err.response?.data?.error || 'No se pudo crear la cuenta');
+    } finally {
+      setCreandoCuenta(false);
+    }
+  };
+
   const manejarRegenerarToken = async (hijo) => {
     const ok = await confirmar(
       `El enlace de bitácora que ya se compartió por WhatsApp para ${hijo.nombre_niño} dejará de funcionar. ¿Generar uno nuevo?`,
@@ -283,6 +317,13 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
 
         <div className="flex gap-2 shrink-0">
           <button
+            onClick={() => setMostrarFormCuenta(!mostrarFormCuenta)}
+            title="Crear cuenta del portal (si no marcaste la casilla al registrar su rostro)"
+            className="flex items-center gap-2 text-[9px] font-black uppercase bg-brand-50 hover:bg-brand-100 text-brand-600 px-3 py-2.5 rounded-xl transition-all"
+          >
+            <KeyRound size={14} /> Crear cuenta
+          </button>
+          <button
             onClick={manejarExportarDatosArco}
             title="Exportar datos (ARCO)"
             className="flex items-center gap-2 text-[9px] font-black uppercase bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-2.5 rounded-xl transition-all"
@@ -298,6 +339,33 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
           </button>
         </div>
       </div>
+
+      {mostrarFormCuenta && (
+        <div className="bg-brand-50 border border-brand-100 p-6 rounded-[2rem] mb-10 -mt-6 animate-in fade-in duration-200">
+          <p className="text-[10px] font-black text-brand-600 uppercase tracking-widest mb-4">
+            Cuenta del portal para {nombreTutorEdit}
+          </p>
+          <div className="grid sm:grid-cols-2 gap-3 mb-3">
+            <input
+              type="text" placeholder="Usuario" value={usernameCuenta}
+              onChange={(e) => setUsernameCuenta(e.target.value)}
+              className="w-full bg-white border border-slate-200 p-4 rounded-2xl text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
+            />
+            <input
+              type="password" placeholder="Contraseña" value={passwordCuenta}
+              onChange={(e) => setPasswordCuenta(e.target.value)}
+              className="w-full bg-white border border-slate-200 p-4 rounded-2xl text-slate-900 outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+          <button
+            onClick={manejarCrearCuenta}
+            disabled={creandoCuenta}
+            className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white text-xs font-black uppercase px-5 py-3 rounded-xl transition-all active:scale-95"
+          >
+            {creandoCuenta ? 'Creando...' : 'Crear cuenta'}
+          </button>
+        </div>
+      )}
 
       <div className="grid md:grid-cols-2 gap-8 md:gap-12">
         {/* COLUMNA IZQUIERDA: BÚSQUEDA Y NUEVOS */}

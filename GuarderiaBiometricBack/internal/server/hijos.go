@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 
 	"biometrico/internal/middleware"
 )
@@ -42,6 +44,10 @@ func (s *Server) registrarRutasHijos(r *gin.Engine) {
 	// que no expira solo por tiempo. Esto le da al staff una forma de invalidar un
 	// link comprometido/reenviado de más al instante.
 	r.POST("/hijos/:id/regenerar-token", auth, familia, s.handleRegenerarToken)
+	// Para un tutor cuyo rostro ya se registró (en el kiosco, sin marcar
+	// "crear cuenta" en su momento) -- da de alta el acceso al portal
+	// después, sin volver a pasar por Rekognition.
+	r.POST("/padres/:id/crear-cuenta", auth, familia, s.handleCrearCuentaPadre)
 }
 
 func (s *Server) handleRegistrarHijo(c *gin.Context) {
@@ -348,6 +354,93 @@ func (s *Server) handleActualizarPadre(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "Nombre actualizado correctamente"})
+}
+
+// handleCrearCuentaPadre da de alta la cuenta del portal (rol "papa") para
+// un tutor que YA existe -- para cuando su rostro se registró sin marcar
+// "crear cuenta" en el kiosco, o cuando esa cuenta falló en su momento (ver
+// el comentario largo en asistencia.go/handleRegistrar sobre el choque de
+// id). No vuelve a tocar Rekognition: el padre ya tiene su face_id, esto
+// solo agrega credenciales de acceso al portal.
+func (s *Server) handleCrearCuentaPadre(c *gin.Context) {
+	gID, _ := c.Get("guarderia_id")
+	padreID := c.Param("id")
+
+	var input struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Datos inválidos"})
+		return
+	}
+	input.Username = strings.TrimSpace(input.Username)
+	if len(input.Username) < 3 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "El usuario debe tener al menos 3 caracteres"})
+		return
+	}
+	if len(input.Password) < 8 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "La contraseña debe tener al menos 8 caracteres"})
+		return
+	}
+
+	var nombrePadre string
+	err := s.DB.QueryRow("SELECT nombre FROM padres WHERE id = $1 AND guarderia_id = $2", padreID, gID).Scan(&nombrePadre)
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Tutor no encontrado"})
+		return
+	} else if err != nil {
+		log.Printf("Error al consultar el padre %s para crear su cuenta: %v", padreID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo consultar al tutor"})
+		return
+	}
+
+	// Misma convención que al crear la cuenta junto con el rostro: el
+	// portal resuelve "quién soy" asumiendo usuarios.id == padres.id (ver
+	// el comentario largo en asistencia.go). Acá no se puede elegir un id
+	// libre distinto -- el padre ya existe con un id fijo, referenciado
+	// por tutor_hijos/consentimientos/asistencia -- así que si ESE id
+	// específico ya lo tiene otra cuenta (coincidencia posible pero rara
+	// con alguna cuenta de staff/admin), no hay forma de dar de alta esta
+	// cuenta sin cambiar esa convención en todo el backend. Se avisa con
+	// un mensaje honesto en vez de uno genérico.
+	var idOcupado bool
+	if err := s.DBAuth.QueryRow("SELECT EXISTS(SELECT 1 FROM usuarios WHERE id = $1)", padreID).Scan(&idOcupado); err != nil {
+		log.Printf("Error al verificar si el padre %s ya tiene cuenta: %v", padreID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo verificar la cuenta"})
+		return
+	}
+	if idOcupado {
+		c.JSON(http.StatusConflict, gin.H{"error": "Este tutor ya tiene una cuenta del portal, o su id interno choca con otra cuenta -- contacta soporte."})
+		return
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+	if err != nil {
+		log.Printf("Error al procesar la contraseña: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al procesar la contraseña"})
+		return
+	}
+
+	_, err = s.DBAuth.Exec(
+		`INSERT INTO usuarios (id, guarderia_id, username, password_hash, pin_admin, rol, nombre, activo)
+         VALUES ($1, $2, $3, $4, '0000', 'papa', $5, true)`,
+		padreID, gID, input.Username, string(hash), nombrePadre,
+	)
+	if err != nil {
+		if esUsernameDuplicado(err) {
+			c.JSON(http.StatusConflict, gin.H{"error": "Ese nombre de usuario ya existe"})
+			return
+		}
+		log.Printf("No se pudo crear la cuenta de portal para el padre %s: %v", padreID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo crear la cuenta"})
+		return
+	}
+	if _, err := s.DBAuth.Exec(`SELECT setval('usuarios_id_seq', (SELECT MAX(id) FROM usuarios))`); err != nil {
+		log.Printf("No se pudo reacomodar la secuencia de usuarios tras vincular la cuenta del padre %s: %v", padreID, err)
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Cuenta creada"})
 }
 
 func (s *Server) handleDesactivarHijo(c *gin.Context) {
