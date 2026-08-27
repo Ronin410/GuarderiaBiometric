@@ -126,7 +126,16 @@ func (s *Server) handleRegistrar(c *gin.Context) {
 		MaxFaces:           aws.Int32(1),
 	})
 
-	if err == nil && len(searchRes.FaceMatches) > 0 {
+	if err != nil {
+		// No se corta el flujo aquí a propósito (un tutor nuevo, sin
+		// duplicados que buscar, es el caso normal) -- pero antes esto se
+		// tragaba el error de AWS en silencio, dejando "Error al procesar
+		// rostro" (más abajo) como único rastro aunque la causa real fuera
+		// otra por completo (colección en la región equivocada, permisos
+		// insuficientes de la cuenta de IAM, etc.) -- sin nada en los logs,
+		// diagnosticarlo a ciegas en producción era imposible.
+		log.Printf("SearchFacesByImage falló para guardería %v (colección %s): %v", gID, colID, err)
+	} else if len(searchRes.FaceMatches) > 0 {
 		c.JSON(409, gin.H{"error": "Esta persona ya está registrada en esta guardería."})
 		return
 	}
@@ -138,8 +147,17 @@ func (s *Server) handleRegistrar(c *gin.Context) {
 		Image:           &types.Image{Bytes: imgBytes},
 	})
 
-	if err != nil || len(indexRes.FaceRecords) == 0 {
+	if err != nil {
+		log.Printf("IndexFaces falló para guardería %v (colección %s): %v", gID, colID, err)
 		c.JSON(500, gin.H{"error": "Error al procesar rostro"})
+		return
+	}
+	if len(indexRes.FaceRecords) == 0 {
+		// A diferencia del caso de arriba, la llamada a AWS sí funcionó --
+		// simplemente no encontró ningún rostro detectable en la imagen
+		// (mala luz, cámara tapada, etc.), no es un problema de
+		// configuración. Vale la pena distinguirlo del error genérico.
+		c.JSON(500, gin.H{"error": "No se detectó ningún rostro en la imagen. Intenta de nuevo con mejor luz y de frente a la cámara."})
 		return
 	}
 
