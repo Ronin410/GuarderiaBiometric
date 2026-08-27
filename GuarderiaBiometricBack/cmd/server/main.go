@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/rekognition"
@@ -48,11 +49,20 @@ func main() {
 
 	srv.RegisterRoutes(r)
 
+	// PORT: Render (y la mayoría de plataformas tipo PaaS) asignan el puerto
+	// ellos mismos vía esta variable -- 8099 fijo funcionaba porque en local
+	// (Podman/Docker) nadie más decide el puerto, pero en Render el binario
+	// tiene que escuchar en el que la plataforma indique, sea cual sea.
+	puerto := os.Getenv("PORT")
+	if puerto == "" {
+		puerto = "8099"
+	}
+
 	if cfg.TLSCertFile != "" && cfg.TLSKeyFile != "" {
 		log.Println("Sirviendo HTTPS directamente (TLS_CERT_FILE/TLS_KEY_FILE configurados)")
-		log.Fatal(r.RunTLS(":8099", cfg.TLSCertFile, cfg.TLSKeyFile))
+		log.Fatal(r.RunTLS(":"+puerto, cfg.TLSCertFile, cfg.TLSKeyFile))
 	}
-	r.Run(":8099")
+	r.Run(":" + puerto)
 }
 
 // conectarServicios valida la configuración y abre las conexiones externas

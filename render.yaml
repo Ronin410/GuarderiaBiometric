@@ -1,0 +1,100 @@
+# Blueprint de Render para probar Pasitos en el plan gratuito desde otros
+# dispositivos. Crea 3 recursos: la base de datos, el backend (Docker, el
+# mismo Dockerfile que ya usan podman/docker localmente) y el frontend
+# (Static Site nativo de Render -- sin Docker/nginx, así queda siempre
+# gratis y sin el "duerme tras 15 min" que sí tiene el backend).
+#
+# Cómo usarlo: en el dashboard de Render, "New +" -> "Blueprint" -> conecta
+# este repo -> Render detecta este archivo solo. Después del primer deploy
+# hay que rellenar a mano las variables marcadas "sync: false" (secretos
+# reales: credenciales de AWS, etc.) -- ver podman/README.md para instrucciones
+# detalladas paso a paso.
+#
+# Los nombres de los servicios (pasitos-backend, pasitos-frontend) deciden la
+# URL final (https://pasitos-backend.onrender.com, etc.) -- si Render les
+# agrega un sufijo porque el nombre ya estaba tomado, hay que actualizar
+# ALLOWED_ORIGINS/FRONTEND_URL/VITE_APIUR abajo con la URL real que te dé.
+databases:
+  - name: pasitos-db
+    plan: free
+    databaseName: pasitos
+    user: pasitos
+
+services:
+  - type: web
+    name: pasitos-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./GuarderiaBiometricBack/Dockerfile
+    dockerContext: ./GuarderiaBiometricBack
+    healthCheckPath: /health
+    envVars:
+      # DATABASE_URL y DATABASE_URL_AUTH pueden apuntar a la misma base (ver
+      # el comentario en GuarderiaBiometricBack/README.md) -- para probar en
+      # Render no hace falta separarlas.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: pasitos-db
+          property: connectionString
+      - key: DATABASE_URL_AUTH
+        fromDatabase:
+          name: pasitos-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      # El Dockerfile hornea un certificado autofirmado y estas dos
+      # variables para servir HTTPS él solo -- necesario en local (Podman/
+      # Docker, sin nada delante) pero NO en Render, que ya termina TLS por
+      # su cuenta y espera hablarle en HTTP plano al contenedor. Vacías
+      # aquí sobreescriben el default de la imagen.
+      - key: TLS_CERT_FILE
+        value: ""
+      - key: TLS_KEY_FILE
+        value: ""
+      # Actualiza esto si Render le puso un sufijo distinto al nombre del
+      # servicio del frontend.
+      - key: ALLOWED_ORIGINS
+        value: https://pasitos-frontend.onrender.com
+      - key: FRONTEND_URL
+        value: https://pasitos-frontend.onrender.com
+      # Secretos reales -- Render los deja en blanco tras el primer deploy
+      # (sync: false) para que los llenes a mano desde el dashboard, nunca
+      # desde este archivo versionado en git.
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_REGION
+        sync: false
+      # Opcionales -- la app arranca igual sin ellas, cada función queda
+      # deshabilitada nada más (ver comentarios en internal/config/config.go).
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false
+      - key: PLATFORM_ADMIN_KEY
+        sync: false
+
+  - type: web
+    name: pasitos-frontend
+    runtime: static
+    buildCommand: cd GuarderiaBiometricFront && npm ci && npm run build
+    staticPublishPath: ./GuarderiaBiometricFront/dist
+    envVars:
+      # Se hornea en el bundle en tiempo de build (Vite reemplaza
+      # import.meta.env.* de forma estática) -- si cambia, hay que volver a
+      # desplegar el frontend, no basta con reiniciarlo. Actualiza esto si
+      # Render le puso un sufijo distinto al nombre del backend.
+      - key: VITE_API_URL
+        value: https://pasitos-backend.onrender.com
+    routes:
+      # Sin esto, recargar la página en /panel/identificar (o cualquier
+      # ruta que no sea la raíz) da 404 -- es una SPA con rutas del lado
+      # del cliente (react-router-dom), el servidor estático necesita
+      # regresar siempre index.html y dejar que React decida qué mostrar
+      # (mismo criterio que el try_files de nginx.conf en local).
+      - type: rewrite
+        source: /*
+        destination: /index.html

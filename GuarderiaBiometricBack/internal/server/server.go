@@ -7,6 +7,7 @@ package server
 import (
 	"database/sql"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/rekognition"
@@ -86,6 +87,15 @@ func (s *Server) StripeHabilitado() bool {
 // las pruebas pueden montar el router con dependencias falsas (sqlmock) y
 // ejercitarlo con httptest, igual que antes hacía setupRouter() en main.go.
 func (s *Server) RegisterRoutes(r *gin.Engine) {
+	// /health: sin auth, sin tocar la base de datos -- lo que Render (u
+	// otra plataforma) necesita para saber "el proceso sigue vivo y
+	// responde". No usa /aviso-privacidad ni otra ruta real de la app a
+	// propósito: esas exigen sesión o devuelven 401/404 sin ella, lo que un
+	// health check interpretaría como "no está sano" aunque sí lo esté.
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
 	s.registrarRutasAuth(r)
 	s.registrarRutasPersonal(r)
 	s.registrarRutasAsistencia(r)
