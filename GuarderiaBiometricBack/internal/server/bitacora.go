@@ -207,6 +207,7 @@ func (s *Server) handleGuardarSeguimiento(c *gin.Context) {
 
 	err := s.DB.QueryRow(query, hijoID, gID, fechaHoy, desayuno, comida, merienda, esfinter, observaciones, durmio).Scan(&seguimientoID)
 	if err != nil {
+		log.Printf("No se pudo actualizar la bitácora: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo actualizar la bitácora"})
 		return
 	}

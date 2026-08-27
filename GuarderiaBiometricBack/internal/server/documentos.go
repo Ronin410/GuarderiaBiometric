@@ -78,6 +78,7 @@ func (s *Server) handleListarDocumentos(c *gin.Context) {
 		hijoID,
 	)
 	if err != nil {
+		log.Printf("Error al consultar documentos: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar documentos"})
 		return
 	}
@@ -170,6 +171,7 @@ func (s *Server) handleSubirDocumento(c *gin.Context) {
 	)
 	if err != nil {
 		go s.borrarDeS3(key) // el registro no se guardó, no dejamos el archivo huérfano
+		log.Printf("No se pudo guardar el documento: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo guardar el documento"})
 		return
 	}
@@ -204,11 +206,13 @@ func (s *Server) handleEliminarDocumento(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Documento no encontrado"})
 		return
 	} else if err != nil {
+		log.Printf("Error al buscar el documento: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al buscar el documento"})
 		return
 	}
 
 	if _, err := s.DB.Exec(`DELETE FROM documentos_nino WHERE hijo_id = $1 AND tipo = $2`, hijoID, tipo); err != nil {
+		log.Printf("No se pudo eliminar el documento %s del hijo %s: %v", tipo, hijoID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo eliminar el documento"})
 		return
 	}

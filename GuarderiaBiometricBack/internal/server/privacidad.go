@@ -1,6 +1,7 @@
 package server
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -27,6 +28,7 @@ func (s *Server) handleObtenerAviso(c *gin.Context) {
 		gID,
 	).Scan(&texto, &version)
 	if err != nil {
+		log.Printf("No se pudo consultar el Aviso de Privacidad: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo consultar el Aviso de Privacidad"})
 		return
 	}
@@ -51,6 +53,7 @@ func (s *Server) handleActualizarAviso(c *gin.Context) {
 
 	var versionActual string
 	if err := s.DB.QueryRow("SELECT aviso_privacidad_version FROM guarderias WHERE id = $1", gID).Scan(&versionActual); err != nil {
+		log.Printf("No se pudo consultar la versión actual del Aviso de Privacidad (guardería %v): %v", gID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo consultar la versión actual"})
 		return
 	}
@@ -62,6 +65,7 @@ func (s *Server) handleActualizarAviso(c *gin.Context) {
 		input.Texto, nuevaVersion, gID,
 	)
 	if err != nil {
+		log.Printf("No se pudo guardar el Aviso de Privacidad: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo guardar el Aviso de Privacidad"})
 		return
 	}
@@ -78,6 +82,7 @@ func (s *Server) handleEstadisticasAviso(c *gin.Context) {
 		gID,
 	).Scan(&total)
 	if err != nil {
+		log.Printf("No se pudo consultar los consentimientos: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo consultar los consentimientos"})
 		return
 	}

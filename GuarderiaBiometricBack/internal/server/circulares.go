@@ -1,6 +1,7 @@
 package server
 
 import (
+	"log"
 	"net/http"
 	"strings"
 
@@ -69,6 +70,7 @@ func (s *Server) handleListarCircularesStaff(c *gin.Context) {
 		gID,
 	)
 	if err != nil {
+		log.Printf("Error al consultar las circulares: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar las circulares"})
 		return
 	}
@@ -100,6 +102,7 @@ func (s *Server) handleListarCircularesPadre(c *gin.Context) {
 		gID,
 	)
 	if err != nil {
+		log.Printf("Error al consultar las circulares: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar las circulares"})
 		return
 	}
@@ -135,6 +138,7 @@ func (s *Server) handleMarcarCircularLeida(c *gin.Context) {
 		`INSERT INTO circulares_lecturas (circular_id, padre_id) VALUES ($1, $2) ON CONFLICT (circular_id, padre_id) DO NOTHING`,
 		circularID, userID,
 	); err != nil {
+		log.Printf("No se pudo registrar la lectura de la circular %s (padre %v): %v", circularID, userID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo registrar la lectura"})
 		return
 	}
@@ -163,6 +167,7 @@ func (s *Server) handleDetalleLecturasCircular(c *gin.Context) {
 		circularID,
 	)
 	if err != nil {
+		log.Printf("Error al consultar las lecturas: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar las lecturas"})
 		return
 	}
@@ -205,6 +210,7 @@ func (s *Server) handleCrearCircular(c *gin.Context) {
 		gID, titulo, contenido, userID,
 	).Scan(&nuevoID)
 	if err != nil {
+		log.Printf("No se pudo publicar la circular: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo publicar la circular"})
 		return
 	}
@@ -220,6 +226,7 @@ func (s *Server) handleEliminarCircular(c *gin.Context) {
 
 	res, err := s.DB.Exec(`DELETE FROM circulares WHERE id = $1 AND guarderia_id = $2`, circularID, gID)
 	if err != nil {
+		log.Printf("No se pudo eliminar la circular: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo eliminar la circular"})
 		return
 	}

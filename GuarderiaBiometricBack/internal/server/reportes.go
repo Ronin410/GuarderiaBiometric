@@ -1,6 +1,7 @@
 package server
 
 import (
+	"log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -83,6 +84,7 @@ func (s *Server) registrarRutasReportes(r *gin.Engine) {
 			gID, desde.Format("2006-01-02"), hasta.Format("2006-01-02"), horaLimiteEntrada, hijoIDFiltro,
 		)
 		if err != nil {
+			log.Printf("Error al calcular el resumen de asistencia: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al calcular el resumen de asistencia"})
 			return
 		}

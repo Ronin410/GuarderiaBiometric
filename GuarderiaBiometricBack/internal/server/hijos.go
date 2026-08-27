@@ -47,6 +47,10 @@ func (s *Server) registrarRutasHijos(r *gin.Engine) {
 func (s *Server) handleRegistrarHijo(c *gin.Context) {
 	gID, exists := c.Get("guarderia_id")
 	if !exists {
+		// No debería pasar nunca si Auth() corrió antes -- lo pone siempre
+		// en el contexto. Se loguea igual porque, si algún día SÍ pasa, es
+		// justo el tipo de cosa que sin rastro es imposible de diagnosticar.
+		log.Println("handleRegistrarHijo: guarderia_id no estaba en el contexto (¿Auth() no corrió antes?)")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo identificar la guardería"})
 		return
 	}
@@ -70,6 +74,7 @@ func (s *Server) handleRegistrarHijo(c *gin.Context) {
 	err := s.DB.QueryRow(query, input.Nombre, gID).Scan(&hijoID, &urlToken)
 	if err != nil {
 		fmt.Printf("Error al insertar hijo: %v\n", err)
+		log.Printf("Error al crear niño en la base de datos: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al crear niño en la base de datos"})
 		return
 	}
@@ -114,6 +119,7 @@ func (s *Server) handleHijosDePadre(c *gin.Context) {
 
 	rows, err := s.DB.Query(query, padreID, gID)
 	if err != nil {
+		log.Printf("Error al consultar hijos: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar hijos"})
 		return
 	}
@@ -181,6 +187,7 @@ func (s *Server) handleBuscarHijos(c *gin.Context) {
 
 	if err != nil {
 		fmt.Printf("Error en buscar-hijos: %v\n", err)
+		log.Printf("Error al consultar la base de datos: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar la base de datos"})
 		return
 	}
@@ -230,6 +237,7 @@ func (s *Server) handleBuscarPadres(c *gin.Context) {
 	}
 
 	if err != nil {
+		log.Printf("Error al consultar la base de datos: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar la base de datos"})
 		return
 	}
@@ -296,6 +304,7 @@ func (s *Server) handleDesvincularHijo(c *gin.Context) {
 
 	result, err := s.DB.Exec(query, input.PadreID, input.HijoID, gID)
 	if err != nil {
+		log.Printf("No se pudo realizar la desvinculación: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo realizar la desvinculación"})
 		return
 	}
@@ -327,6 +336,7 @@ func (s *Server) handleActualizarPadre(c *gin.Context) {
 
 	result, err := s.DB.Exec(query, req.Nombre, req.ID, gID)
 	if err != nil {
+		log.Printf("Error interno al actualizar: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error interno al actualizar"})
 		return
 	}
@@ -348,6 +358,7 @@ func (s *Server) handleDesactivarHijo(c *gin.Context) {
 
 	result, err := s.DB.Exec(query, hijoID, gID)
 	if err != nil {
+		log.Printf("Error al dar de baja: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al dar de baja"})
 		return
 	}
@@ -376,6 +387,7 @@ func (s *Server) handleEditarNombreHijo(c *gin.Context) {
 	query := "UPDATE hijos SET nombre_niño = $1 WHERE id = $2 AND guarderia_id = $3"
 	_, err := s.DB.Exec(query, input.Nombre, hijoID, gID)
 	if err != nil {
+		log.Printf("Error al actualizar: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al actualizar"})
 		return
 	}
@@ -391,6 +403,7 @@ func (s *Server) handleActivarHijo(c *gin.Context) {
 
 	_, err := s.DB.Exec(query, hijoID, gID)
 	if err != nil {
+		log.Printf("Error al reactivar: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al reactivar"})
 		return
 	}

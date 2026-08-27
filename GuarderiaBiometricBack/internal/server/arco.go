@@ -93,6 +93,7 @@ func (s *Server) handleExportarFamilia(c *gin.Context) {
         JOIN tutor_hijos th ON h.id = th.hijo_id
         WHERE th.padre_id = $1 AND th.guarderia_id = $2`, padreID, gID)
 	if err != nil {
+		log.Printf("Error al consultar hijos vinculados: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar hijos vinculados"})
 		return
 	}
@@ -202,6 +203,7 @@ func (s *Server) handleEliminarFamilia(c *gin.Context) {
 	// integridad referencial normal, no para este borrado de alcance
 	// acotado — sin este paso se perdería también la asistencia del niño.
 	if _, err := s.DB.Exec("UPDATE asistencia SET padre_id = NULL WHERE padre_id = $1", padreID); err != nil {
+		log.Printf("No se pudo desvincular el historial de asistencia del padre %s: %v", padreID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo desvincular el historial de asistencia"})
 		return
 	}
@@ -212,6 +214,7 @@ func (s *Server) handleEliminarFamilia(c *gin.Context) {
 
 	result, err := s.DB.Exec("DELETE FROM padres WHERE id = $1 AND guarderia_id = $2", padreID, gID)
 	if err != nil {
+		log.Printf("No se pudo eliminar al tutor: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo eliminar al tutor"})
 		return
 	}

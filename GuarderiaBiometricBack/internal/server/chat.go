@@ -1,6 +1,7 @@
 package server
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -67,6 +68,7 @@ func (s *Server) handleListarConversaciones(c *gin.Context) {
 		gID,
 	)
 	if err != nil {
+		log.Printf("Error al consultar conversaciones: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar conversaciones"})
 		return
 	}
@@ -132,6 +134,7 @@ func (s *Server) handleObtenerMensajesStaff(c *gin.Context) {
 
 	mensajes, err := s.obtenerHiloChat(gID, padreID)
 	if err != nil {
+		log.Printf("Error al consultar los mensajes: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar los mensajes"})
 		return
 	}
@@ -164,6 +167,7 @@ func (s *Server) handleEnviarMensajeStaff(c *gin.Context) {
 		`INSERT INTO mensajes_chat (guarderia_id, padre_id, autor_id, autor_rol, contenido) VALUES ($1, $2, $3, $4, $5)`,
 		gID, padreID, userID, rol, contenido,
 	); err != nil {
+		log.Printf("No se pudo enviar el mensaje de chat (guardería %v, padre %v): %v", gID, padreID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo enviar el mensaje"})
 		return
 	}
@@ -181,6 +185,7 @@ func (s *Server) handleObtenerMensajesPadre(c *gin.Context) {
 
 	mensajes, err := s.obtenerHiloChat(gID, userID)
 	if err != nil {
+		log.Printf("Error al consultar los mensajes: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar los mensajes"})
 		return
 	}
@@ -206,6 +211,7 @@ func (s *Server) handleEnviarMensajePadre(c *gin.Context) {
 		`INSERT INTO mensajes_chat (guarderia_id, padre_id, autor_id, autor_rol, contenido) VALUES ($1, $2, $3, 'papa', $4)`,
 		gID, userID, userID, contenido,
 	); err != nil {
+		log.Printf("No se pudo enviar el mensaje de chat (guardería %v, padre %v): %v", gID, userID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo enviar el mensaje"})
 		return
 	}

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -40,6 +41,7 @@ func (s *Server) handleGaleriaStaff(c *gin.Context) {
 
 	fotos, err := s.obtenerGaleria(hijoID)
 	if err != nil {
+		log.Printf("Error al consultar la galería: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar la galería"})
 		return
 	}
@@ -57,6 +59,7 @@ func (s *Server) handleGaleriaPadre(c *gin.Context) {
 
 	fotos, err := s.obtenerGaleria(hijoID)
 	if err != nil {
+		log.Printf("Error al consultar la galería: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar la galería"})
 		return
 	}

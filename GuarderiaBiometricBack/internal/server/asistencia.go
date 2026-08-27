@@ -80,6 +80,7 @@ func (s *Server) handleRegistrar(c *gin.Context) {
 		"SELECT COALESCE(aviso_privacidad_texto, ''), aviso_privacidad_version FROM guarderias WHERE id = $1",
 		gID,
 	).Scan(&textoAviso, &versionAviso); err != nil {
+		log.Printf("No se pudo verificar el Aviso de Privacidad (guardería %v): %v", gID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo verificar el Aviso de Privacidad"})
 		return
 	}
@@ -110,6 +111,7 @@ func (s *Server) handleRegistrar(c *gin.Context) {
 		}
 		hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 		if err != nil {
+			log.Printf("Error al procesar la contraseña: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al procesar la contraseña"})
 			return
 		}
@@ -305,6 +307,7 @@ func (s *Server) handleIdentificar(c *gin.Context) {
 
 	rows, err := s.DB.Query(query, faceID, gID)
 	if err != nil {
+		log.Printf("Error en base de datos: : %v", err)
 		c.JSON(500, gin.H{"error": "Error en base de datos: " + err.Error()})
 		return
 	}
@@ -383,6 +386,7 @@ func (s *Server) handleConfirmarAsistencia(c *gin.Context) {
 
 	_, err = s.DB.Exec(query, req.PadreID, req.HijoID, req.Aseado, req.ReporteGolpe, req.Observaciones, tipoFinal, gID)
 	if err != nil {
+		log.Printf("No se pudo guardar: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo guardar"})
 		return
 	}
@@ -430,6 +434,7 @@ func (s *Server) handleForzarEstatus(c *gin.Context) {
 				return
 			}
 		} else {
+			log.Printf("Error al consultar historial de asistencia del hijo %d: %v", req.HijoID, err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar historial"})
 			return
 		}
@@ -444,6 +449,7 @@ func (s *Server) handleForzarEstatus(c *gin.Context) {
 	_, err = s.DB.Exec(query, req.HijoID, padreID, gID, req.Movimiento, ahora, observacion)
 	if err != nil {
 		fmt.Println("Error al forzar estatus:", err)
+		log.Printf("No se pudo registrar el movimiento: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo registrar el movimiento"})
 		return
 	}

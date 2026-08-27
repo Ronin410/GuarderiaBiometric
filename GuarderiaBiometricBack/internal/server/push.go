@@ -53,6 +53,7 @@ func (s *Server) registrarRutasPush(r *gin.Engine) {
             auth = EXCLUDED.auth`
 
 		if _, err := s.DB.Exec(query, userID, gID, input.Endpoint, input.Keys.P256dh, input.Keys.Auth); err != nil {
+			log.Printf("No se pudo guardar la suscripción push (padre %v, guardería %v): %v", userID, gID, err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo guardar la suscripción"})
 			return
 		}

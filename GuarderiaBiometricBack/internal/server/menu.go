@@ -1,6 +1,7 @@
 package server
 
 import (
+	"log"
 	"net/http"
 	"time"
 
@@ -53,6 +54,7 @@ func (s *Server) handleObtenerMenuSemanal(c *gin.Context) {
 		gID, inicio, fin,
 	)
 	if err != nil {
+		log.Printf("Error al consultar el menú: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar el menú"})
 		return
 	}
@@ -103,6 +105,7 @@ func (s *Server) handleGuardarDiaMenu(c *gin.Context) {
 		gID, fecha, input.Desayuno, input.Comida, input.Merienda,
 	)
 	if err != nil {
+		log.Printf("No se pudo guardar el menú: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo guardar el menú"})
 		return
 	}

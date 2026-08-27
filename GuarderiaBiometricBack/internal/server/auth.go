@@ -79,6 +79,7 @@ func (s *Server) handleLogin(c *gin.Context) {
 			s.registrarAcceso("login_fallido", nil, nil, "usuario no encontrado: "+creds.Username, c.ClientIP())
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Usuario no existe"})
 		} else {
+			log.Printf("Error de BD: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error de BD"})
 		}
 		return
@@ -127,12 +128,14 @@ func (s *Server) handleLogin(c *gin.Context) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenStr, err := token.SignedString(s.JWTKey)
 	if err != nil {
+		log.Printf("Error al generar token: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al generar token"})
 		return
 	}
 
 	csrfToken, err := generarCSRFToken()
 	if err != nil {
+		log.Printf("Error al generar token: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al generar token"})
 		return
 	}
@@ -188,6 +191,7 @@ func (s *Server) handleMe(c *gin.Context) {
 		uid,
 	).Scan(&username, &gNombre, &gSlug)
 	if err != nil {
+		log.Printf("No se pudo cargar la sesión: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo cargar la sesión"})
 		return
 	}
@@ -250,6 +254,7 @@ func (s *Server) handleVerificarPin(c *gin.Context) {
 	var pinDB string
 	err := s.DBAuth.QueryRow("SELECT pin_admin FROM usuarios WHERE id = $1", userID).Scan(&pinDB)
 	if err != nil {
+		log.Printf("Error al verificar PIN: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al verificar PIN"})
 		return
 	}

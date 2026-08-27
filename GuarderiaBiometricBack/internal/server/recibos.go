@@ -3,6 +3,7 @@ package server
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -65,6 +66,7 @@ func (s *Server) handleObtenerRecibo(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Recibo no encontrado"})
 		return
 	} else if err != nil {
+		log.Printf("Error al consultar el recibo: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar el recibo"})
 		return
 	}
@@ -122,6 +124,7 @@ func (s *Server) handleEnviarRecordatorios(c *gin.Context) {
 		gID, periodo,
 	)
 	if err != nil {
+		log.Printf("Error al consultar el estado de pagos: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar el estado de pagos"})
 		return
 	}
