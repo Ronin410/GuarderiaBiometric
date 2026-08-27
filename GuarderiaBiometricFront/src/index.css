@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&family=Public+Sans:wght@400;500;600;700;800;900&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -6,21 +7,38 @@
 /* Color de marca: antes se usaba la clase violet-* literal de Tailwind en
    cientos de lugares del código, así que cambiar el color de marca hubiera
    significado editar cada componente uno por uno. Se define aquí como un
-   token con nombre propio (mismos valores hex que el violet por defecto de
-   Tailwind, así que este cambio no altera nada visualmente) — cambiar el
-   color de marca en el futuro solo requiere editar estos valores. */
+   token con nombre propio -- cambiar el color de marca en el futuro solo
+   requiere editar estos valores. Paleta terracota (identidad "Pasitos"). */
 @theme {
-  --color-brand-50: #f5f3ff;
-  --color-brand-100: #ede9fe;
-  --color-brand-200: #ddd6fe;
-  --color-brand-300: #c4b5fd;
-  --color-brand-400: #a78bfa;
-  --color-brand-500: #8b5cf6;
-  --color-brand-600: #7c3aed;
-  --color-brand-700: #6d28d9;
-  --color-brand-800: #5b21b6;
-  --color-brand-900: #4c1d95;
-  --color-brand-950: #2e1065;
+  --color-brand-50: #fcf2eb;
+  --color-brand-100: #f7e4d6;
+  --color-brand-200: #efceb9;
+  --color-brand-300: #dfa689;
+  --color-brand-400: #ce8058;
+  --color-brand-500: #c16339;
+  --color-brand-600: #b5502c;
+  --color-brand-700: #8e3e22;
+  --color-brand-800: #6e301a;
+  --color-brand-900: #4c2012;
+  --color-brand-950: #2e1409;
+
+  /* Sidebar y superficie: verde bosque + papel cálido, en vez del
+     blanco/gris genérico de plantilla. */
+  --color-forest: #22332b;
+  --color-forest-light: #33453a;
+  --color-forest-dark: #1a2721;
+  --color-paper: #fbf8f3;
+  --color-ink: #23201b;
+}
+
+/* Tipografía de marca: Lora en encabezados (calidez, distingue de las
+   plantillas genéricas que usan un solo sans-serif para todo), Public Sans
+   en el resto (legible en tablas y formularios). */
+body {
+  font-family: 'Public Sans', system-ui, -apple-system, sans-serif;
+}
+h1, h2, h3 {
+  font-family: 'Lora', Georgia, serif;
 }
 
 /* 1. CONFIGURACIÓN PARA PWA Y PANTALLA COMPLETA */
@@ -31,7 +49,7 @@ html, body, #root {
   /* Evita el rebote elástico en iOS y scrolls laterales accidentales */
   overscroll-behavior-y: contain;
   overflow-x: hidden;
-  background-color: #ffffff;
+  background-color: #fbf8f3;
 }
 
 :root {

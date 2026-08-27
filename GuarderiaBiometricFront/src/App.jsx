@@ -9,7 +9,7 @@ import {
   Lock, LogOut, CheckCircle, KeyRound, RefreshCw, X, Send, Clock, LogOut as LogOutIcon,
   User, IdCard, Wallet, BarChart3, ShieldCheck as ShieldCheckIcon, UserCog, UtensilsCrossed,
   CalendarDays, LayoutDashboard, Settings, Megaphone, MessageCircle, CalendarOff, Soup, ClipboardCheck,
-  BookOpen
+  BookOpen, Menu
 } from 'lucide-react';
 
 // Componentes secundarios
@@ -29,7 +29,6 @@ import PanelAusencias from './PanelAusencias';
 import PanelCalendario from './PanelCalendario';
 import PanelComedor from './PanelComedor';
 import PanelEncuestas from './PanelEncuestas';
-import NavDropdown from './NavDropdown';
 import DashboardPadre from './DashboardPadre';
 import AvisoPrivacidadModal from './AvisoPrivacidadModal';
 import { mostrarError, mostrarExito, mostrarAviso, confirmar as confirmarAccion } from './utils/alertas';
@@ -66,6 +65,9 @@ function MainApp() {
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [tipoAcceso, setTipoAcceso] = useState('staff');
+  // Solo controla el drawer del menú lateral en pantallas angostas -- en
+  // md+ el sidebar siempre está visible y este estado no se usa.
+  const [sidebarAbierto, setSidebarAbierto] = useState(false);
 
   // La pestaña activa vive en la URL (/panel/:tab) en vez de en estado local:
   // así sobrevive a un refresh y el botón "atrás" del navegador funciona.
@@ -404,7 +406,7 @@ function MainApp() {
   // "sí la hay" en cada recarga.
   if (sesionCargando) {
     return (
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-paper flex items-center justify-center p-4">
         <RefreshCw className="animate-spin text-brand-600" size={40} />
       </div>
     );
@@ -412,7 +414,7 @@ function MainApp() {
 
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-paper flex items-center justify-center p-4">
         <div className="bg-white border border-slate-200 p-8 rounded-[2.5rem] w-full max-w-md shadow-xl text-center">
           <div className="inline-block bg-brand-600 p-4 rounded-3xl shadow-lg mb-6">
             <ShieldCheck size={40} className="text-white" />
@@ -451,87 +453,128 @@ function MainApp() {
     return <DashboardPadre padreId={userId} nombreUsuario={username} alCerrarSesion={cerrarSesion} />;
   }
 
-  return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 p-4 sm:p-6 lg:p-8">
-      <header className="flex flex-col items-center mb-8 border-b border-slate-200 pb-6 gap-6 w-full">
-        <div className="flex items-center gap-3">
-          <div className="bg-brand-600 p-2 rounded-xl shadow-md"><ShieldCheck size={20} className="text-white" /></div>
-          <div className="text-center sm:text-left">
-            <h1 className="text-xl font-black uppercase leading-none text-slate-900">Pasitos</h1>
-            <p className="text-[9px] text-brand-600 font-bold uppercase tracking-widest">{guarderiaInfo.nombre || 'Kiosk'}</p>
+  // Estructura del menú lateral: mismas pestañas y el mismo filtrado por
+  // permisos (filtrarProtegidos/tienePermiso) que antes vivían repartidos
+  // entre los NavDropdown -- solo cambia cómo se presentan (lista fija en
+  // vez de menús desplegables).
+  const seccionesNav = [
+    {
+      items: [
+        { tab: 'identificar', label: 'Kiosco', Icon: ScanEye },
+        { tab: 'registrar', label: 'Registro', Icon: UserPlus },
+      ],
+    },
+    {
+      label: 'Alumnos',
+      items: filtrarProtegidos([
+        { tab: 'admin', label: 'Familia', Icon: Users },
+        { tab: 'perfiles', label: 'Perfiles', Icon: IdCard },
+      ]),
+    },
+    {
+      label: 'Día a día',
+      items: filtrarProtegidos([
+        { tab: 'bitacora', label: 'Bitácora', Icon: ClipboardList },
+        { tab: 'menu', label: 'Menú Semanal', Icon: UtensilsCrossed },
+        { tab: 'circulares', label: 'Circulares', Icon: Megaphone },
+        { tab: 'chat', label: 'Chat con Familias', Icon: MessageCircle },
+        { tab: 'ausencias', label: 'Ausencias Avisadas', Icon: CalendarOff },
+        { tab: 'calendario', label: 'Calendario Escolar', Icon: CalendarDays },
+        { tab: 'comedor', label: 'Pedidos de Comedor', Icon: Soup },
+        { tab: 'encuestas', label: 'Encuestas', Icon: ClipboardCheck },
+      ]),
+    },
+    {
+      label: 'Administración',
+      items: filtrarProtegidos([
+        { tab: 'reportes', label: 'Reportes', Icon: TrendingUp },
+        { tab: 'pagos', label: 'Pagos', Icon: Wallet },
+        { tab: 'estadisticas', label: 'Estadísticas', Icon: BarChart3 },
+      ]),
+    },
+    {
+      label: 'Sistema',
+      items: [
+        ...filtrarProtegidos([{ tab: 'configuracion', label: 'Configuración', Icon: ShieldCheckIcon }]),
+        ...(userRole === 'admin' ? [
+          { tab: 'personal', label: 'Personal', Icon: UserCog },
+          { tab: 'horarios', label: 'Horarios de Personal', Icon: Clock },
+        ] : []),
+      ],
+    },
+  ].filter((seccion) => seccion.items.length > 0);
+
+  const claseItemNav = (activo) =>
+    `w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-bold transition-all text-left ${
+      activo ? 'bg-forest-light text-white shadow-sm' : 'text-white/70 hover:bg-white/10 hover:text-white'
+    }`;
+
+  const contenidoSidebar = (
+    <>
+      <div className="flex items-center gap-2.5 px-1 shrink-0">
+        <div className="bg-brand-600 w-9 h-9 rounded-xl flex items-center justify-center shadow-md shrink-0">
+          <ShieldCheck size={18} className="text-white" />
+        </div>
+        <span className="text-white font-black uppercase tracking-tight text-base">Pasitos</span>
+      </div>
+
+      <div className="flex-1 overflow-y-auto flex flex-col gap-5 mt-6 pr-1 custom-scrollbar">
+        {seccionesNav.map((seccion, i) => (
+          <div key={i} className="space-y-1">
+            {seccion.label && (
+              <p className="text-[10px] font-black uppercase tracking-widest text-white/40 px-3.5 mb-1.5">{seccion.label}</p>
+            )}
+            {seccion.items.map(({ tab: t, label, Icon }) => (
+              <button key={t} onClick={() => { cambiarTab(t); setSidebarAbierto(false); }} className={claseItemNav(tab === t)}>
+                <Icon size={17} className="shrink-0" /> {label}
+              </button>
+            ))}
           </div>
+        ))}
+      </div>
+
+      <div className="mt-4 space-y-2 shrink-0">
+        <a
+          href="/manual.html" target="_blank" rel="noopener noreferrer"
+          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-bold text-white/70 hover:bg-white/10 hover:text-white transition-all"
+        ><BookOpen size={17} className="shrink-0" /> Manual</a>
+        <button onClick={cerrarSesion} className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-bold text-rose-300 hover:bg-rose-500/10 hover:text-rose-200 transition-all">
+          <LogOut size={17} className="shrink-0" /> Cerrar sesión
+        </button>
+        <div className="p-3 bg-forest-dark rounded-xl text-white/70 text-[11px] leading-relaxed">
+          <p className="font-bold text-white mb-0.5 truncate">{guarderiaInfo.nombre || 'Kiosk'}</p>
+          Sesión: {username || 'staff'}
+        </div>
+      </div>
+    </>
+  );
+
+  return (
+    <div className="min-h-screen bg-paper text-ink flex">
+      {/* MENÚ LATERAL — escritorio */}
+      <aside className="hidden md:flex md:flex-col w-64 shrink-0 bg-forest p-5 sticky top-0 h-screen">
+        {contenidoSidebar}
+      </aside>
+
+      {/* MENÚ LATERAL — móvil (se abre como cajón encima del contenido) */}
+      {sidebarAbierto && (
+        <div className="fixed inset-0 z-40 md:hidden flex">
+          <div className="absolute inset-0 bg-slate-900/60" onClick={() => setSidebarAbierto(false)} />
+          <aside className="relative w-72 max-w-[80vw] h-full bg-forest p-5 flex flex-col animate-in slide-in-from-left duration-200">
+            {contenidoSidebar}
+          </aside>
+        </div>
+      )}
+
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* BARRA SUPERIOR — solo móvil, el sidebar reemplaza esto en escritorio */}
+        <div className="md:hidden flex items-center justify-between px-4 py-3.5 bg-white border-b border-slate-200 sticky top-0 z-20">
+          <button onClick={() => setSidebarAbierto(true)} className="p-1 text-ink" title="Abrir menú"><Menu size={22} /></button>
+          <span className="font-black uppercase text-sm text-ink">Pasitos</span>
+          <button onClick={cerrarSesion} className="p-1 text-rose-500" title="Cerrar sesión"><LogOut size={20} /></button>
         </div>
 
-        <nav className="w-full max-w-full overflow-x-auto no-scrollbar">
-          <div className="flex bg-white p-1.5 rounded-2xl border border-slate-200 shadow-sm min-w-max mx-auto">
-            <button onClick={() => cambiarTab('identificar')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'identificar' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><ScanEye size={18} /> Kiosco</button>
-            <button onClick={() => cambiarTab('registrar')} className={`px-4 py-2.5 rounded-xl flex items-center gap-2 font-bold transition-all ${tab === 'registrar' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}><UserPlus size={18} /> Registro</button>
-
-            {filtrarProtegidos([
-              { tab: 'admin', label: 'Familia', Icon: Users },
-              { tab: 'perfiles', label: 'Perfiles', Icon: IdCard },
-            ]).length > 0 && (
-              <NavDropdown
-                label="Alumnos" Icon={Users} tabActual={tab} onSeleccionar={cambiarTab}
-                items={filtrarProtegidos([
-                  { tab: 'admin', label: 'Familia', Icon: Users },
-                  { tab: 'perfiles', label: 'Perfiles', Icon: IdCard },
-                ])}
-              />
-            )}
-            <NavDropdown
-              label="Día a Día" Icon={CalendarDays} tabActual={tab} onSeleccionar={cambiarTab}
-              items={filtrarProtegidos([
-                { tab: 'bitacora', label: 'Bitácora', Icon: ClipboardList },
-                { tab: 'menu', label: 'Menú Semanal', Icon: UtensilsCrossed },
-                { tab: 'circulares', label: 'Circulares', Icon: Megaphone },
-                { tab: 'chat', label: 'Chat con Familias', Icon: MessageCircle },
-                { tab: 'ausencias', label: 'Ausencias Avisadas', Icon: CalendarOff },
-                { tab: 'calendario', label: 'Calendario Escolar', Icon: CalendarDays },
-                { tab: 'comedor', label: 'Pedidos de Comedor', Icon: Soup },
-                { tab: 'encuestas', label: 'Encuestas', Icon: ClipboardCheck },
-              ])}
-            />
-            {filtrarProtegidos([
-              { tab: 'reportes', label: 'Reportes', Icon: TrendingUp },
-              { tab: 'pagos', label: 'Pagos', Icon: Wallet },
-              { tab: 'estadisticas', label: 'Estadísticas', Icon: BarChart3 },
-            ]).length > 0 && (
-              <NavDropdown
-                label="Administración" Icon={LayoutDashboard} tabActual={tab} onSeleccionar={cambiarTab}
-                items={filtrarProtegidos([
-                  { tab: 'reportes', label: 'Reportes', Icon: TrendingUp },
-                  { tab: 'pagos', label: 'Pagos', Icon: Wallet },
-                  { tab: 'estadisticas', label: 'Estadísticas', Icon: BarChart3 },
-                ])}
-              />
-            )}
-            {(() => {
-              const itemsSistema = [
-                ...filtrarProtegidos([{ tab: 'configuracion', label: 'Configuración', Icon: ShieldCheckIcon }]),
-                ...(userRole === 'admin' ? [
-                  { tab: 'personal', label: 'Personal', Icon: UserCog },
-                  { tab: 'horarios', label: 'Horarios de Personal', Icon: Clock },
-                ] : []),
-              ];
-              return itemsSistema.length > 0 && (
-                <NavDropdown
-                  label="Sistema" Icon={Settings} tabActual={tab} onSeleccionar={cambiarTab}
-                  items={itemsSistema}
-                />
-              );
-            })()}
-
-            <a
-              href="/manual.html" target="_blank" rel="noopener noreferrer" title="Manual del sistema"
-              className="px-3 py-2 text-slate-400 hover:text-brand-600 hover:bg-slate-50 rounded-xl ml-2 border-l border-slate-100 flex items-center"
-            ><BookOpen size={18} /></a>
-            <button onClick={cerrarSesion} className="px-3 py-2 text-rose-500 hover:bg-rose-50 rounded-xl" title="Cerrar sesión"><LogOut size={18} /></button>
-          </div>
-        </nav>
-      </header>
-
-      <main className="max-w-5xl mx-auto">
+        <main className="flex-1 w-full max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
         {tab === 'reportes' && <PanelReportes />}
         {tab === 'bitacora' && <VistaBitacora />}
         {tab === 'perfiles' && <PanelPerfiles />}
@@ -670,6 +713,7 @@ function MainApp() {
           </div>
         )}
       </main>
+      </div>
 
       {mostrarModalGestion && padreSeleccionado && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">

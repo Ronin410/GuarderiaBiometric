@@ -162,7 +162,7 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-10 text-center">
+      <div className="min-h-screen bg-paper flex flex-col items-center justify-center p-10 text-center">
         <div className="w-16 h-16 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mb-4"></div>
         <p className="font-black text-slate-400 uppercase tracking-[0.2em] text-xs">Sincronizando Familia...</p>
       </div>
@@ -190,7 +190,7 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-10">
+    <div className="min-h-screen bg-paper pb-10">
       {/* NAVBAR */}
       <div className="bg-white px-6 py-4 flex justify-between items-center border-b border-slate-100 sticky top-0 z-10 shadow-sm">
         <div className="flex items-center gap-2">
