@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from './axiosConfig';
-import { Megaphone, Plus, X, Send, Loader2, Trash2, CalendarClock, Eye, ChevronDown, ChevronUp, CheckCheck } from 'lucide-react';
+import { Megaphone, Plus, X, Send, Loader2, Trash2, CalendarClock, Eye, ChevronDown, ChevronUp, CheckCheck, Image as ImageIcon } from 'lucide-react';
 import { mostrarError, mostrarExito, confirmar } from './utils/alertas';
 
 const FORM_VACIO = { titulo: '', contenido: '' };
@@ -19,6 +19,9 @@ const PanelCirculares = () => {
   const [detalleAbierto, setDetalleAbierto] = useState(null);
   const [lecturas, setLecturas] = useState([]);
   const [cargandoLecturas, setCargandoLecturas] = useState(false);
+  const [imagen, setImagen] = useState(null);
+  const [previewImagen, setPreviewImagen] = useState(null);
+  const inputImagenRef = useRef(null);
 
   const cargar = async () => {
     setLoading(true);
@@ -35,6 +38,22 @@ const PanelCirculares = () => {
 
   useEffect(() => { cargar(); }, []);
 
+  const elegirImagen = (file) => {
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      mostrarError('La imagen no puede pesar más de 10 MB');
+      return;
+    }
+    setImagen(file);
+    setPreviewImagen(URL.createObjectURL(file));
+  };
+
+  const quitarImagen = () => {
+    setImagen(null);
+    setPreviewImagen(null);
+    if (inputImagenRef.current) inputImagenRef.current.value = '';
+  };
+
   const publicar = async () => {
     if (!form.titulo.trim() || !form.contenido.trim()) {
       mostrarError('El título y el contenido son obligatorios');
@@ -42,9 +61,14 @@ const PanelCirculares = () => {
     }
     setPublicando(true);
     try {
-      await api.post('/circulares', form);
+      const data = new FormData();
+      data.append('titulo', form.titulo.trim());
+      data.append('contenido', form.contenido.trim());
+      if (imagen) data.append('imagen', imagen);
+      await api.post('/circulares', data);
       mostrarExito('La circular se publicó y se notificó a los tutores suscritos');
       setForm(FORM_VACIO);
+      quitarImagen();
       setMostrarForm(false);
       cargar();
     } catch (err) {
@@ -109,7 +133,7 @@ const PanelCirculares = () => {
             </div>
           </div>
           <button
-            onClick={() => { setMostrarForm(!mostrarForm); setForm(FORM_VACIO); }}
+            onClick={() => { setMostrarForm(!mostrarForm); setForm(FORM_VACIO); quitarImagen(); }}
             className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black uppercase px-4 py-2.5 rounded-xl shadow-md transition-all active:scale-95"
           >
             {mostrarForm ? <X size={14} /> : <Plus size={14} />}
@@ -133,6 +157,29 @@ const PanelCirculares = () => {
                 rows={4} value={form.contenido} onChange={(e) => setForm({ ...form, contenido: e.target.value })}
                 placeholder="Escribe el aviso completo..."
                 className="w-full bg-white border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-brand-500 text-sm font-medium resize-y"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase ml-1 mb-1 block">Imagen (opcional)</label>
+              {previewImagen ? (
+                <div className="relative inline-block">
+                  <img src={previewImagen} alt="preview" className="max-h-40 rounded-xl border border-slate-200" />
+                  <button onClick={quitarImagen} className="absolute -top-2 -right-2 bg-rose-500 text-white p-1.5 rounded-full shadow-md"><X size={14} /></button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => inputImagenRef.current?.click()}
+                  className="flex items-center gap-2 bg-white border border-dashed border-slate-300 hover:border-brand-400 text-slate-500 text-xs font-bold px-4 py-3 rounded-xl transition-all"
+                >
+                  <ImageIcon size={16} /> Agregar imagen
+                </button>
+              )}
+              <input
+                ref={inputImagenRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => elegirImagen(e.target.files?.[0])}
               />
             </div>
             <div className="flex justify-end">
@@ -172,6 +219,9 @@ const PanelCirculares = () => {
                   </button>
                 </div>
                 <p className="mt-3 text-sm text-slate-600 font-medium whitespace-pre-wrap">{cir.contenido}</p>
+                {cir.imagen_url && (
+                  <img src={cir.imagen_url} alt={cir.titulo} className="mt-3 max-h-64 rounded-2xl border border-slate-200 object-cover" />
+                )}
 
                 <button
                   onClick={() => alternarDetalle(cir)}

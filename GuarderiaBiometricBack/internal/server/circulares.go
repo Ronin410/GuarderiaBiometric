@@ -1,9 +1,12 @@
 package server
 
 import (
+	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -12,12 +15,15 @@ import (
 
 // Circular es un aviso que el admin o staff manda a todos los padres de la
 // guardería (inscripciones, eventos, cierres, etc.), sin ligarse a ningún
-// niño en particular.
+// niño en particular. ImagenURL va en puntero porque la mayoría de las
+// circulares son solo texto -- si es nil, el frontend no muestra nada de
+// imagen.
 type Circular struct {
-	ID        int    `json:"id"`
-	Titulo    string `json:"titulo"`
-	Contenido string `json:"contenido"`
-	CreadoEn  string `json:"creado_en"`
+	ID        int     `json:"id"`
+	Titulo    string  `json:"titulo"`
+	Contenido string  `json:"contenido"`
+	CreadoEn  string  `json:"creado_en"`
+	ImagenURL *string `json:"imagen_url,omitempty"`
 }
 
 // CircularConLecturas es lo que ve el staff en el listado: la circular más
@@ -58,7 +64,7 @@ func (s *Server) handleListarCircularesStaff(c *gin.Context) {
 	gID, _ := c.Get("guarderia_id")
 
 	rows, err := s.DB.Query(
-		`SELECT c.id, c.titulo, c.contenido, c.creado_en,
+		`SELECT c.id, c.titulo, c.contenido, c.creado_en, c.imagen_s3_key,
                 COUNT(cl.padre_id),
                 (SELECT COUNT(*) FROM padres p WHERE p.guarderia_id = $1)
          FROM circulares c
@@ -79,12 +85,29 @@ func (s *Server) handleListarCircularesStaff(c *gin.Context) {
 	circulares := []CircularConLecturas{}
 	for rows.Next() {
 		var cir CircularConLecturas
-		if err := rows.Scan(&cir.ID, &cir.Titulo, &cir.Contenido, &cir.CreadoEn, &cir.LeidoPor, &cir.TotalFamilias); err != nil {
+		var imagenKey sql.NullString
+		if err := rows.Scan(&cir.ID, &cir.Titulo, &cir.Contenido, &cir.CreadoEn, &imagenKey, &cir.LeidoPor, &cir.TotalFamilias); err != nil {
 			continue
 		}
+		s.firmarImagenCircular(&cir.Circular, imagenKey)
 		circulares = append(circulares, cir)
 	}
 	c.JSON(http.StatusOK, circulares)
+}
+
+// firmarImagenCircular centraliza lo que comparten handleListarCircularesStaff
+// y handleListarCircularesPadre: si la circular trae imagen, firma su URL;
+// si falla la firma, la circular se sigue mostrando (solo sin imagen) en vez
+// de tumbar todo el listado por una key rota.
+func (s *Server) firmarImagenCircular(cir *Circular, imagenKey sql.NullString) {
+	if !imagenKey.Valid {
+		return
+	}
+	if url, err := s.firmarURLFoto(imagenKey.String); err == nil {
+		cir.ImagenURL = &url
+	} else {
+		log.Printf("No se pudo firmar la imagen de la circular %d: %v", cir.ID, err)
+	}
 }
 
 // handleListarCircularesPadre es la vista simple que ya existía -- el padre
@@ -95,7 +118,7 @@ func (s *Server) handleListarCircularesPadre(c *gin.Context) {
 	gID, _ := c.Get("guarderia_id")
 
 	rows, err := s.DB.Query(
-		`SELECT id, titulo, contenido, creado_en FROM circulares
+		`SELECT id, titulo, contenido, creado_en, imagen_s3_key FROM circulares
          WHERE guarderia_id = $1
          ORDER BY creado_en DESC
          LIMIT 50`,
@@ -111,9 +134,11 @@ func (s *Server) handleListarCircularesPadre(c *gin.Context) {
 	circulares := []Circular{}
 	for rows.Next() {
 		var cir Circular
-		if err := rows.Scan(&cir.ID, &cir.Titulo, &cir.Contenido, &cir.CreadoEn); err != nil {
+		var imagenKey sql.NullString
+		if err := rows.Scan(&cir.ID, &cir.Titulo, &cir.Contenido, &cir.CreadoEn, &imagenKey); err != nil {
 			continue
 		}
+		s.firmarImagenCircular(&cir, imagenKey)
 		circulares = append(circulares, cir)
 	}
 	c.JSON(http.StatusOK, circulares)
@@ -184,32 +209,51 @@ func (s *Server) handleDetalleLecturasCircular(c *gin.Context) {
 	c.JSON(http.StatusOK, lecturas)
 }
 
+// handleCrearCircular recibe multipart/form-data (antes era JSON) para
+// poder traer una imagen opcional junto con título/contenido -- mismo
+// patrón que leerMensajeConAdjunto en chat.go, mismo bucket privado y mismo
+// límite de 10 MB que documentos_nino.
 func (s *Server) handleCrearCircular(c *gin.Context) {
 	gID, _ := c.Get("guarderia_id")
 	userID, _ := c.Get("user_id")
 
-	var input struct {
-		Titulo    string `json:"titulo"`
-		Contenido string `json:"contenido"`
-	}
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Datos inválidos"})
-		return
-	}
-	titulo := strings.TrimSpace(input.Titulo)
-	contenido := strings.TrimSpace(input.Contenido)
+	titulo := strings.TrimSpace(c.PostForm("titulo"))
+	contenido := strings.TrimSpace(c.PostForm("contenido"))
 	if titulo == "" || contenido == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "El título y el contenido son obligatorios"})
 		return
 	}
 
+	var imagenKey *string
+	if fileHeader, errArchivo := c.FormFile("imagen"); errArchivo == nil {
+		if fileHeader.Size > maxTamanoDocumento {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "La imagen no puede pesar más de 10 MB"})
+			return
+		}
+		contentType := fileHeader.Header.Get("Content-Type")
+		if !strings.HasPrefix(contentType, "image/") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "El archivo debe ser una imagen"})
+			return
+		}
+		key := fmt.Sprintf("circulares/guarderia_%v/%d_%s", gID, time.Now().UnixNano(), fileHeader.Filename)
+		if _, err := s.uploadToS3(fileHeader, key, contentType); err != nil {
+			log.Printf("No se pudo subir la imagen de la circular a S3: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo subir la imagen"})
+			return
+		}
+		imagenKey = &key
+	}
+
 	var nuevoID int
 	err := s.DB.QueryRow(
-		`INSERT INTO circulares (guarderia_id, titulo, contenido, creado_por)
-         VALUES ($1, $2, $3, $4) RETURNING id`,
-		gID, titulo, contenido, userID,
+		`INSERT INTO circulares (guarderia_id, titulo, contenido, creado_por, imagen_s3_key)
+         VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+		gID, titulo, contenido, userID, imagenKey,
 	).Scan(&nuevoID)
 	if err != nil {
+		if imagenKey != nil {
+			go s.borrarDeS3(*imagenKey) // la circular no se guardó, no dejamos la imagen huérfana
+		}
 		log.Printf("No se pudo publicar la circular: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo publicar la circular"})
 		return
@@ -224,6 +268,12 @@ func (s *Server) handleEliminarCircular(c *gin.Context) {
 	gID, _ := c.Get("guarderia_id")
 	circularID := c.Param("id")
 
+	var imagenKey sql.NullString
+	if err := s.DB.QueryRow(`SELECT imagen_s3_key FROM circulares WHERE id = $1 AND guarderia_id = $2`, circularID, gID).Scan(&imagenKey); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Circular no encontrada"})
+		return
+	}
+
 	res, err := s.DB.Exec(`DELETE FROM circulares WHERE id = $1 AND guarderia_id = $2`, circularID, gID)
 	if err != nil {
 		log.Printf("No se pudo eliminar la circular: %v", err)
@@ -233,6 +283,9 @@ func (s *Server) handleEliminarCircular(c *gin.Context) {
 	if filas, _ := res.RowsAffected(); filas == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Circular no encontrada"})
 		return
+	}
+	if imagenKey.Valid {
+		go s.borrarDeS3(imagenKey.String)
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Circular eliminada"})
 }

@@ -1,7 +1,10 @@
 package server
 
 import (
+	"bytes"
+	"database/sql"
 	"encoding/json"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,12 +13,31 @@ import (
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 )
 
+// multipartCircularRequest arma un POST multipart con título/contenido y,
+// opcionalmente, una imagen en "imagen" -- handleCrearCircular ya no acepta
+// JSON (ver el comentario largo ahí sobre por qué).
+func multipartCircularRequest(titulo, contenido string, incluirImagen bool) *http.Request {
+	body := &bytes.Buffer{}
+	w := multipart.NewWriter(body)
+	w.WriteField("titulo", titulo)
+	w.WriteField("contenido", contenido)
+	if incluirImagen {
+		fw, _ := w.CreateFormFile("imagen", "foto.jpg")
+		fw.Write([]byte("contenido de prueba"))
+	}
+	w.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/circulares", body)
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	return req
+}
+
 func TestListarCirculares(t *testing.T) {
 	srv, mock := nuevoServidorDePruebaConDB(t)
 	mock.ExpectQuery("SELECT c.id, c.titulo, c.contenido, c.creado_en").
 		WithArgs(1).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "titulo", "contenido", "creado_en", "leido_por", "total_familias"}).
-			AddRow(1, "Suspensión de clases", "El viernes no hay clases por junta de consejo técnico.", "2026-08-10T12:00:00Z", 3, 8))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "titulo", "contenido", "creado_en", "imagen_s3_key", "leido_por", "total_familias"}).
+			AddRow(1, "Suspensión de clases", "El viernes no hay clases por junta de consejo técnico.", "2026-08-10T12:00:00Z", nil, 3, 8))
 
 	r := nuevoRouterDePrueba(srv)
 	req := jsonRequest(http.MethodGet, "/circulares", nil)
@@ -40,9 +62,9 @@ func TestListarCirculares(t *testing.T) {
 
 func TestListarCircularesComoPadre(t *testing.T) {
 	srv, mock := nuevoServidorDePruebaConDB(t)
-	mock.ExpectQuery("SELECT id, titulo, contenido, creado_en FROM circulares").
+	mock.ExpectQuery("SELECT id, titulo, contenido, creado_en, imagen_s3_key FROM circulares").
 		WithArgs(1).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "titulo", "contenido", "creado_en"}))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "titulo", "contenido", "creado_en", "imagen_s3_key"}))
 
 	r := nuevoRouterDePrueba(srv)
 	req := jsonRequest(http.MethodGet, "/padre/circulares", nil)
@@ -138,7 +160,7 @@ func TestCrearCircular(t *testing.T) {
 	t.Run("título vacío -> 400", func(t *testing.T) {
 		srv, _ := nuevoServidorDePruebaConDB(t)
 		r := nuevoRouterDePrueba(srv)
-		req := jsonRequest(http.MethodPost, "/circulares", map[string]string{"titulo": "   ", "contenido": "algo"})
+		req := multipartCircularRequest("   ", "algo", false)
 		autenticarRequestPrueba(t, req, srv.JWTKey, "staff", time.Hour)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
@@ -150,7 +172,7 @@ func TestCrearCircular(t *testing.T) {
 	t.Run("papá no puede publicar -> 403", func(t *testing.T) {
 		srv, _ := nuevoServidorDePruebaConDB(t)
 		r := nuevoRouterDePrueba(srv)
-		req := jsonRequest(http.MethodPost, "/circulares", map[string]string{"titulo": "Aviso", "contenido": "Texto"})
+		req := multipartCircularRequest("Aviso", "Texto", false)
 		autenticarRequestPrueba(t, req, srv.JWTKey, "papa", time.Hour)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
@@ -162,13 +184,11 @@ func TestCrearCircular(t *testing.T) {
 	t.Run("staff publica -> 201", func(t *testing.T) {
 		srv, mock := nuevoServidorDePruebaConDB(t)
 		mock.ExpectQuery("INSERT INTO circulares").
-			WithArgs(1, "Aviso importante", "Mañana hay junta de padres a las 5pm.", 1).
+			WithArgs(1, "Aviso importante", "Mañana hay junta de padres a las 5pm.", 1, nil).
 			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(7))
 
 		r := nuevoRouterDePrueba(srv)
-		req := jsonRequest(http.MethodPost, "/circulares", map[string]string{
-			"titulo": "Aviso importante", "contenido": "Mañana hay junta de padres a las 5pm.",
-		})
+		req := multipartCircularRequest("Aviso importante", "Mañana hay junta de padres a las 5pm.", false)
 		autenticarRequestPrueba(t, req, srv.JWTKey, "staff", time.Hour)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
@@ -182,9 +202,9 @@ func TestCrearCircular(t *testing.T) {
 func TestEliminarCircular(t *testing.T) {
 	t.Run("no encontrada -> 404", func(t *testing.T) {
 		srv, mock := nuevoServidorDePruebaConDB(t)
-		mock.ExpectExec("DELETE FROM circulares").
+		mock.ExpectQuery("SELECT imagen_s3_key FROM circulares").
 			WithArgs("99", 1).
-			WillReturnResult(sqlmock.NewResult(0, 0))
+			WillReturnError(sql.ErrNoRows)
 
 		r := nuevoRouterDePrueba(srv)
 		req := jsonRequest(http.MethodDelete, "/circulares/99", nil)
@@ -199,6 +219,9 @@ func TestEliminarCircular(t *testing.T) {
 
 	t.Run("staff elimina -> 200", func(t *testing.T) {
 		srv, mock := nuevoServidorDePruebaConDB(t)
+		mock.ExpectQuery("SELECT imagen_s3_key FROM circulares").
+			WithArgs("7", 1).
+			WillReturnRows(sqlmock.NewRows([]string{"imagen_s3_key"}).AddRow(nil))
 		mock.ExpectExec("DELETE FROM circulares").
 			WithArgs("7", 1).
 			WillReturnResult(sqlmock.NewResult(0, 1))

@@ -23,6 +23,7 @@ import {
 import VistaPadreDetalle from './VistaPadreDetalle';
 import ChatPadre from './ChatPadre';
 import EncuestasPadre from './EncuestasPadre';
+import CircularesPadre from './CircularesPadre';
 import { suscribirseAPush, suscripcionActiva, pushSoportado } from './utils/push';
 import { hoyLocal } from './utils/fecha';
 import InstalarApp from './components/InstalarApp';
@@ -48,6 +49,7 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
   const [hijoSeleccionado, setHijoSeleccionado] = useState(null);
   const [mostrarChat, setMostrarChat] = useState(false);
   const [mostrarEncuestas, setMostrarEncuestas] = useState(false);
+  const [mostrarCirculares, setMostrarCirculares] = useState(false);
   const [loading, setLoading] = useState(true);
   const usuarioNombre = nombreUsuario || 'Familia';
   const [pagos, setPagos] = useState([]);
@@ -98,20 +100,14 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
           console.error("Error al cargar el menú del día", errMenu);
         }
 
-        // 4. Últimas circulares (avisos generales de la guardería)
+        // 4. Circulares -- el inicio solo necesita saber si hay alguna y
+        // cuál es la más reciente, para el aviso "hay una circular nueva".
+        // El listado completo (y el marcar-como-leída, que debe pasar
+        // cuando el aviso de verdad se muestra completo) viven en
+        // CircularesPadre.jsx.
         try {
           const resCirculares = await api.get('/padre/circulares');
-          const ultimas = (Array.isArray(resCirculares.data) ? resCirculares.data : []).slice(0, 3);
-          setCirculares(ultimas);
-          // Se marcan como leídas justo las que se muestran aquí (no todas
-          // las que trae la API) -- así el conteo que ve staff refleja
-          // avisos vistos de verdad, no solo consultados. No debe frenar el
-          // dashboard si falla.
-          ultimas.forEach((cir) => {
-            api.post(`/padre/circulares/${cir.id}/leido`).catch((errLeido) => {
-              console.error('Error al marcar circular como leída', errLeido);
-            });
-          });
+          setCirculares(Array.isArray(resCirculares.data) ? resCirculares.data : []);
         } catch (errCirculares) {
           console.error("Error al cargar circulares", errCirculares);
         }
@@ -178,6 +174,10 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
 
   if (mostrarEncuestas) {
     return <EncuestasPadre onVolver={() => setMostrarEncuestas(false)} />;
+  }
+
+  if (mostrarCirculares) {
+    return <CircularesPadre onVolver={() => setMostrarCirculares(false)} />;
   }
 
   if (hijoSeleccionado) {
@@ -319,19 +319,21 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
           </div>
         )}
 
-        {/* CIRCULARES */}
+        {/* CIRCULARES -- solo un aviso ("hay una nueva") que manda al
+            listado completo en CircularesPadre.jsx, no el contenido
+            entero aquí. */}
         {circulares.length > 0 && (
-          <div className="space-y-3">
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Últimos avisos</h3>
-            {circulares.map((cir) => (
-              <div key={cir.id} className="bg-white p-4 rounded-2xl border border-slate-100 space-y-1.5">
-                <p className="font-black text-sm text-slate-900 uppercase flex items-center gap-2">
-                  <Megaphone size={14} className="text-brand-500 shrink-0" /> {cir.titulo}
-                </p>
-                <p className="text-xs text-slate-500 font-medium whitespace-pre-wrap">{cir.contenido}</p>
-              </div>
-            ))}
-          </div>
+          <button
+            onClick={() => setMostrarCirculares(true)}
+            className="w-full bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-all active:scale-[0.98]"
+          >
+            <div className="bg-brand-100 p-3 rounded-2xl text-brand-600 shrink-0"><Megaphone size={20} /></div>
+            <div className="flex-1 text-left min-w-0">
+              <p className="text-[11px] font-black text-slate-900 uppercase leading-tight">Nueva circular</p>
+              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide truncate">{circulares[0].titulo}</p>
+            </div>
+            <ChevronRight size={20} className="text-slate-300 shrink-0" />
+          </button>
         )}
 
         {/* PRÓXIMOS EVENTOS DEL CALENDARIO */}
