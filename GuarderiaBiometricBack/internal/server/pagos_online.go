@@ -60,11 +60,12 @@ func (s *Server) handleConfigPagosOnline(c *gin.Context) {
 	})
 }
 
-// handleCrearCheckoutColegiatura crea una Stripe Checkout Session por el
-// saldo pendiente de colegiatura de un hijo en un periodo, y regresa la URL
-// a la que el frontend debe redirigir al papá. El monto SIEMPRE se calcula
+// handleCrearCheckoutColegiatura crea una Stripe Checkout Session por la
+// colegiatura pendiente de un hijo en un periodo, y regresa la URL a la que
+// el frontend debe redirigir al papá. El TOPE del monto siempre se calcula
 // aquí desde la BD (colegiatura_mensual - lo ya pagado) -- nunca se confía
-// en un monto que mande el cliente.
+// ciegamente en lo que mande el cliente; dentro de ese tope, el papá puede
+// pedir pagar menos (monto opcional en el body, ver más abajo).
 func (s *Server) handleCrearCheckoutColegiatura(c *gin.Context) {
 	if !s.StripeHabilitado() {
 		c.JSON(http.StatusNotImplemented, gin.H{"error": "Los pagos en línea todavía no están disponibles en esta guardería."})
@@ -75,8 +76,9 @@ func (s *Server) handleCrearCheckoutColegiatura(c *gin.Context) {
 	padreID, _ := c.Get("user_id")
 
 	var input struct {
-		HijoID  string `json:"hijo_id"`
-		Periodo string `json:"periodo"` // YYYY-MM
+		HijoID  string  `json:"hijo_id"`
+		Periodo string  `json:"periodo"` // YYYY-MM
+		Monto   float64 `json:"monto"`   // opcional -- "cuánto puede pagar" el papá; si se omite o es <= 0, se cobra el saldo pendiente completo
 	}
 	if err := c.ShouldBindJSON(&input); err != nil || input.HijoID == "" || len(input.Periodo) != 7 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "hijo_id y periodo (YYYY-MM) son obligatorios"})
@@ -110,20 +112,49 @@ func (s *Server) handleCrearCheckoutColegiatura(c *gin.Context) {
 		return
 	}
 
+	// "Quiero que el papá pueda seleccionar cuánto puede pagar" -- puede
+	// pagar MENOS del saldo completo (ej. solo tiene $1000 de los $2000);
+	// el resto sigue viendo "parcial"/"pendiente" ese periodo y entra a la
+	// deuda acumulada del mes siguiente automáticamente, igual que un pago
+	// parcial capturado a mano por staff (ver DeudaAcumulada en pagos.go).
+	// Lo que NO puede es pagar de MÁS por esta vía -- si el monto pedido
+	// pasa del saldo, se rechaza en vez de aceptar un excedente sin dueño
+	// claro; pagar deuda de meses viejos lo sigue capturando staff a mano
+	// contra ese periodo específico (ver el comentario de V1 más arriba).
+	monto := saldo
+	if input.Monto > 0 {
+		if input.Monto > saldo+0.005 { // tolerancia de centavos por redondeo
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("El monto no puede ser mayor al saldo pendiente ($%.2f)", saldo)})
+			return
+		}
+		monto = input.Monto
+	}
+	// Piso de $10: además de no tener sentido cobrar centavos por tarjeta,
+	// Stripe rechaza montos por debajo de su mínimo por moneda -- más claro
+	// avisarlo aquí con un mensaje en español que dejar que la API de
+	// Stripe regrese un error genérico más abajo.
+	if monto < 10 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "El monto mínimo para pagar en línea es $10"})
+		return
+	}
+
 	// success_url/cancel_url regresan al portal del papá con un query param
-	// -- el frontend todavía no reacciona a él (se agregará cuando esto se
-	// active de verdad), pero deja el enganche listo sin más cambios acá.
+	// que DashboardPadre.jsx lee para mostrar un aviso de éxito/cancelado.
+	// Apuntan a /panel/identificar y NO a "/" a propósito: la ruta "/" del
+	// frontend es un <Navigate to="/panel/identificar" replace /> (ver
+	// App.jsx), y ese tipo de redirección de React Router NO conserva el
+	// query string -- el aviso nunca se vería a tiempo de por medio.
 	baseURL := s.FrontendURL
 	params := &stripe.CheckoutSessionParams{
 		Mode:              stripe.String(string(stripe.CheckoutSessionModePayment)),
-		SuccessURL:        stripe.String(baseURL + "/?pago_colegiatura=exito"),
-		CancelURL:         stripe.String(baseURL + "/?pago_colegiatura=cancelado"),
+		SuccessURL:        stripe.String(baseURL + "/panel/identificar?pago_colegiatura=exito"),
+		CancelURL:         stripe.String(baseURL + "/panel/identificar?pago_colegiatura=cancelado"),
 		ClientReferenceID: stripe.String(fmt.Sprintf("colegiatura:hijo:%s:periodo:%s", input.HijoID, input.Periodo)),
 		LineItems: []*stripe.CheckoutSessionLineItemParams{{
 			Quantity: stripe.Int64(1),
 			PriceData: &stripe.CheckoutSessionLineItemPriceDataParams{
 				Currency:   stripe.String(s.StripeCurrency),
-				UnitAmount: stripe.Int64(int64(saldo*100 + 0.5)), // pesos -> centavos
+				UnitAmount: stripe.Int64(int64(monto*100 + 0.5)), // pesos -> centavos
 				ProductData: &stripe.CheckoutSessionLineItemPriceDataProductDataParams{
 					Name:        stripe.String(fmt.Sprintf("Colegiatura %s — %s", nombreHijo, input.Periodo)),
 					Description: stripe.String("Pago en línea de colegiatura"),

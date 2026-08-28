@@ -40,6 +40,13 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
   // "Pagar en línea" ni se intenta renderizar, sin más cambios visibles.
   const [pagosEnLineaHabilitado, setPagosEnLineaHabilitado] = useState(false);
   const [iniciandoPagoEnLinea, setIniciandoPagoEnLinea] = useState(false);
+  // estadoPago: saldo pendiente de colegiatura del mes en curso para ESTE
+  // hijo (mismo dato que ya se ve en el resumen del inicio, pero filtrado a
+  // uno solo). montoAPagar es lo que el papá elige pagar con tarjeta --
+  // arranca en el saldo completo pero se puede bajar ("solo tengo 1000 de
+  // los 2000"), nunca subir más allá de eso (el backend también lo valida).
+  const [estadoPago, setEstadoPago] = useState(null);
+  const [montoAPagar, setMontoAPagar] = useState('');
 
   const [ausencias, setAusencias] = useState([]);
   const [loadingAusencias, setLoadingAusencias] = useState(false);
@@ -222,13 +229,30 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
     api.get('/pagos-online/config')
       .then((res) => setPagosEnLineaHabilitado(!!res.data?.habilitado))
       .catch(() => setPagosEnLineaHabilitado(false));
+
+    // /padre/mis-pagos trae el estado de TODOS los hijos del papá -- se
+    // filtra al que se está viendo aquí. Mismo endpoint que ya usa el
+    // resumen de DashboardPadre, así que el saldo siempre coincide.
+    api.get('/padre/mis-pagos')
+      .then((res) => {
+        const propio = Array.isArray(res.data) ? res.data.find((e) => String(e.hijo_id) === String(hijoId)) : null;
+        setEstadoPago(propio || null);
+        const saldo = propio ? propio.colegiatura_mensual - propio.total_pagado : 0;
+        setMontoAPagar(saldo > 0 ? String(saldo.toFixed(2)) : '');
+      })
+      .catch(() => setEstadoPago(null));
   }, [hijoId, vista]);
 
   const pagarColegiaturaEnLinea = async () => {
+    const monto = Number(montoAPagar);
+    if (!monto || monto <= 0) {
+      mostrarError('Escribe cuánto quieres pagar');
+      return;
+    }
     setIniciandoPagoEnLinea(true);
     try {
       const periodoActual = hoyLocal().slice(0, 7); // YYYY-MM
-      const res = await api.post('/padre/pagos-online/checkout', { hijo_id: String(hijoId), periodo: periodoActual });
+      const res = await api.post('/padre/pagos-online/checkout', { hijo_id: String(hijoId), periodo: periodoActual, monto });
       window.location.href = res.data.url;
     } catch (err) {
       console.error('Error al iniciar el pago en línea', err);
@@ -423,15 +447,43 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
 
       {vista === 'pagos' && (
         <div className="max-w-md mx-auto p-4 space-y-4">
-          {pagosEnLineaHabilitado && (
-            <button
-              onClick={pagarColegiaturaEnLinea}
-              disabled={iniciandoPagoEnLinea}
-              className="w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-black uppercase text-xs px-6 py-4 rounded-2xl shadow-md transition-all active:scale-95"
-            >
-              {iniciandoPagoEnLinea ? <Loader2 className="animate-spin" size={16} /> : <CreditCard size={16} />}
-              Pagar colegiatura de este mes en línea
-            </button>
+          {pagosEnLineaHabilitado && estadoPago && (estadoPago.colegiatura_mensual - estadoPago.total_pagado) > 0 && (
+            <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100 space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-brand-100 text-brand-600 rounded-lg"><CreditCard size={18} /></div>
+                <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest">Pagar colegiatura con tarjeta</h3>
+              </div>
+              <div className="flex items-center justify-between text-xs font-bold text-slate-500">
+                <span>Saldo pendiente de este mes</span>
+                <span className="text-slate-800">${Number(estadoPago.colegiatura_mensual - estadoPago.total_pagado).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+              </div>
+              {/* Monto editable -- el papá puede pagar menos que el saldo
+                  completo si así le alcanza; lo que falte se sigue viendo
+                  pendiente y entra a la deuda acumulada el próximo mes. */}
+              <div>
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">¿Cuánto quieres pagar?</label>
+                <div className="relative mt-1">
+                  <span className="absolute inset-y-0 left-4 flex items-center text-slate-400 font-black">$</span>
+                  <input
+                    type="number"
+                    min="10"
+                    step="0.01"
+                    max={estadoPago.colegiatura_mensual - estadoPago.total_pagado}
+                    value={montoAPagar}
+                    onChange={(e) => setMontoAPagar(e.target.value)}
+                    className="w-full bg-slate-50 border-none rounded-2xl py-3 pl-8 pr-4 text-lg font-black text-slate-800 focus:ring-2 focus:ring-brand-500 transition-all"
+                  />
+                </div>
+              </div>
+              <button
+                onClick={pagarColegiaturaEnLinea}
+                disabled={iniciandoPagoEnLinea}
+                className="w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-black uppercase text-xs px-6 py-4 rounded-2xl shadow-md transition-all active:scale-95"
+              >
+                {iniciandoPagoEnLinea ? <Loader2 className="animate-spin" size={16} /> : <CreditCard size={16} />}
+                Pagar ${montoAPagar || '0'} con tarjeta
+              </button>
+            </div>
           )}
           {loadingPagos ? (
             <div className="py-20 text-center text-slate-400 font-black uppercase tracking-widest text-xs">Cargando...</div>

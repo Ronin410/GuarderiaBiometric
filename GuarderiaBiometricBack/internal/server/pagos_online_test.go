@@ -98,6 +98,52 @@ func TestCrearCheckoutColegiatura(t *testing.T) {
 			t.Fatalf("código = %d; esperado 400 (body: %s)", w.Code, w.Body.String())
 		}
 	})
+
+	// "Quiero que el papá pueda seleccionar cuánto puede pagar" -- puede
+	// pedir menos del saldo (pago parcial), pero no más.
+	t.Run("monto mayor al saldo pendiente -> 400, sin llegar a Stripe", func(t *testing.T) {
+		srv, mock := nuevoServidorDePruebaConDB(t)
+		srv.StripeSecretKey = "sk_test_clave_de_prueba"
+
+		mock.ExpectQuery("SELECT EXISTS").WithArgs("3", 1).
+			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+		mock.ExpectQuery("SELECT(.|\n)*FROM hijos(.|\n)*LEFT JOIN pagos").
+			WithArgs("3", "2026-08", 1).
+			WillReturnRows(sqlmock.NewRows([]string{"nombre_niño", "colegiatura_mensual", "total"}).
+				AddRow("Valentina Cruz", 1500.0, 0.0)) // saldo pendiente: 1500
+
+		r := nuevoRouterDePrueba(srv)
+		req := jsonRequest(http.MethodPost, "/padre/pagos-online/checkout", map[string]any{"hijo_id": "3", "periodo": "2026-08", "monto": 2000})
+		autenticarRequestPrueba(t, req, srv.JWTKey, "papa", time.Hour)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("código = %d; esperado 400 (body: %s)", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("monto por debajo del mínimo ($10) -> 400, sin llegar a Stripe", func(t *testing.T) {
+		srv, mock := nuevoServidorDePruebaConDB(t)
+		srv.StripeSecretKey = "sk_test_clave_de_prueba"
+
+		mock.ExpectQuery("SELECT EXISTS").WithArgs("3", 1).
+			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+		mock.ExpectQuery("SELECT(.|\n)*FROM hijos(.|\n)*LEFT JOIN pagos").
+			WithArgs("3", "2026-08", 1).
+			WillReturnRows(sqlmock.NewRows([]string{"nombre_niño", "colegiatura_mensual", "total"}).
+				AddRow("Valentina Cruz", 1500.0, 0.0))
+
+		r := nuevoRouterDePrueba(srv)
+		req := jsonRequest(http.MethodPost, "/padre/pagos-online/checkout", map[string]any{"hijo_id": "3", "periodo": "2026-08", "monto": 5})
+		autenticarRequestPrueba(t, req, srv.JWTKey, "papa", time.Hour)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("código = %d; esperado 400 (body: %s)", w.Code, w.Body.String())
+		}
+	})
 }
 
 func TestWebhookStripe(t *testing.T) {

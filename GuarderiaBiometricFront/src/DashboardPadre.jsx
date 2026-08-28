@@ -27,6 +27,7 @@ import CircularesPadre from './CircularesPadre';
 import { suscribirseAPush, suscripcionActiva, pushSoportado } from './utils/push';
 import { hoyLocal } from './utils/fecha';
 import InstalarApp from './components/InstalarApp';
+import { mostrarExito, mostrarAviso } from './utils/alertas';
 
 const formatoFechaEvento = (iso) => {
   try {
@@ -57,6 +58,25 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
   const [circulares, setCirculares] = useState([]);
   const [eventos, setEventos] = useState([]);
   const [notifEstado, setNotifEstado] = useState('default');
+
+  // Stripe redirige aquí (a la raíz de la app) con ?pago_colegiatura=exito
+  // o =cancelado tras el Checkout -- ver success_url/cancel_url en
+  // pagos_online.go. Se limpia el query param con replaceState para que un
+  // refresh no vuelva a mostrar el aviso.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const resultado = params.get('pago_colegiatura');
+    if (!resultado) return;
+    params.delete('pago_colegiatura');
+    const nuevaURL = window.location.pathname + (params.toString() ? `?${params}` : '');
+    window.history.replaceState({}, '', nuevaURL);
+
+    if (resultado === 'exito') {
+      mostrarExito('Tu pago se procesó correctamente. Puede tardar unos segundos en verse reflejado aquí.');
+    } else if (resultado === 'cancelado') {
+      mostrarAviso('No se completó el pago. Puedes intentarlo de nuevo cuando quieras.', 'Pago cancelado');
+    }
+  }, []);
 
   useEffect(() => {
     const cargarDatosIniciales = async () => {
