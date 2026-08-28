@@ -53,9 +53,11 @@ func TestListarDocumentos(t *testing.T) {
 		srv, mock := nuevoServidorDePruebaConDB(t)
 		mock.ExpectQuery("SELECT EXISTS").WithArgs("3", 1).
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
-		mock.ExpectQuery("SELECT tipo, nombre_archivo, s3_key, subido_en FROM documentos_nino").
-			WithArgs("3").
-			WillReturnRows(sqlmock.NewRows([]string{"tipo", "nombre_archivo", "s3_key", "subido_en"}))
+		mock.ExpectQuery("SELECT t.clave, t.nombre, d.nombre_archivo, d.s3_key, d.subido_en").
+			WithArgs(1, "3").
+			WillReturnRows(sqlmock.NewRows([]string{"clave", "nombre", "nombre_archivo", "s3_key", "subido_en"}).
+				AddRow("curp", "CURP", nil, nil, nil).
+				AddRow("acta_nacimiento", "Acta de Nacimiento", nil, nil, nil))
 
 		r := nuevoRouterDePrueba(srv)
 		req := jsonRequest(http.MethodGet, "/hijos/3/documentos", nil)
@@ -70,8 +72,8 @@ func TestListarDocumentos(t *testing.T) {
 		if err := json.Unmarshal(w.Body.Bytes(), &docs); err != nil {
 			t.Fatalf("respuesta no es JSON válido: %v", err)
 		}
-		if len(docs) != len(ordenTiposDocumento) {
-			t.Fatalf("se esperaban %d tipos en el catálogo, se recibieron %d", len(ordenTiposDocumento), len(docs))
+		if len(docs) != 2 {
+			t.Fatalf("se esperaban 2 tipos en el catálogo, se recibieron %d", len(docs))
 		}
 		for _, d := range docs {
 			if d.NombreArchivo != nil || d.URL != nil {
@@ -102,6 +104,9 @@ func TestSubirDocumento(t *testing.T) {
 		srv, mock := nuevoServidorDePruebaConDB(t)
 		mock.ExpectQuery("SELECT EXISTS").WithArgs("3", 1).
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+		mock.ExpectQuery("SELECT EXISTS\\(SELECT 1 FROM tipos_documento").
+			WithArgs(1, "pasaporte").
+			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
 
 		r := nuevoRouterDePrueba(srv)
 		req := multipartRequest("/hijos/3/documentos", "pasaporte", true)
@@ -117,6 +122,9 @@ func TestSubirDocumento(t *testing.T) {
 	t.Run("sin archivo adjunto -> 400", func(t *testing.T) {
 		srv, mock := nuevoServidorDePruebaConDB(t)
 		mock.ExpectQuery("SELECT EXISTS").WithArgs("3", 1).
+			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+		mock.ExpectQuery("SELECT EXISTS\\(SELECT 1 FROM tipos_documento").
+			WithArgs(1, "curp").
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 
 		r := nuevoRouterDePrueba(srv)

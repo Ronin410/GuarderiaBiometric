@@ -12,34 +12,17 @@ import (
 	"biometrico/internal/middleware"
 )
 
-// ordenTiposDocumento fija el catálogo y el orden en el que siempre se
-// presenta — el frontend recibe las 6 filas (subido o no) en este orden,
-// para que la lista de documentos de un niño no salte de lugar según lo que
-// ya se subió. Las etiquetas legibles ("Acta de Nacimiento", etc.) viven
-// solo en el frontend, mismo criterio que Pago.Concepto.
-var ordenTiposDocumento = []string{
-	"acta_nacimiento", "curp", "comprobante_domicilio",
-	"cartilla_vacunacion", "identificacion_tutor", "otro",
-}
-
-var tiposDocumentoValidos = map[string]bool{
-	"acta_nacimiento":       true,
-	"curp":                  true,
-	"comprobante_domicilio": true,
-	"cartilla_vacunacion":   true,
-	"identificacion_tutor":  true,
-	"otro":                  true,
-}
-
 // maxTamanoDocumento evita que alguien suba un archivo desproporcionado
 // (fotos de documentos bien comprimidas o PDFs escaneados caben de sobra).
 const maxTamanoDocumento = 10 << 20 // 10 MB
 
 // DocumentoNino es una fila del checklist de documentos de inscripción de un
 // niño. Los campos van en puntero porque, si el tipo todavía no se ha
-// subido, solo viaja el "tipo" — el resto queda en null.
+// subido, solo viaja "tipo"/"nombre" (el catálogo configurado de la
+// guardería, ver tipos_documento.go) — el resto queda en null.
 type DocumentoNino struct {
 	Tipo          string  `json:"tipo"`
+	Nombre        string  `json:"nombre"`
 	NombreArchivo *string `json:"nombre_archivo"`
 	SubidoEn      *string `json:"subido_en"`
 	URL           *string `json:"url"`
@@ -52,6 +35,12 @@ func (s *Server) registrarRutasDocumentos(r *gin.Engine) {
 	r.GET("/hijos/:id/documentos", auth, staff, s.handleListarDocumentos)
 	r.POST("/hijos/:id/documentos", auth, staff, s.handleSubirDocumento)
 	r.DELETE("/hijos/:id/documentos/:tipo", auth, staff, s.handleEliminarDocumento)
+	// Espejo de /padre/hijos/:hijoId/galeria en galeria.go: mismo checklist
+	// que ve el staff, pero solo lectura y solo para hijos propios -- "Quiero
+	// que en la parte de expediente los papás puedan ver cuáles son los
+	// documentos que han entregado a la guardería y cuáles son los que les
+	// falta".
+	r.GET("/padre/hijos/:hijoId/documentos", auth, s.handleListarDocumentosPadre)
 }
 
 // hijoPerteneceAGuarderia evita que alguien con sesión de UNA guardería lea o
@@ -73,46 +62,84 @@ func (s *Server) handleListarDocumentos(c *gin.Context) {
 		return
 	}
 
-	rows, err := s.DB.Query(
-		`SELECT tipo, nombre_archivo, s3_key, subido_en FROM documentos_nino WHERE hijo_id = $1`,
-		hijoID,
-	)
+	docs, err := s.obtenerChecklistDocumentos(gID, hijoID)
 	if err != nil {
 		log.Printf("Error al consultar documentos: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar documentos"})
 		return
 	}
+	c.JSON(http.StatusOK, docs)
+}
+
+// handleListarDocumentosPadre es el mismo checklist que ve el staff, en
+// solo lectura -- "Quiero que en la parte de expediente los papás puedan
+// ver cuáles son los documentos que han entregado a la guardería y cuáles
+// son los que les falta". Mismo criterio de permiso que handleGaleriaPadre
+// en galeria.go: el hijo tiene que ser suyo.
+func (s *Server) handleListarDocumentosPadre(c *gin.Context) {
+	gID, _ := c.Get("guarderia_id")
+	userID, _ := c.Get("user_id")
+	hijoID := c.Param("hijoId")
+
+	if !s.hijoPerteneceAPadre(hijoID, userID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "No tienes permiso para ver los documentos de este niño"})
+		return
+	}
+
+	docs, err := s.obtenerChecklistDocumentos(gID, hijoID)
+	if err != nil {
+		log.Printf("Error al consultar documentos: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar documentos"})
+		return
+	}
+	c.JSON(http.StatusOK, docs)
+}
+
+// obtenerChecklistDocumentos junta el catálogo configurado de la guardería
+// (tipos_documento, ver tipos_documento.go) con lo que ESTE niño ya tiene
+// subido -- un LEFT JOIN en vez del mapa+loop de antes, porque ahora el
+// catálogo es dinámico por guardería, no una lista fija en memoria. Se
+// comparte entre el checklist de staff y el de solo lectura del papá, que
+// solo cambia cómo se verificó el permiso para llegar aquí (mismo criterio
+// que obtenerGaleria en galeria.go).
+func (s *Server) obtenerChecklistDocumentos(gID, hijoID any) ([]DocumentoNino, error) {
+	rows, err := s.DB.Query(`
+        SELECT t.clave, t.nombre, d.nombre_archivo, d.s3_key, d.subido_en
+        FROM tipos_documento t
+        LEFT JOIN documentos_nino d ON d.guarderia_id = t.guarderia_id AND d.tipo = t.clave AND d.hijo_id = $2
+        WHERE t.guarderia_id = $1
+        ORDER BY t.orden ASC, t.nombre ASC`,
+		gID, hijoID,
+	)
+	if err != nil {
+		return nil, err
+	}
 	defer rows.Close()
 
-	type existente struct {
-		nombre, key string
-		subido      time.Time
-	}
-	subidos := map[string]existente{}
+	docs := []DocumentoNino{}
 	for rows.Next() {
-		var tipo, nombre, key string
-		var subido time.Time
-		if err := rows.Scan(&tipo, &nombre, &key, &subido); err != nil {
+		var clave, nombreTipo string
+		var nombreArchivo, key sql.NullString
+		var subido sql.NullTime
+		if err := rows.Scan(&clave, &nombreTipo, &nombreArchivo, &key, &subido); err != nil {
 			continue
 		}
-		subidos[tipo] = existente{nombre, key, subido}
-	}
-
-	docs := make([]DocumentoNino, 0, len(ordenTiposDocumento))
-	for _, tipo := range ordenTiposDocumento {
-		d := DocumentoNino{Tipo: tipo}
-		if e, ok := subidos[tipo]; ok {
-			nombre := e.nombre
-			subido := e.subido.Format(time.RFC3339)
-			d.NombreArchivo = &nombre
-			d.SubidoEn = &subido
-			if url, err := s.firmarURLFoto(e.key); err == nil {
+		d := DocumentoNino{Tipo: clave, Nombre: nombreTipo}
+		if nombreArchivo.Valid {
+			d.NombreArchivo = &nombreArchivo.String
+		}
+		if subido.Valid {
+			f := subido.Time.Format(time.RFC3339)
+			d.SubidoEn = &f
+		}
+		if key.Valid {
+			if url, err := s.firmarURLFoto(key.String); err == nil {
 				d.URL = &url
 			}
 		}
 		docs = append(docs, d)
 	}
-	c.JSON(http.StatusOK, docs)
+	return docs, nil
 }
 
 func (s *Server) handleSubirDocumento(c *gin.Context) {
@@ -126,7 +153,13 @@ func (s *Server) handleSubirDocumento(c *gin.Context) {
 	}
 
 	tipo := c.PostForm("tipo")
-	if !tiposDocumentoValidos[tipo] {
+	var tipoValido bool
+	if err := s.DB.QueryRow(`SELECT EXISTS(SELECT 1 FROM tipos_documento WHERE guarderia_id = $1 AND clave = $2)`, gID, tipo).Scan(&tipoValido); err != nil {
+		log.Printf("Error al validar el tipo de documento: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al validar el tipo de documento"})
+		return
+	}
+	if !tipoValido {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Tipo de documento no válido"})
 		return
 	}

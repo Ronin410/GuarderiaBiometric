@@ -8,7 +8,7 @@ import {
   ClipboardList, IdCard, Wallet,
   Cake, MapPin, Phone, XCircle, Receipt,
   CalendarOff, Plus, Loader2, Trash2, UtensilsCrossed, RotateCcw, Image as ImageIcon,
-  CreditCard
+  CreditCard, FileText, ExternalLink
 } from 'lucide-react';
 import { hoyLocal } from './utils/fecha';
 import { mostrarError, mostrarExito, confirmar } from './utils/alertas';
@@ -46,6 +46,9 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
   const [formAusencia, setFormAusencia] = useState({ fecha_inicio: '', fecha_fin: '', motivo: '' });
   const [guardandoAusencia, setGuardandoAusencia] = useState(false);
   const [cancelandoId, setCancelandoId] = useState(null);
+
+  const [documentos, setDocumentos] = useState([]);
+  const [loadingDocumentos, setLoadingDocumentos] = useState(false);
 
   const [pedidosComedor, setPedidosComedor] = useState([]);
   const [loadingComedor, setLoadingComedor] = useState(false);
@@ -90,6 +93,23 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
 
   useEffect(() => {
     if (vista === 'ausencias') cargarAusencias();
+  }, [hijoId, vista]);
+
+  const cargarDocumentos = async () => {
+    setLoadingDocumentos(true);
+    try {
+      const res = await api.get(`/padre/hijos/${hijoId}/documentos`);
+      setDocumentos(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error("Error al obtener los documentos", err);
+      setDocumentos([]);
+    } finally {
+      setLoadingDocumentos(false);
+    }
+  };
+
+  useEffect(() => {
+    if (vista === 'expediente') cargarDocumentos();
   }, [hijoId, vista]);
 
   const reportarAusencia = async () => {
@@ -353,6 +373,50 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
                 </p>
               </div>
             </div>
+          </div>
+
+          {/* DOCUMENTOS DE INSCRIPCIÓN -- "Quiero que en la parte de
+              expediente los papás puedan ver cuáles son los documentos que
+              han entregado a la guardería y cuáles son los que les falta".
+              Solo lectura: quien sube/reemplaza documentos sigue siendo el
+              staff (DocumentosNino.jsx), esto es nada más para que el papá
+              sepa qué falta sin tener que preguntar. */}
+          <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-slate-100 space-y-4">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-brand-100 text-brand-600 rounded-lg"><FileText size={18} /></div>
+              <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest">Documentos entregados</h3>
+            </div>
+            {loadingDocumentos ? (
+              <div className="py-6 text-center text-slate-400 font-black uppercase tracking-widest text-[10px]">Cargando...</div>
+            ) : documentos.length === 0 ? (
+              <div className="py-6 text-center text-slate-400 font-black uppercase tracking-widest text-[10px]">
+                La guardería todavía no configuró qué documentos pedir
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {documentos.map((d) => {
+                  const entregado = !!d.nombre_archivo;
+                  return (
+                    <div key={d.tipo} className={`flex items-center justify-between gap-3 px-4 py-3 rounded-2xl border ${entregado ? 'bg-emerald-50/50 border-emerald-100' : 'bg-amber-50/50 border-amber-100'}`}>
+                      <div className="flex items-center gap-3 min-w-0">
+                        {entregado ? <CheckCircle2 size={18} className="text-emerald-500 shrink-0" /> : <XCircle size={18} className="text-amber-500 shrink-0" />}
+                        <div className="min-w-0">
+                          <p className="text-xs font-black uppercase text-slate-700 truncate">{d.nombre}</p>
+                          <p className={`text-[9px] font-black uppercase ${entregado ? 'text-emerald-600' : 'text-amber-600'}`}>
+                            {entregado ? 'Entregado' : 'Falta entregar'}
+                          </p>
+                        </div>
+                      </div>
+                      {entregado && d.url && (
+                        <a href={d.url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[10px] font-black uppercase text-brand-600 shrink-0 px-2 py-1.5">
+                          <ExternalLink size={12} /> Ver
+                        </a>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}
