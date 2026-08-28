@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from './axiosConfig';
 import {
   ShieldCheck, Save, Loader2, Users, FileText,
-  FolderOpen, Plus, Edit3, Check, X, Trash2,
+  FolderOpen, Plus, Edit3, Check, X, Trash2, FileUp, ExternalLink,
 } from 'lucide-react';
 import { mostrarExito, mostrarError, confirmar } from './utils/alertas';
 
@@ -13,6 +13,16 @@ const PanelConfiguracion = () => {
   const [totalConsentimientos, setTotalConsentimientos] = useState(null);
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
+
+  // "En el aviso de privacidad también podrán, en lugar de escribir el
+  // aviso, poner un archivo PDF" -- son alternativas (el backend borra una
+  // al guardar la otra, ver el comentario largo en handleActualizarAviso),
+  // así que la interfaz también las presenta como un solo modo a la vez en
+  // vez de dos formularios sueltos.
+  const [modo, setModo] = useState('texto'); // 'texto' | 'pdf'
+  const [pdfUrlActual, setPdfUrlActual] = useState(null);
+  const [pdfNuevo, setPdfNuevo] = useState(null);
+  const inputPdfRef = useRef(null);
 
   // Documentos requeridos: la MISMA plantilla para todos los niños de la
   // guardería -- se configura aquí, una sola vez, no niño por niño (ver el
@@ -36,6 +46,8 @@ const PanelConfiguracion = () => {
       setTexto(resAviso.data.texto || '');
       setVersion(resAviso.data.version || '');
       setConfigurado(!!resAviso.data.configurado);
+      setPdfUrlActual(resAviso.data.pdf_url || null);
+      setModo(resAviso.data.pdf_url ? 'pdf' : 'texto');
       setTotalConsentimientos(resEstadisticas.data.total_consentimientos ?? 0);
     } catch (err) {
       console.error('Error al cargar la configuración de privacidad:', err);
@@ -102,19 +114,44 @@ const PanelConfiguracion = () => {
     }
   };
 
+  const elegirPdf = (file) => {
+    if (!file) return;
+    if (file.type !== 'application/pdf') {
+      mostrarError('El archivo debe ser un PDF');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      mostrarError('El PDF no puede pesar más de 10 MB');
+      return;
+    }
+    setPdfNuevo(file);
+  };
+
   const guardar = async () => {
-    if (!texto.trim()) {
+    if (modo === 'texto' && !texto.trim()) {
       mostrarError('El texto del Aviso de Privacidad no puede quedar vacío');
+      return;
+    }
+    if (modo === 'pdf' && !pdfNuevo) {
+      mostrarError('Selecciona el PDF del Aviso de Privacidad');
       return;
     }
     setGuardando(true);
     try {
-      const res = await api.put('/admin/aviso-privacidad', { texto: texto.trim() });
-      mostrarExito(`Se guardó una nueva versión (${res.data.version}). Los tutores que ya habían aceptado una versión anterior no necesitan volver a hacerlo, pero cualquier registro nuevo verá este texto.`);
+      const data = new FormData();
+      if (modo === 'pdf') {
+        data.append('pdf', pdfNuevo);
+      } else {
+        data.append('texto', texto.trim());
+      }
+      const res = await api.put('/admin/aviso-privacidad', data);
+      mostrarExito(`Se guardó una nueva versión (${res.data.version}). Los tutores que ya habían aceptado una versión anterior no necesitan volver a hacerlo, pero cualquier registro nuevo verá este ${modo === 'pdf' ? 'PDF' : 'texto'}.`);
+      setPdfNuevo(null);
+      if (inputPdfRef.current) inputPdfRef.current.value = '';
       cargar();
     } catch (err) {
       console.error('Error al guardar el Aviso de Privacidad:', err);
-      mostrarError('No se pudo guardar el Aviso de Privacidad');
+      mostrarError(err.response?.data?.error || 'No se pudo guardar el Aviso de Privacidad');
     } finally {
       setGuardando(false);
     }
@@ -137,9 +174,9 @@ const PanelConfiguracion = () => {
           <div className="space-y-6">
             {!configurado && (
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-amber-800 text-sm font-bold">
-                Mientras no guardes un texto aquí, el kiosco no permitirá registrar nuevos tutores.
-                Pide a tu asesor legal el texto del Aviso de Privacidad para datos biométricos y de
-                menores, y pégalo abajo.
+                Mientras no guardes un texto o un PDF aquí, el kiosco no permitirá registrar nuevos
+                tutores. Pide a tu asesor legal el Aviso de Privacidad para datos biométricos y de
+                menores, y pégalo o súbelo abajo.
               </div>
             )}
 
@@ -160,22 +197,74 @@ const PanelConfiguracion = () => {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase text-slate-400 ml-2 tracking-widest">
-                Texto del Aviso de Privacidad
-              </label>
-              <textarea
-                rows={14}
-                value={texto}
-                onChange={(e) => setTexto(e.target.value)}
-                placeholder="Pega aquí el texto completo del Aviso de Privacidad..."
-                className="w-full bg-slate-50 border border-slate-200 p-5 rounded-2xl outline-none focus:ring-2 focus:ring-brand-500 text-slate-900 font-medium resize-y"
-              />
-              <p className="text-[10px] text-slate-400 ml-2">
-                Al guardar se crea una nueva versión automáticamente. Los tutores lo verán completo,
-                con scroll, antes de registrar su rostro en el kiosco.
-              </p>
+            {/* Texto y PDF son alternativas -- guardar uno reemplaza al otro
+                (ver el comentario largo en handleActualizarAviso), así que
+                la interfaz también obliga a elegir un solo modo a la vez. */}
+            <div className="flex gap-2 bg-slate-100 p-1.5 rounded-2xl w-fit">
+              <button
+                onClick={() => setModo('texto')}
+                className={`flex items-center gap-2 text-[10px] font-black uppercase px-4 py-2.5 rounded-xl transition-all ${modo === 'texto' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-400'}`}
+              >
+                <FileText size={14} /> Escribir texto
+              </button>
+              <button
+                onClick={() => setModo('pdf')}
+                className={`flex items-center gap-2 text-[10px] font-black uppercase px-4 py-2.5 rounded-xl transition-all ${modo === 'pdf' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-400'}`}
+              >
+                <FileUp size={14} /> Subir PDF
+              </button>
             </div>
+
+            {modo === 'texto' ? (
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-slate-400 ml-2 tracking-widest">
+                  Texto del Aviso de Privacidad
+                </label>
+                <textarea
+                  rows={14}
+                  value={texto}
+                  onChange={(e) => setTexto(e.target.value)}
+                  placeholder="Pega aquí el texto completo del Aviso de Privacidad..."
+                  className="w-full bg-slate-50 border border-slate-200 p-5 rounded-2xl outline-none focus:ring-2 focus:ring-brand-500 text-slate-900 font-medium resize-y"
+                />
+                <p className="text-[10px] text-slate-400 ml-2">
+                  Al guardar se crea una nueva versión automáticamente. Los tutores lo verán completo,
+                  con scroll, antes de registrar su rostro en el kiosco.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase text-slate-400 ml-2 tracking-widest">
+                  PDF del Aviso de Privacidad
+                </label>
+                {pdfUrlActual && !pdfNuevo && (
+                  <a
+                    href={pdfUrlActual} target="_blank" rel="noreferrer"
+                    className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 text-emerald-700 text-sm font-bold px-5 py-4 rounded-2xl w-fit hover:bg-emerald-100 transition-all"
+                  >
+                    <ExternalLink size={16} /> Ver el PDF vigente ({version})
+                  </a>
+                )}
+                <button
+                  onClick={() => inputPdfRef.current?.click()}
+                  className="flex items-center gap-2 bg-slate-50 border border-dashed border-slate-300 hover:border-brand-400 text-slate-500 text-sm font-bold px-5 py-4 rounded-2xl transition-all w-fit"
+                >
+                  <FileUp size={18} />
+                  {pdfNuevo ? pdfNuevo.name : (pdfUrlActual ? 'Reemplazar PDF' : 'Elegir PDF')}
+                </button>
+                <input
+                  ref={inputPdfRef}
+                  type="file"
+                  accept="application/pdf"
+                  className="hidden"
+                  onChange={(e) => elegirPdf(e.target.files?.[0])}
+                />
+                <p className="text-[10px] text-slate-400 ml-2">
+                  Al guardar se crea una nueva versión automáticamente. Los tutores lo verán completo
+                  antes de registrar su rostro en el kiosco.
+                </p>
+              </div>
+            )}
 
             <button
               onClick={guardar}

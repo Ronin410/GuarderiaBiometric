@@ -782,6 +782,7 @@ function MainApp() {
       {mostrarModalAviso && avisoPrivacidad && (
         <AvisoPrivacidadModal
           texto={avisoPrivacidad.texto}
+          pdfUrl={avisoPrivacidad.pdf_url}
           version={avisoPrivacidad.version}
           onAceptar={manejarAceptarAvisoPrivacidad}
           onCancelar={() => setMostrarModalAviso(false)}
