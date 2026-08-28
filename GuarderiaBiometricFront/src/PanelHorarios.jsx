@@ -206,9 +206,9 @@ const DetalleHorario = ({ persona, onVolver }) => {
                 <div key={t.dia_semana} className="bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-2">
                   <p className="text-xs font-black uppercase text-slate-700">{NOMBRES_DIA[t.dia_semana]}</p>
                   <div className="flex items-center gap-2">
-                    <input type="time" value={t.hora_entrada || ''} onChange={(e) => actualizarTurno(t.dia_semana, 'hora_entrada', e.target.value)} className="w-full bg-white border border-slate-200 p-2 rounded-lg outline-none focus:ring-2 focus:ring-brand-500 text-xs font-bold" />
-                    <span className="text-slate-300 text-xs">–</span>
-                    <input type="time" value={t.hora_salida || ''} onChange={(e) => actualizarTurno(t.dia_semana, 'hora_salida', e.target.value)} className="w-full bg-white border border-slate-200 p-2 rounded-lg outline-none focus:ring-2 focus:ring-brand-500 text-xs font-bold" />
+                    <input type="time" value={t.hora_entrada || ''} onChange={(e) => actualizarTurno(t.dia_semana, 'hora_entrada', e.target.value)} className="flex-1 min-w-0 bg-white border border-slate-200 p-2 rounded-lg outline-none focus:ring-2 focus:ring-brand-500 text-xs font-bold" />
+                    <span className="text-slate-300 text-xs shrink-0">–</span>
+                    <input type="time" value={t.hora_salida || ''} onChange={(e) => actualizarTurno(t.dia_semana, 'hora_salida', e.target.value)} className="flex-1 min-w-0 bg-white border border-slate-200 p-2 rounded-lg outline-none focus:ring-2 focus:ring-brand-500 text-xs font-bold" />
                   </div>
                   <button
                     onClick={() => guardarTurno(t.dia_semana)}
