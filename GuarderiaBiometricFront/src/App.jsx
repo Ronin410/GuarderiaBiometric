@@ -80,10 +80,17 @@ function MainApp() {
   // (RequireArea) -- "admin" (nombre heredado de la URL, la pestaña se ve
   // como "Familia" en el menú) es la única que no comparte literal con su
   // área, para no confundirla con el rol "admin".
+  //
+  // "configuracion" NO va aquí a propósito -- a diferencia del resto, esa
+  // pestaña nunca es "personalizable por permisos": el staff no debe poder
+  // entrar nunca, ni siquiera si un admin se lo intentara conceder (mismo
+  // criterio que personal/horarios, un poco más abajo). El backend ya lo
+  // exige con RequireAdmin() en vez de RequireArea (ver privacidad.go y
+  // tipos_documento.go), esto solo evita ofrecerlo en la UI para empezar.
   const AREA_DE_TAB = {
     admin: 'familia', bitacora: 'bitacora', reportes: 'reportes',
     perfiles: 'perfiles', pagos: 'pagos', estadisticas: 'estadisticas',
-    configuracion: 'configuracion', menu: 'menu', circulares: 'circulares',
+    menu: 'menu', circulares: 'circulares',
   };
   const TABS_PROTEGIDAS = Object.keys(AREA_DE_TAB);
 
@@ -533,13 +540,14 @@ function MainApp() {
     },
     {
       label: 'Sistema',
-      items: [
-        ...filtrarProtegidos([{ tab: 'configuracion', label: 'Configuración', Icon: ShieldCheckIcon }]),
-        ...(userRole === 'admin' ? [
-          { tab: 'personal', label: 'Personal', Icon: UserCog },
-          { tab: 'horarios', label: 'Horarios de Personal', Icon: Clock },
-        ] : []),
-      ],
+      // Exclusivo del admin -- el staff no debe ver ni entrar aquí nunca,
+      // ni siquiera con permisos personalizados (ver el comentario largo de
+      // AREA_DE_TAB más arriba).
+      items: userRole === 'admin' ? [
+        { tab: 'configuracion', label: 'Configuración', Icon: ShieldCheckIcon },
+        { tab: 'personal', label: 'Personal', Icon: UserCog },
+        { tab: 'horarios', label: 'Horarios de Personal', Icon: Clock },
+      ] : [],
     },
   ].filter((seccion) => seccion.items.length > 0);
 
@@ -626,7 +634,7 @@ function MainApp() {
         {tab === 'calendario' && <PanelCalendario />}
         {tab === 'comedor' && <PanelComedor />}
         {tab === 'encuestas' && <PanelEncuestas />}
-        {tab === 'configuracion' && <PanelConfiguracion />}
+        {tab === 'configuracion' && userRole === 'admin' && <PanelConfiguracion />}
         {tab === 'personal' && userRole === 'admin' && <PanelPersonal usuarioActualId={userId} />}
         {tab === 'horarios' && userRole === 'admin' && <PanelHorarios />}
         {tab === 'admin' && (

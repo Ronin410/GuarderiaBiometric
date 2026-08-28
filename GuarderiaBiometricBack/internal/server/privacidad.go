@@ -16,10 +16,13 @@ import (
 
 func (s *Server) registrarRutasPrivacidad(r *gin.Engine) {
 	auth := middleware.Auth(s.JWTKey)
-	staff := middleware.RequireArea("configuracion")
+	// RequireAdmin, no RequireArea: Configuración es exclusiva del admin --
+	// el staff no debe poder entrar aquí nunca, ni siquiera con permisos
+	// personalizados (ver el comentario de AreasPermiso en personal.go).
+	admin := middleware.RequireAdmin()
 	r.GET("/aviso-privacidad", auth, s.handleObtenerAviso)
-	r.PUT("/admin/aviso-privacidad", auth, staff, s.handleActualizarAviso)
-	r.GET("/admin/aviso-privacidad/estadisticas", auth, staff, s.handleEstadisticasAviso)
+	r.PUT("/admin/aviso-privacidad", auth, admin, s.handleActualizarAviso)
+	r.GET("/admin/aviso-privacidad/estadisticas", auth, admin, s.handleEstadisticasAviso)
 }
 
 func (s *Server) handleObtenerAviso(c *gin.Context) {

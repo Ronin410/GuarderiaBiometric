@@ -11,6 +11,11 @@ const FORM_NUEVO_VACIO = { username: '', nombre: '', password: '', rol: 'staff',
 // Mismo catálogo que AreasPermiso en el backend (personal.go) -- si se
 // agrega un área ahí, hay que reflejarla acá para que el admin pueda
 // concedérsela desde este panel.
+//
+// "Configuración" NO está aquí a propósito: el staff nunca debe poder
+// entrar a esa sección, así que ni se ofrece como algo que se le pueda
+// conceder -- el backend la exige con RequireAdmin(), no con el permiso
+// personalizado, así que un checkbox aquí no haría nada de todos modos.
 const AREAS_PERMISO = [
   { area: 'familia', label: 'Familia (directorio de tutores)' },
   { area: 'bitacora', label: 'Bitácora' },
@@ -18,7 +23,6 @@ const AREAS_PERMISO = [
   { area: 'perfiles', label: 'Perfiles' },
   { area: 'pagos', label: 'Pagos' },
   { area: 'estadisticas', label: 'Estadísticas' },
-  { area: 'configuracion', label: 'Configuración' },
   { area: 'menu', label: 'Menú Semanal' },
   { area: 'circulares', label: 'Circulares' },
 ];

@@ -82,7 +82,7 @@ func TestActualizarAvisoPrivacidad(t *testing.T) {
 		srv, _ := nuevoServidorDePruebaConDB(t)
 		r := nuevoRouterDePrueba(srv)
 		req := multipartAvisoRequest("   ", false)
-		autenticarRequestPrueba(t, req, srv.JWTKey, "staff", time.Hour)
+		autenticarRequestPrueba(t, req, srv.JWTKey, "admin", time.Hour)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 		if w.Code != http.StatusBadRequest {
@@ -94,7 +94,7 @@ func TestActualizarAvisoPrivacidad(t *testing.T) {
 		srv, _ := nuevoServidorDePruebaConDB(t)
 		r := nuevoRouterDePrueba(srv)
 		req := multipartAvisoRequest("", true)
-		autenticarRequestPrueba(t, req, srv.JWTKey, "staff", time.Hour)
+		autenticarRequestPrueba(t, req, srv.JWTKey, "admin", time.Hour)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 		if w.Code != http.StatusBadRequest {
@@ -114,7 +114,22 @@ func TestActualizarAvisoPrivacidad(t *testing.T) {
 		}
 	})
 
-	t.Run("staff guarda texto -> siguiente versión, sin PDF nuevo", func(t *testing.T) {
+	// El caso que en verdad importa aquí: staff NUNCA debe poder tocar
+	// Configuración, ni siquiera con permisos personalizados -- por eso
+	// esta ruta usa RequireAdmin() y no RequireArea("configuracion").
+	t.Run("staff NUNCA puede configurar el aviso, aunque tenga permisos personalizados -> 403", func(t *testing.T) {
+		srv, _ := nuevoServidorDePruebaConDB(t)
+		r := nuevoRouterDePrueba(srv)
+		req := multipartAvisoRequest("Texto nuevo", false)
+		autenticarRequestPrueba(t, req, srv.JWTKey, "staff", time.Hour)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusForbidden {
+			t.Fatalf("código = %d; esperado 403 (body: %s)", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("admin guarda texto -> siguiente versión, sin PDF nuevo", func(t *testing.T) {
 		srv, mock := nuevoServidorDePruebaConDB(t)
 		// Sin PDF anterior en este caso a propósito -- si lo hubiera,
 		// handleActualizarAviso dispara un borrarDeS3(...) en goroutine para
@@ -131,7 +146,7 @@ func TestActualizarAvisoPrivacidad(t *testing.T) {
 
 		r := nuevoRouterDePrueba(srv)
 		req := multipartAvisoRequest("Texto nuevo", false)
-		autenticarRequestPrueba(t, req, srv.JWTKey, "staff", time.Hour)
+		autenticarRequestPrueba(t, req, srv.JWTKey, "admin", time.Hour)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 

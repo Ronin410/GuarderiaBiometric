@@ -29,15 +29,17 @@ type TipoDocumento struct {
 
 func (s *Server) registrarRutasTiposDocumento(r *gin.Engine) {
 	auth := middleware.Auth(s.JWTKey)
-	// Misma área que /hijos/:id/documentos (documentos.go) -- es el mismo
-	// checklist, solo que aquí se configura CUÁLES tipos existen en vez de
-	// subir un archivo a uno de ellos.
-	staff := middleware.RequireArea("perfiles")
+	// RequireAdmin, no RequireArea("perfiles"): esto ya no es "subir un
+	// documento" (eso sigue siendo perfiles, ver documentos.go) sino
+	// configurar la plantilla que se le pide a TODA la guardería -- vive en
+	// la página de Configuración, que es exclusiva del admin (ver el
+	// comentario de AreasPermiso en personal.go).
+	admin := middleware.RequireAdmin()
 
-	r.GET("/admin/tipos-documento", auth, staff, s.handleListarTiposDocumento)
-	r.POST("/admin/tipos-documento", auth, staff, s.handleCrearTipoDocumento)
-	r.PUT("/admin/tipos-documento/:id", auth, staff, s.handleRenombrarTipoDocumento)
-	r.DELETE("/admin/tipos-documento/:id", auth, staff, s.handleEliminarTipoDocumento)
+	r.GET("/admin/tipos-documento", auth, admin, s.handleListarTiposDocumento)
+	r.POST("/admin/tipos-documento", auth, admin, s.handleCrearTipoDocumento)
+	r.PUT("/admin/tipos-documento/:id", auth, admin, s.handleRenombrarTipoDocumento)
+	r.DELETE("/admin/tipos-documento/:id", auth, admin, s.handleEliminarTipoDocumento)
 }
 
 func (s *Server) handleListarTiposDocumento(c *gin.Context) {

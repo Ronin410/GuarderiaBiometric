@@ -35,14 +35,19 @@ type Personal struct {
 var pinRegex = regexp.MustCompile(`^\d{4}$`)
 
 // AreasPermiso enumera las secciones que un admin puede conceder o quitar
-// individualmente a una cuenta de staff -- las mismas 9 pestañas que hoy
+// individualmente a una cuenta de staff -- las mismas pestañas que hoy
 // exige el PIN por igual (TABS_PROTEGIDAS en App.jsx). "familia" es la única
 // que no comparte literal con el nombre de su pestaña en la URL (que es
 // "admin", por herencia histórica) -- se usa el nombre visible en la UI
 // ("Familia", el directorio de tutores) para no confundirla con el rol admin.
+//
+// "configuracion" NO está aquí a propósito: el staff nunca debe poder
+// entrar a esa sección, ni siquiera si un admin intentara concedérsela --
+// ver RequireAdmin() en privacidad.go y tipos_documento.go, que la exigen
+// sin importar lo que diga esta lista.
 var AreasPermiso = []string{
 	"familia", "bitacora", "reportes", "perfiles", "pagos",
-	"estadisticas", "configuracion", "menu", "circulares",
+	"estadisticas", "menu", "circulares",
 }
 
 func areaPermisoValida(area string) bool {

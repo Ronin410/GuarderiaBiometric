@@ -39,7 +39,7 @@ func TestListarTiposDocumento(t *testing.T) {
 
 	r := nuevoRouterDePrueba(srv)
 	req := jsonRequest(http.MethodGet, "/admin/tipos-documento", nil)
-	autenticarRequestPrueba(t, req, srv.JWTKey, "staff", time.Hour)
+	autenticarRequestPrueba(t, req, srv.JWTKey, "admin", time.Hour)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -48,12 +48,30 @@ func TestListarTiposDocumento(t *testing.T) {
 	}
 }
 
+// TestStaffNuncaAccedeATiposDocumento cubre el pedido explícito de "el
+// staff no tenga acceso al apartado de sistema del menú nunca" -- a
+// diferencia del resto de áreas (RequireArea), esto usa RequireAdmin() sin
+// importar permisos personalizados, así que ni siquiera hace falta simular
+// una cuenta con permisos -- staff se rechaza siempre.
+func TestStaffNuncaAccedeATiposDocumento(t *testing.T) {
+	srv, _ := nuevoServidorDePruebaConDB(t)
+	r := nuevoRouterDePrueba(srv)
+	req := jsonRequest(http.MethodGet, "/admin/tipos-documento", nil)
+	autenticarRequestPrueba(t, req, srv.JWTKey, "staff", time.Hour)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("código = %d; esperado 403 -- staff nunca debe entrar a Configuración (body: %s)", w.Code, w.Body.String())
+	}
+}
+
 func TestCrearTipoDocumento(t *testing.T) {
 	t.Run("nombre vacío -> 400", func(t *testing.T) {
 		srv, _ := nuevoServidorDePruebaConDB(t)
 		r := nuevoRouterDePrueba(srv)
 		req := jsonRequest(http.MethodPost, "/admin/tipos-documento", map[string]string{"nombre": "   "})
-		autenticarRequestPrueba(t, req, srv.JWTKey, "staff", time.Hour)
+		autenticarRequestPrueba(t, req, srv.JWTKey, "admin", time.Hour)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 		if w.Code != http.StatusBadRequest {
@@ -73,7 +91,19 @@ func TestCrearTipoDocumento(t *testing.T) {
 		}
 	})
 
-	t.Run("staff crea un tipo nuevo -> 201, deriva la clave del nombre", func(t *testing.T) {
+	t.Run("staff no puede crear tipos de documento (RequireAdmin, no permisos) -> 403", func(t *testing.T) {
+		srv, _ := nuevoServidorDePruebaConDB(t)
+		r := nuevoRouterDePrueba(srv)
+		req := jsonRequest(http.MethodPost, "/admin/tipos-documento", map[string]string{"nombre": "Constancia de Estudios"})
+		autenticarRequestPrueba(t, req, srv.JWTKey, "staff", time.Hour)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusForbidden {
+			t.Fatalf("código = %d; esperado 403 (body: %s)", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("admin crea un tipo nuevo -> 201, deriva la clave del nombre", func(t *testing.T) {
 		srv, mock := nuevoServidorDePruebaConDB(t)
 		mock.ExpectQuery("INSERT INTO tipos_documento").
 			WithArgs(1, "constancia_de_estudios", "Constancia de Estudios").
@@ -81,7 +111,7 @@ func TestCrearTipoDocumento(t *testing.T) {
 
 		r := nuevoRouterDePrueba(srv)
 		req := jsonRequest(http.MethodPost, "/admin/tipos-documento", map[string]string{"nombre": "Constancia de Estudios"})
-		autenticarRequestPrueba(t, req, srv.JWTKey, "staff", time.Hour)
+		autenticarRequestPrueba(t, req, srv.JWTKey, "admin", time.Hour)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 		if w.Code != http.StatusCreated {
@@ -97,7 +127,7 @@ func TestCrearTipoDocumento(t *testing.T) {
 
 		r := nuevoRouterDePrueba(srv)
 		req := jsonRequest(http.MethodPost, "/admin/tipos-documento", map[string]string{"nombre": "CURP"})
-		autenticarRequestPrueba(t, req, srv.JWTKey, "staff", time.Hour)
+		autenticarRequestPrueba(t, req, srv.JWTKey, "admin", time.Hour)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 		if w.Code != http.StatusConflict {
