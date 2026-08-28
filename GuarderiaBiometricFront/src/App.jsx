@@ -41,8 +41,14 @@ const videoConstraints = {
   width: { ideal: 720 },
   height: { ideal: 1280 },
   facingMode: "user",
-  aspectRatio: 0.75 
+  aspectRatio: 0.75
 };
+
+// "Después de poner el PIN quiero que solo pueda tener acceso unos 30 min o
+// si no se lo volverá a pedir cada 30 minutos" -- el PIN del kiosco deja de
+// ser válido para siempre una vez tecleado y pasa a tener esta duración,
+// igual que la sesión misma (ver pinVerificadoEn más abajo).
+const DURACION_PIN_MS = 30 * 60 * 1000;
 
 // --- TODO TU CÓDIGO ACTUAL SE MANTIENE AQUÍ DENTRO ---
 function MainApp() {
@@ -110,14 +116,20 @@ function MainApp() {
   // personalizar) se muestran igual que siempre.
   const filtrarProtegidos = (items) => items.filter(({ tab: t }) => !TABS_PROTEGIDAS.includes(t) || tienePermiso(t));
 
+  // true si el PIN sigue vigente (se tecleó hace menos de DURACION_PIN_MS).
+  // Solo aplica a cuentas sin personalizar (permisos === null) -- las
+  // personalizadas nunca dependen del PIN, ver tienePermiso.
+  const pinVigente = () => pinVerificadoEn !== null && (Date.now() - pinVerificadoEn < DURACION_PIN_MS);
+
   const [loading, setLoading] = useState(false);
   const [showAdminPinModal, setShowAdminPinModal] = useState(false);
   const [adminPin, setAdminPin] = useState('');
   const [tabPendiente, setTabPendiente] = useState(null);
-  // Una vez validado el PIN en esta sesión, no se vuelve a pedir al cambiar de
-  // pestaña (mismo comportamiento que antes, cuando el PIN solo se pedía una
-  // vez y el estado de la pestaña activa ya no se volvía a revisar).
-  const [pinVerificado, setPinVerificado] = useState(false);
+  // pinVerificadoEn guarda CUÁNDO se validó el PIN (null = nunca, o ya
+  // venció) en vez de un simple booleano -- así el PIN deja de ser válido
+  // para siempre y pasa a tener una duración (DURACION_PIN_MS). Ver
+  // pinVigente() y el useEffect que lo vigila más abajo.
+  const [pinVerificadoEn, setPinVerificadoEn] = useState(null);
 
   const avisoExpiracionMostrado = useRef(false);
   const webcamRef = useRef(null);
@@ -195,12 +207,27 @@ function MainApp() {
       if (!tienePermiso(tab)) navigate('/panel/identificar', { replace: true });
       return;
     }
-    if (!pinVerificado) {
+    if (!pinVigente()) {
       setTabPendiente(tab);
       setShowAdminPinModal(true);
       navigate('/panel/identificar', { replace: true });
     }
-  }, [tab, userRole, isLoggedIn, pinVerificado, permisos]);
+  }, [tab, userRole, isLoggedIn, pinVerificadoEn, permisos]);
+
+  // Vigila el vencimiento del PIN mientras siga vigente -- "si no se lo
+  // volverá a pedir cada 30 minutos". En vez de solo revisar la fecha la
+  // próxima vez que alguien navegue, esto invalida pinVerificadoEn en
+  // cuanto se cumplen los 30 min, lo que dispara de nuevo el guard de
+  // arriba (mismo efecto que si nunca se hubiera tecleado el PIN): si la
+  // pestaña activa es protegida, pide el PIN otra vez ahí mismo.
+  useEffect(() => {
+    if (pinVerificadoEn === null) return;
+    const revisarPin = () => {
+      if (Date.now() - pinVerificadoEn >= DURACION_PIN_MS) setPinVerificadoEn(null);
+    };
+    const intervalo = setInterval(revisarPin, 30000);
+    return () => clearInterval(intervalo);
+  }, [pinVerificadoEn]);
 
   const manejarLoginPrincipal = async (e) => {
     if (e) e.preventDefault();
@@ -264,7 +291,7 @@ function MainApp() {
           mostrarError('Tu cuenta no tiene permiso para acceder a esta sección. Pide a un administrador que te lo habilite.');
           return;
         }
-      } else if (!pinVerificado) {
+      } else if (!pinVigente()) {
         setTabPendiente(targetTab);
         setShowAdminPinModal(true);
         return;
@@ -288,7 +315,7 @@ function MainApp() {
     try {
       const res = await api.post('/verificar-pin', { pin: adminPin });
       if (res.data.valid) {
-        setPinVerificado(true);
+        setPinVerificadoEn(Date.now());
         navigate('/panel/' + tabPendiente);
         setShowAdminPinModal(false);
         setAdminPin('');
