@@ -244,15 +244,19 @@ func (s *Server) handleGuardarSeguimiento(c *gin.Context) {
 
 		key, errS3 := s.uploadToS3(file, nombreArchivo, "image/jpeg")
 		if errS3 != nil {
+			log.Printf("No se pudo subir la foto %q a S3 (seguimiento %d): %v", file.Filename, seguimientoID, errS3)
 			continue
 		}
 
 		_, errDBFoto := s.DB.Exec("INSERT INTO fotos_seguimiento (seguimiento_id, url) VALUES ($1, $2)", seguimientoID, key)
 		if errDBFoto != nil {
+			log.Printf("Se subió la foto %q a S3 pero no se pudo guardar en la base de datos (seguimiento %d): %v", key, seguimientoID, errDBFoto)
 			continue
 		}
 		if urlFirmada, errFirma := s.firmarURLFoto(key); errFirma == nil {
 			urlsSubidas = append(urlsSubidas, urlFirmada)
+		} else {
+			log.Printf("Foto %q guardada pero no se pudo firmar su URL: %v", key, errFirma)
 		}
 	}
 

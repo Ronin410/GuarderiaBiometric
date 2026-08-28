@@ -65,7 +65,7 @@ const FormularioBitacora = ({ niñoId, nombreNiño, onCerrar }) => {
             observaciones: datosBitacora.observaciones || '',
             durmio: datosBitacora.durmio || false
           });
-          setFotosExistentes(res.data.urls || []);
+          setFotosExistentes(res.data.fotos || []);
         }
       } catch {
         // Sin bitácora previa para hoy: es un estado normal, no un error.
