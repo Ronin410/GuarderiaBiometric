@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -54,6 +55,11 @@ func (s *Server) registrarRutasHijos(r *gin.Engine) {
 	// handleCrearCuentaPadre sobre por qué SOLO puede tocar cuentas rol
 	// "papa".
 	r.PUT("/padres/:id/restablecer-password", auth, familia, s.handleRestablecerPasswordPadre)
+	// Para el otro caso del mismo 409 -- el id del tutor choca con la
+	// cuenta de ALGUIEN MÁS (admin/staff), no con la suya propia. Mueve al
+	// tutor a un id nuevo y libre para que ya se pueda dar de alta su
+	// cuenta con normalidad.
+	r.POST("/padres/:id/reasignar-id", auth, familia, s.handleResolverChoqueID)
 }
 
 func (s *Server) handleRegistrarHijo(c *gin.Context) {
@@ -430,8 +436,9 @@ func (s *Server) handleCrearCuentaPadre(c *gin.Context) {
 			return
 		}
 		c.JSON(http.StatusConflict, gin.H{
-			"error":             fmt.Sprintf("El id interno de este tutor choca con la cuenta de %s \"%s\" -- no se puede crear su cuenta del portal sin ayuda técnica. Contacta soporte.", rolExistente, usernameExistente),
-			"puede_restablecer": false,
+			"error":              fmt.Sprintf("El id interno de este tutor choca con la cuenta de %s \"%s\". Se puede reparar moviendo al tutor a un id nuevo.", rolExistente, usernameExistente),
+			"puede_restablecer":  false,
+			"puede_reasignar_id": true,
 		})
 		return
 	}
@@ -462,6 +469,158 @@ func (s *Server) handleCrearCuentaPadre(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{"message": "Cuenta creada"})
+}
+
+// handleResolverChoqueID repara el caso raro (pero real) del 409 con
+// puede_reasignar_id=true en handleCrearCuentaPadre: el id de este padre
+// ya lo tiene la cuenta de OTRA persona (admin/staff), así que jamás va a
+// poder tener su propia cuenta del portal mientras se quede en ese id.
+//
+// Se le da un id nuevo y libre, y se repunta todo lo que lo referencia. No
+// es un simple "UPDATE padres SET id = ...": tutor_hijos/asistencia/
+// consentimientos tienen FK a padres(id) sin ON UPDATE CASCADE, así que
+// Postgres rechazaría ese UPDATE mientras existan filas apuntando al id
+// viejo. Y face_id es UNIQUE NOT NULL, así que tampoco se puede insertar
+// la fila nueva con el mismo face_id mientras la vieja siga viva. Por eso
+// el orden es: insertar la fila nueva con un face_id temporal (que ya
+// existe en padres, así que las FK sí se pueden repuntar hacia ella) ->
+// repuntar todo lo que refiere al id viejo -> borrar la fila vieja (con
+// eso el face_id real queda libre) -> restaurar el face_id real en la fila
+// nueva. Todo en una sola transacción: si algo falla a medias, no se
+// queda el tutor duplicado ni con face_id roto.
+//
+// push_subscripciones/mensajes_chat/circulares_lecturas/encuesta_respuestas
+// no tienen FK a padres(id) (guardan el id "suelto", ver los comentarios
+// en sus migraciones) -- en la práctica no debería haber filas ahí para
+// este padre_id todavía (ninguna de esas se puede generar sin haber
+// iniciado sesión como "papa" al menos una vez, y ese login nunca fue
+// posible mientras el id estuviera chocado), pero se repuntan de todos
+// modos por si acaso, para dejar el caso general bien resuelto.
+func (s *Server) handleResolverChoqueID(c *gin.Context) {
+	gID, _ := c.Get("guarderia_id")
+	adminID, _ := c.Get("user_id")
+	padreID := c.Param("id")
+
+	var rolExistente string
+	err := s.DBAuth.QueryRow("SELECT rol FROM usuarios WHERE id = $1", padreID).Scan(&rolExistente)
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Este id no choca con ninguna cuenta -- no hay nada que reparar"})
+		return
+	} else if err != nil {
+		log.Printf("Error al verificar el choque de id del padre %s: %v", padreID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo verificar el choque"})
+		return
+	}
+	if rolExistente == "papa" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Este id ya es del propio tutor -- usa \"Restablecer contraseña\" en vez de esto"})
+		return
+	}
+
+	var nombre, faceID string
+	var celular sql.NullString
+	var recibeWhatsapp bool
+	var creadoEn time.Time
+	err = s.DB.QueryRow(
+		"SELECT nombre, face_id, celular, recibe_whatsapp, creado_en FROM padres WHERE id = $1 AND guarderia_id = $2",
+		padreID, gID,
+	).Scan(&nombre, &faceID, &celular, &recibeWhatsapp, &creadoEn)
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Tutor no encontrado"})
+		return
+	} else if err != nil {
+		log.Printf("Error al consultar el padre %s para reasignar su id: %v", padreID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo consultar al tutor"})
+		return
+	}
+
+	// Mismo criterio de "id libre" que usa handleRegistrar al crear un
+	// padre desde cero (ver asistencia.go): el máximo entre padres y
+	// usuarios -- que pueden vivir en bases físicas distintas -- más uno.
+	var maxPadres int
+	if err := s.DB.QueryRow("SELECT COALESCE(MAX(id), 0) FROM padres").Scan(&maxPadres); err != nil {
+		log.Printf("Error al calcular el siguiente id libre (padres) para el padre %s: %v", padreID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo calcular un id libre"})
+		return
+	}
+	var maxUsuarios int
+	if err := s.DBAuth.QueryRow("SELECT COALESCE(MAX(id), 0) FROM usuarios").Scan(&maxUsuarios); err != nil {
+		log.Printf("Error al calcular el siguiente id libre (usuarios) para el padre %s: %v", padreID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo calcular un id libre"})
+		return
+	}
+	nuevoID := maxPadres + 1
+	if maxUsuarios+1 > nuevoID {
+		nuevoID = maxUsuarios + 1
+	}
+
+	tx, err := s.DB.Begin()
+	if err != nil {
+		log.Printf("No se pudo iniciar la transacción para reasignar el id del padre %s: %v", padreID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo mover al tutor"})
+		return
+	}
+	defer tx.Rollback()
+
+	faceIDTemporal := faceID + fmt.Sprintf("__moviendo-a-%d__", nuevoID)
+
+	if _, err := tx.Exec(
+		`INSERT INTO padres (id, nombre, face_id, guarderia_id, celular, recibe_whatsapp, creado_en)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		nuevoID, nombre, faceIDTemporal, gID, celular, recibeWhatsapp, creadoEn,
+	); err != nil {
+		log.Printf("No se pudo crear la fila nueva (id %d) al reasignar al padre %s: %v", nuevoID, padreID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo mover al tutor"})
+		return
+	}
+
+	tablasARepuntar := []string{"tutor_hijos", "asistencia", "consentimientos", "push_subscripciones", "circulares_lecturas", "encuesta_respuestas"}
+	for _, tabla := range tablasARepuntar {
+		if _, err := tx.Exec(fmt.Sprintf("UPDATE %s SET padre_id = $1 WHERE padre_id = $2", tabla), nuevoID, padreID); err != nil {
+			log.Printf("No se pudo repuntar %s del id viejo %s al nuevo %d: %v", tabla, padreID, nuevoID, err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo mover al tutor"})
+			return
+		}
+	}
+	// mensajes_chat tiene DOS columnas que pueden traer este id: padre_id
+	// (la conversación) y autor_id (cuando el propio papá fue quien
+	// escribió ese mensaje -- autor_rol distingue de un mensaje de
+	// staff/admin con ese mismo autor_id por coincidencia, así que el
+	// UPDATE de autor_id va condicionado a autor_rol = 'papa').
+	if _, err := tx.Exec("UPDATE mensajes_chat SET padre_id = $1 WHERE padre_id = $2", nuevoID, padreID); err != nil {
+		log.Printf("No se pudo repuntar mensajes_chat.padre_id del id viejo %s al nuevo %d: %v", padreID, nuevoID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo mover al tutor"})
+		return
+	}
+	if _, err := tx.Exec("UPDATE mensajes_chat SET autor_id = $1 WHERE autor_id = $2 AND autor_rol = 'papa'", nuevoID, padreID); err != nil {
+		log.Printf("No se pudo repuntar mensajes_chat.autor_id del id viejo %s al nuevo %d: %v", padreID, nuevoID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo mover al tutor"})
+		return
+	}
+
+	if _, err := tx.Exec("DELETE FROM padres WHERE id = $1", padreID); err != nil {
+		log.Printf("No se pudo borrar la fila vieja (id %s) al reasignar: %v", padreID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo mover al tutor"})
+		return
+	}
+	if _, err := tx.Exec("UPDATE padres SET face_id = $1 WHERE id = $2", faceID, nuevoID); err != nil {
+		log.Printf("No se pudo restaurar el face_id real en la fila nueva (id %d): %v", nuevoID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo mover al tutor"})
+		return
+	}
+	if _, err := tx.Exec(`SELECT setval('padres_id_seq', (SELECT MAX(id) FROM padres))`); err != nil {
+		log.Printf("No se pudo reacomodar la secuencia de padres tras reasignar al padre %s -> %d: %v", padreID, nuevoID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo mover al tutor"})
+		return
+	}
+
+	if err := tx.Commit(); err != nil {
+		log.Printf("No se pudo confirmar la reasignación del padre %s -> %d: %v", padreID, nuevoID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo mover al tutor"})
+		return
+	}
+
+	s.registrarAcceso("padre_id_reasignado", gID, adminID, fmt.Sprintf("padre %s movido al id %d (chocaba con cuenta rol %s)", padreID, nuevoID, rolExistente), c.ClientIP())
+	c.JSON(http.StatusOK, gin.H{"message": "Tutor movido a un id nuevo -- ya se puede crear su cuenta del portal", "nuevo_id": nuevoID})
 }
 
 func (s *Server) handleDesactivarHijo(c *gin.Context) {

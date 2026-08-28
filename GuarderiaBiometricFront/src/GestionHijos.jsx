@@ -217,6 +217,28 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
         }
         return;
       }
+      // El id de este tutor choca con la cuenta de OTRA persona (admin o
+      // staff) -- caso raro, pero real. Se puede reparar moviendo al tutor
+      // a un id nuevo y libre; si el admin acepta, se hace eso y de una
+      // vez se reintenta crear la cuenta con lo que ya había escrito, para
+      // no hacerlo escribir todo otra vez.
+      if (err.response?.status === 409 && data?.puede_reasignar_id) {
+        const ok = await confirmar(
+          `${data.error} ¿Mover a este tutor a un id nuevo para poder crear su cuenta?`,
+          'Reparar id del tutor'
+        );
+        if (ok) {
+          try {
+            await api.post(`/padres/${padreId}/reasignar-id`);
+            mostrarExito('Tutor movido a un id nuevo -- creando su cuenta...');
+            await manejarCrearCuenta();
+          } catch (err2) {
+            console.error('Error al reasignar el id del tutor:', err2);
+            mostrarError(err2.response?.data?.error || 'No se pudo mover al tutor');
+          }
+        }
+        return;
+      }
       console.error('Error al crear la cuenta del portal:', err);
       mostrarError(data?.error || 'No se pudo crear la cuenta');
     } finally {
