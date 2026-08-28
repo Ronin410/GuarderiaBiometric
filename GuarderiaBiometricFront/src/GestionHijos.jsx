@@ -193,8 +193,32 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
       setUsernameCuenta('');
       setPasswordCuenta('');
     } catch (err) {
+      const data = err.response?.data;
+      // Este tutor YA tiene cuenta propia (no es un choque con la cuenta de
+      // otra persona) -- en vez de dejarlo en un callejón sin salida, se
+      // ofrece restablecer esa cuenta con la contraseña que ya escribió
+      // arriba, en el mismo paso.
+      if (err.response?.status === 409 && data?.puede_restablecer && data?.username_existente) {
+        const ok = await confirmar(
+          `Este tutor ya tiene una cuenta con el usuario "${data.username_existente}". ¿Restablecer su contraseña a la que acabas de escribir?`,
+          'Restablecer contraseña existente'
+        );
+        if (ok) {
+          try {
+            await api.put(`/padres/${padreId}/restablecer-password`, { password: passwordCuenta });
+            mostrarExito(`Contraseña de "${data.username_existente}" actualizada`);
+            setMostrarFormCuenta(false);
+            setUsernameCuenta('');
+            setPasswordCuenta('');
+          } catch (err2) {
+            console.error('Error al restablecer la contraseña:', err2);
+            mostrarError(err2.response?.data?.error || 'No se pudo restablecer la contraseña');
+          }
+        }
+        return;
+      }
       console.error('Error al crear la cuenta del portal:', err);
-      mostrarError(err.response?.data?.error || 'No se pudo crear la cuenta');
+      mostrarError(data?.error || 'No se pudo crear la cuenta');
     } finally {
       setCreandoCuenta(false);
     }

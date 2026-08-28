@@ -48,6 +48,12 @@ func (s *Server) registrarRutasHijos(r *gin.Engine) {
 	// "crear cuenta" en su momento) -- da de alta el acceso al portal
 	// después, sin volver a pasar por Rekognition.
 	r.POST("/padres/:id/crear-cuenta", auth, familia, s.handleCrearCuentaPadre)
+	// Para cuando "Crear cuenta" choca porque el tutor YA tiene una (la
+	// olvidaron, o alguien la creó antes) -- en vez de un callejón sin
+	// salida, esto la resetea directo. Ver el comentario largo en
+	// handleCrearCuentaPadre sobre por qué SOLO puede tocar cuentas rol
+	// "papa".
+	r.PUT("/padres/:id/restablecer-password", auth, familia, s.handleRestablecerPasswordPadre)
 }
 
 func (s *Server) handleRegistrarHijo(c *gin.Context) {
@@ -400,18 +406,33 @@ func (s *Server) handleCrearCuentaPadre(c *gin.Context) {
 	// el comentario largo en asistencia.go). Acá no se puede elegir un id
 	// libre distinto -- el padre ya existe con un id fijo, referenciado
 	// por tutor_hijos/consentimientos/asistencia -- así que si ESE id
-	// específico ya lo tiene otra cuenta (coincidencia posible pero rara
-	// con alguna cuenta de staff/admin), no hay forma de dar de alta esta
-	// cuenta sin cambiar esa convención en todo el backend. Se avisa con
-	// un mensaje honesto en vez de uno genérico.
-	var idOcupado bool
-	if err := s.DBAuth.QueryRow("SELECT EXISTS(SELECT 1 FROM usuarios WHERE id = $1)", padreID).Scan(&idOcupado); err != nil {
+	// específico ya lo tiene otra cuenta, no hay forma de dar de alta esta
+	// cuenta sin cambiar esa convención en todo el backend. En vez de un
+	// mensaje genérico, se identifica de quién es esa cuenta: si es del
+	// propio padre (rol "papa" -- lo más común: ya tenía cuenta, o alguien
+	// la creó antes y no se acuerdan) se ofrece restablecer su contraseña
+	// en vez de un callejón sin salida; si es de alguien más (coincidencia
+	// rara con admin/staff) sí hace falta ayuda técnica de verdad.
+	var usernameExistente, rolExistente string
+	err = s.DBAuth.QueryRow("SELECT username, rol FROM usuarios WHERE id = $1", padreID).Scan(&usernameExistente, &rolExistente)
+	if err != nil && err != sql.ErrNoRows {
 		log.Printf("Error al verificar si el padre %s ya tiene cuenta: %v", padreID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo verificar la cuenta"})
 		return
 	}
-	if idOcupado {
-		c.JSON(http.StatusConflict, gin.H{"error": "Este tutor ya tiene una cuenta del portal, o su id interno choca con otra cuenta -- contacta soporte."})
+	if err == nil {
+		if rolExistente == "papa" {
+			c.JSON(http.StatusConflict, gin.H{
+				"error":              fmt.Sprintf("Este tutor ya tiene una cuenta del portal (usuario \"%s\"). Si no recuerda la contraseña, puedes restablecerla en vez de crear una cuenta nueva.", usernameExistente),
+				"username_existente": usernameExistente,
+				"puede_restablecer":  true,
+			})
+			return
+		}
+		c.JSON(http.StatusConflict, gin.H{
+			"error":             fmt.Sprintf("El id interno de este tutor choca con la cuenta de %s \"%s\" -- no se puede crear su cuenta del portal sin ayuda técnica. Contacta soporte.", rolExistente, usernameExistente),
+			"puede_restablecer": false,
+		})
 		return
 	}
 
@@ -519,4 +540,52 @@ func (s *Server) handleRegenerarToken(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"url_token": nuevoToken})
+}
+
+// handleRestablecerPasswordPadre resetea la contraseña del portal de un
+// tutor que YA tiene cuenta -- la olvidó, o alguien intentó "Crear cuenta"
+// sin saber que ya existía (ver el 409 de handleCrearCuentaPadre, que
+// apunta para acá cuando el id ocupado es justo del propio padre). Espejo
+// de handleResetPasswordPersonal en personal.go, pero con rol = 'papa' fijo
+// en el WHERE -- a propósito, para que este endpoint JAMÁS pueda tocar una
+// cuenta de admin/staff aunque su id choque por la convención
+// usuarios.id == padres.id (ver el comentario largo en
+// handleCrearCuentaPadre).
+func (s *Server) handleRestablecerPasswordPadre(c *gin.Context) {
+	gID, _ := c.Get("guarderia_id")
+	adminID, _ := c.Get("user_id")
+	padreID := c.Param("id")
+
+	var input struct {
+		Password string `json:"password"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil || len(input.Password) < 8 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "La contraseña debe tener al menos 8 caracteres"})
+		return
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+	if err != nil {
+		log.Printf("Error al procesar la contraseña: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al procesar la contraseña"})
+		return
+	}
+
+	res, err := s.DBAuth.Exec(
+		`UPDATE usuarios SET password_hash = $1
+         WHERE id = $2 AND guarderia_id = $3 AND rol = 'papa'`,
+		string(hash), padreID, gID,
+	)
+	if err != nil {
+		log.Printf("No se pudo restablecer la contraseña del padre %s: %v", padreID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo restablecer la contraseña"})
+		return
+	}
+	if filas, _ := res.RowsAffected(); filas == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Este tutor no tiene una cuenta del portal"})
+		return
+	}
+
+	s.registrarAcceso("padre_password_reset", gID, adminID, "contraseña del portal reseteada para el padre "+padreID, c.ClientIP())
+	c.JSON(http.StatusOK, gin.H{"message": "Contraseña actualizada"})
 }
