@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import api from './axiosConfig';
-import { ShieldCheck, Save, Loader2, Users, FileText } from 'lucide-react';
-import { mostrarExito, mostrarError } from './utils/alertas';
+import {
+  ShieldCheck, Save, Loader2, Users, FileText,
+  FolderOpen, Plus, Edit3, Check, X, Trash2,
+} from 'lucide-react';
+import { mostrarExito, mostrarError, confirmar } from './utils/alertas';
 
 const PanelConfiguracion = () => {
   const [texto, setTexto] = useState('');
@@ -10,6 +13,18 @@ const PanelConfiguracion = () => {
   const [totalConsentimientos, setTotalConsentimientos] = useState(null);
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
+
+  // Documentos requeridos: la MISMA plantilla para todos los niños de la
+  // guardería -- se configura aquí, una sola vez, no niño por niño (ver el
+  // comentario largo en tipos_documento.go). DocumentosNino.jsx (en cada
+  // tarjeta de niño) solo LEE este catálogo para subir/ver archivos, ya no
+  // lo edita.
+  const [tipos, setTipos] = useState([]);
+  const [loadingTipos, setLoadingTipos] = useState(true);
+  const [nuevoTipoNombre, setNuevoTipoNombre] = useState('');
+  const [creandoTipo, setCreandoTipo] = useState(false);
+  const [editandoTipoId, setEditandoTipoId] = useState(null);
+  const [nombreEdit, setNombreEdit] = useState('');
 
   const cargar = async () => {
     setLoading(true);
@@ -31,6 +46,61 @@ const PanelConfiguracion = () => {
   };
 
   useEffect(() => { cargar(); }, []);
+
+  const cargarTipos = async () => {
+    setLoadingTipos(true);
+    try {
+      const res = await api.get('/admin/tipos-documento');
+      setTipos(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error('Error al cargar tipos de documento:', err);
+      mostrarError('No se pudieron cargar los tipos de documento');
+    } finally {
+      setLoadingTipos(false);
+    }
+  };
+
+  useEffect(() => { cargarTipos(); }, []);
+
+  const crearTipo = async () => {
+    if (!nuevoTipoNombre.trim()) return;
+    setCreandoTipo(true);
+    try {
+      await api.post('/admin/tipos-documento', { nombre: nuevoTipoNombre.trim() });
+      setNuevoTipoNombre('');
+      await cargarTipos();
+    } catch (err) {
+      console.error('Error al crear el tipo de documento:', err);
+      mostrarError(err.response?.data?.error || 'No se pudo crear el tipo de documento');
+    } finally {
+      setCreandoTipo(false);
+    }
+  };
+
+  const guardarNombreTipo = async (tipo) => {
+    if (!nombreEdit.trim()) return;
+    try {
+      await api.put(`/admin/tipos-documento/${tipo.id}`, { nombre: nombreEdit.trim() });
+      setEditandoTipoId(null);
+      await cargarTipos();
+    } catch (err) {
+      console.error('Error al renombrar el tipo de documento:', err);
+      mostrarError(err.response?.data?.error || 'No se pudo renombrar el tipo de documento');
+    }
+  };
+
+  const eliminarTipo = async (tipo) => {
+    const ok = await confirmar(`Se quitará "${tipo.nombre}" de lo que le pides a las familias.`, '¿Eliminar tipo de documento?');
+    if (!ok) return;
+    try {
+      await api.delete(`/admin/tipos-documento/${tipo.id}`);
+      mostrarExito('Tipo de documento eliminado');
+      await cargarTipos();
+    } catch (err) {
+      console.error('Error al eliminar el tipo de documento:', err);
+      mostrarError(err.response?.data?.error || 'No se pudo eliminar el tipo de documento');
+    }
+  };
 
   const guardar = async () => {
     if (!texto.trim()) {
@@ -115,6 +185,88 @@ const PanelConfiguracion = () => {
               {guardando ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
               {guardando ? 'Guardando...' : 'Guardar Aviso de Privacidad'}
             </button>
+          </div>
+        )}
+      </div>
+
+      {/* DOCUMENTOS REQUERIDOS -- una sola plantilla para toda la
+          guardería, no niño por niño: se configura aquí, y cada tarjeta de
+          niño (DocumentosNino.jsx en Perfiles) solo sube/ve archivos contra
+          este mismo catálogo. */}
+      <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl mt-8">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="bg-brand-100 p-3 rounded-2xl text-brand-600"><FolderOpen size={28} /></div>
+          <div>
+            <h3 className="text-xl font-black uppercase text-slate-900">Documentos Requeridos</h3>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Misma lista para todos los niños de la guardería</p>
+          </div>
+        </div>
+
+        {loadingTipos ? (
+          <div className="py-10 text-center text-slate-400 font-black uppercase tracking-widest text-xs">Cargando...</div>
+        ) : (
+          <div className="space-y-4">
+            {tipos.length === 0 ? (
+              <div className="py-6 text-center text-slate-400 font-black uppercase tracking-widest text-[10px]">
+                Todavía no configuras qué documentos pedirle a las familias
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {tipos.map((t) => (
+                  <div key={t.id} className="flex items-center gap-3 bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3">
+                    {editandoTipoId === t.id ? (
+                      <>
+                        <input
+                          autoFocus
+                          value={nombreEdit}
+                          onChange={(e) => setNombreEdit(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && guardarNombreTipo(t)}
+                          className="flex-1 bg-white border border-brand-300 rounded-xl px-3 py-2 text-sm font-bold outline-none"
+                        />
+                        <button onClick={() => guardarNombreTipo(t)} className="text-emerald-500 hover:text-emerald-600 p-2"><Check size={16} /></button>
+                        <button onClick={() => setEditandoTipoId(null)} className="text-slate-400 hover:text-slate-600 p-2"><X size={16} /></button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="flex-1 text-sm font-bold text-slate-700">{t.nombre}</span>
+                        {t.en_uso > 0 && (
+                          <span className="text-[9px] font-black text-slate-400 uppercase bg-white border border-slate-200 px-2 py-1 rounded-full">
+                            {t.en_uso} niño{t.en_uso === 1 ? '' : 's'} ya subió
+                          </span>
+                        )}
+                        <button onClick={() => { setEditandoTipoId(t.id); setNombreEdit(t.nombre); }} className="text-slate-300 hover:text-brand-600 p-2" title="Renombrar">
+                          <Edit3 size={15} />
+                        </button>
+                        <button onClick={() => eliminarTipo(t)} className="text-slate-300 hover:text-rose-500 p-2" title="Eliminar tipo">
+                          <Trash2 size={15} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex items-center gap-3 pt-2">
+              <input
+                type="text"
+                value={nuevoTipoNombre}
+                onChange={(e) => setNuevoTipoNombre(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && crearTipo()}
+                placeholder="Nombre del nuevo tipo (ej. Constancia de Estudios)"
+                className="flex-1 bg-slate-50 border border-slate-200 px-4 py-3 rounded-2xl outline-none focus:ring-2 focus:ring-brand-500 text-sm font-bold"
+              />
+              <button
+                onClick={crearTipo}
+                disabled={creandoTipo || !nuevoTipoNombre.trim()}
+                className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-black uppercase px-5 py-3 rounded-2xl shadow-md transition-all active:scale-95 shrink-0"
+              >
+                {creandoTipo ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />} Agregar
+              </button>
+            </div>
+            <p className="text-[10px] text-slate-400 ml-2">
+              Se aplica de inmediato a todos los niños -- no hay que configurarlo uno por uno.
+            </p>
           </div>
         )}
       </div>
