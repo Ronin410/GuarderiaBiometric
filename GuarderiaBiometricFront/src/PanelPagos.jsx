@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from './axiosConfig';
 import {
   Wallet, Calendar, Loader2, ArrowLeft, Plus, Trash2,
-  CheckCircle2, Clock, XCircle, Receipt, BellRing
+  CheckCircle2, Clock, XCircle, Receipt, BellRing, AlertTriangle
 } from 'lucide-react';
 import { hoyLocal } from './utils/fecha';
 import { mostrarError, mostrarExito, confirmar } from './utils/alertas';
@@ -51,12 +51,17 @@ const PanelPagos = () => {
 
   useEffect(() => { cargarEstados(); }, [periodo]);
 
-  const pendientesOVencidos = estados.filter((e) => e.estado === 'pendiente' || e.estado === 'vencido').length;
+  // Incluye tanto al que debe este periodo como al que ya está al
+  // corriente en él pero arrastra deuda vieja de meses anteriores -- mismo
+  // criterio que usa el backend en /pagos/recordatorio, para que este
+  // contador no le prometa al admin un número distinto del que en verdad
+  // se va a notificar.
+  const pendientesOVencidos = estados.filter((e) => e.estado === 'pendiente' || e.estado === 'vencido' || e.deuda_acumulada > 0).length;
 
   const enviarRecordatorios = async () => {
     if (pendientesOVencidos === 0) return;
     const ok = await confirmar(
-      `Se notificará por push a los tutores de ${pendientesOVencidos} niño(s) con la colegiatura de ${periodo} pendiente o vencida.`,
+      `Se notificará por push a los tutores de ${pendientesOVencidos} niño(s) con la colegiatura de ${periodo} pendiente/vencida, o con deuda de meses anteriores.`,
       '¿Enviar recordatorios de pago?',
     );
     if (!ok) return;
@@ -162,6 +167,21 @@ const PanelPagos = () => {
                     <div className="flex justify-between text-slate-400"><span>Pagado</span><span className="text-emerald-600">${Number(e.total_pagado || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span></div>
                     {saldo > 0 && <div className="flex justify-between text-slate-400"><span>Saldo</span><span className="text-rose-500">${saldo.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span></div>}
                   </div>
+                  {/* Deuda de meses ANTERIORES al periodo mostrado arriba —
+                      independiente del estado de este mes: un niño puede
+                      estar "Pagado" en el periodo actual y aun así arrastrar
+                      deuda vieja de un mes con pago parcial que nunca se
+                      terminó de cubrir (ver el comentario de deuda_acumulada
+                      en el backend). Se muestra siempre que exista, sin
+                      importar el filtro de estado activo. */}
+                  {e.deuda_acumulada > 0 && (
+                    <div className="flex items-center gap-2 mt-3 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
+                      <AlertTriangle size={14} className="text-rose-500 shrink-0" />
+                      <span className="text-[10px] font-black uppercase text-rose-600 leading-tight">
+                        Debe ${Number(e.deuda_acumulada).toLocaleString('es-MX', { minimumFractionDigits: 2 })} de meses anteriores
+                      </span>
+                    </div>
+                  )}
                   {/* Desglose de los demás conceptos del periodo — aparte de la
                       colegiatura de arriba, que es la única con un monto
                       esperado configurado (colegiatura_mensual). */}
@@ -272,6 +292,15 @@ const DetallePago = ({ nino, periodo, onVolver }) => {
           <h3 className="text-xl font-black uppercase text-slate-900">{nino.nombre}</h3>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Periodo {periodo}</p>
         </div>
+
+        {nino.deuda_acumulada > 0 && (
+          <div className="flex items-center gap-3 bg-rose-50 border border-rose-200 rounded-2xl px-5 py-4">
+            <AlertTriangle size={20} className="text-rose-500 shrink-0" />
+            <p className="text-xs font-bold text-rose-600">
+              Además de {periodo}, este niño debe <span className="font-black">${Number(nino.deuda_acumulada).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span> de colegiatura de meses anteriores. Revisa el historial completo abajo para ver de cuáles.
+            </p>
+          </div>
+        )}
 
         {/* FORMULARIO DE REGISTRO */}
         <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100">

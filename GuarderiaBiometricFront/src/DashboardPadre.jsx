@@ -17,7 +17,8 @@ import {
   Megaphone,
   MessageCircle,
   CalendarDays,
-  ClipboardCheck
+  ClipboardCheck,
+  AlertTriangle
 } from 'lucide-react';
 import VistaPadreDetalle from './VistaPadreDetalle';
 import ChatPadre from './ChatPadre';
@@ -300,6 +301,21 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
                 </div>
               );
             })}
+            {/* Deuda de meses anteriores al actual -- separado del estado
+                de arriba a propósito: un niño puede aparecer "Pagado" este
+                mes y aun así deber de un mes pasado que quedó a medias. */}
+            {pagos.some((p) => p.deuda_acumulada > 0) && (
+              <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex items-start gap-3">
+                <AlertTriangle size={18} className="text-rose-500 shrink-0 mt-0.5" />
+                <p className="text-xs font-bold text-rose-600 leading-snug">
+                  {pagos.filter((p) => p.deuda_acumulada > 0).map((p) => (
+                    <span key={p.hijo_id} className="block">
+                      {p.nombre}: debe ${Number(p.deuda_acumulada).toLocaleString('es-MX', { minimumFractionDigits: 2 })} de meses anteriores
+                    </span>
+                  ))}
+                </p>
+              </div>
+            )}
           </div>
         )}
 

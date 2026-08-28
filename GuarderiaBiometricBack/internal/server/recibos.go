@@ -114,13 +114,14 @@ func (s *Server) handleEnviarRecordatorios(c *gin.Context) {
 		return
 	}
 
-	rows, err := s.DB.Query(`
+	rows, err := s.DB.Query(fmt.Sprintf(`
         SELECT h.id, h.colegiatura_mensual,
-               COALESCE(SUM(p.monto) FILTER (WHERE p.concepto = 'Colegiatura'), 0)
+               COALESCE(SUM(p.monto) FILTER (WHERE p.concepto = 'Colegiatura'), 0),
+               %s as deuda_acumulada
         FROM hijos h
         LEFT JOIN pagos p ON p.hijo_id = h.id AND p.periodo = $2
         WHERE h.guarderia_id = $1 AND h.activo = true
-        GROUP BY h.id, h.colegiatura_mensual`,
+        GROUP BY h.id, h.colegiatura_mensual`, fmt.Sprintf(sqlDeudaAcumulada, "$2")),
 		gID, periodo,
 	)
 	if err != nil {
@@ -133,12 +134,16 @@ func (s *Server) handleEnviarRecordatorios(c *gin.Context) {
 	var hijosIDsPendientes []int
 	for rows.Next() {
 		var hijoID int
-		var colegiatura, pagado float64
-		if err := rows.Scan(&hijoID, &colegiatura, &pagado); err != nil {
+		var colegiatura, pagado, deudaAcumulada float64
+		if err := rows.Scan(&hijoID, &colegiatura, &pagado, &deudaAcumulada); err != nil {
 			continue
 		}
 		estado := calcularEstadoPago(colegiatura, pagado, periodo, periodoActual)
-		if estado == "pendiente" || estado == "vencido" {
+		// También se avisa a quien ya está al día este mes pero arrastra
+		// deuda de meses anteriores -- antes esa deuda vieja era invisible
+		// para los recordatorios en cuanto cambiaba el mes (ver el
+		// comentario de DeudaAcumulada en pagos.go).
+		if estado == "pendiente" || estado == "vencido" || deudaAcumulada > 0 {
 			hijosIDsPendientes = append(hijosIDsPendientes, hijoID)
 		}
 	}
