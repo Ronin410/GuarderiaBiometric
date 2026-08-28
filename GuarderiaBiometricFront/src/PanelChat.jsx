@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import api from './axiosConfig';
 import {
   MessageCircle, ArrowLeft, Send, Loader2, User, CircleDot,
+  Paperclip, X, FileText, Download,
 } from 'lucide-react';
 import { mostrarError } from './utils/alertas';
 
@@ -89,7 +90,10 @@ const HiloChat = ({ padreId, nombre, onVolver }) => {
   const [loading, setLoading] = useState(true);
   const [texto, setTexto] = useState('');
   const [enviando, setEnviando] = useState(false);
+  const [archivo, setArchivo] = useState(null);
+  const [previewArchivo, setPreviewArchivo] = useState(null);
   const finRef = useRef(null);
+  const inputArchivoRef = useRef(null);
 
   const cargarMensajes = async (mostrarLoading) => {
     if (mostrarLoading) setLoading(true);
@@ -114,13 +118,33 @@ const HiloChat = ({ padreId, nombre, onVolver }) => {
     finRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [mensajes]);
 
+  const elegirArchivo = (file) => {
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      mostrarError('El archivo no puede pesar más de 10 MB');
+      return;
+    }
+    setArchivo(file);
+    setPreviewArchivo(file.type.startsWith('image/') ? URL.createObjectURL(file) : null);
+  };
+
+  const quitarArchivo = () => {
+    setArchivo(null);
+    setPreviewArchivo(null);
+    if (inputArchivoRef.current) inputArchivoRef.current.value = '';
+  };
+
   const enviar = async () => {
     const contenido = texto.trim();
-    if (!contenido) return;
+    if (!contenido && !archivo) return;
     setEnviando(true);
     try {
-      await api.post(`/chat/${padreId}/mensajes`, { contenido });
+      const data = new FormData();
+      data.append('contenido', contenido);
+      if (archivo) data.append('archivo', archivo);
+      await api.post(`/chat/${padreId}/mensajes`, data);
       setTexto('');
+      quitarArchivo();
       await cargarMensajes(false);
     } catch (err) {
       console.error('Error al enviar mensaje:', err);
@@ -166,7 +190,23 @@ const HiloChat = ({ padreId, nombre, onVolver }) => {
             mensajes.map((m) => (
               <div key={m.id} className={`flex ${m.es_mio ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[75%] px-4 py-3 rounded-2xl ${m.es_mio ? 'bg-brand-600 text-white rounded-br-md' : 'bg-white border border-slate-100 text-slate-700 rounded-bl-md'}`}>
-                  <p className="text-sm font-medium whitespace-pre-wrap">{m.contenido}</p>
+                  {m.adjunto_url && (
+                    m.adjunto_tipo === 'imagen' ? (
+                      <a href={m.adjunto_url} target="_blank" rel="noreferrer" className="block mb-2">
+                        <img src={m.adjunto_url} alt={m.adjunto_nombre || 'imagen'} className="max-w-full max-h-64 rounded-xl object-cover" />
+                      </a>
+                    ) : (
+                      <a
+                        href={m.adjunto_url} target="_blank" rel="noreferrer"
+                        className={`flex items-center gap-2 mb-2 px-3 py-2 rounded-xl ${m.es_mio ? 'bg-white/10' : 'bg-slate-50'}`}
+                      >
+                        <FileText size={18} className="shrink-0" />
+                        <span className="text-xs font-bold truncate flex-1">{m.adjunto_nombre || 'Archivo'}</span>
+                        <Download size={14} className="shrink-0" />
+                      </a>
+                    )
+                  )}
+                  {m.contenido && <p className="text-sm font-medium whitespace-pre-wrap">{m.contenido}</p>}
                   <p className={`text-[9px] font-bold uppercase mt-1 ${m.es_mio ? 'text-brand-100' : 'text-slate-400'}`}>{formatoHora(m.creado_en)}</p>
                 </div>
               </div>
@@ -175,7 +215,35 @@ const HiloChat = ({ padreId, nombre, onVolver }) => {
           <div ref={finRef} />
         </div>
 
+        {archivo && (
+          <div className="px-4 pt-3 shrink-0">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-3">
+              {previewArchivo ? (
+                <img src={previewArchivo} alt="preview" className="w-12 h-12 rounded-lg object-cover shrink-0" />
+              ) : (
+                <div className="w-12 h-12 rounded-lg bg-white text-slate-400 flex items-center justify-center shrink-0"><FileText size={20} /></div>
+              )}
+              <span className="text-xs font-bold text-slate-600 truncate flex-1">{archivo.name}</span>
+              <button onClick={quitarArchivo} className="text-slate-400 hover:text-rose-500 p-1 shrink-0"><X size={16} /></button>
+            </div>
+          </div>
+        )}
+
         <div className="p-4 border-t border-slate-100 flex items-end gap-3 shrink-0">
+          <input
+            ref={inputArchivoRef}
+            type="file"
+            accept="image/*,application/pdf"
+            className="hidden"
+            onChange={(e) => elegirArchivo(e.target.files?.[0])}
+          />
+          <button
+            onClick={() => inputArchivoRef.current?.click()}
+            className="text-slate-400 hover:text-brand-600 p-3 rounded-xl shrink-0 transition-colors"
+            title="Adjuntar imagen o archivo"
+          >
+            <Paperclip size={20} />
+          </button>
           <textarea
             rows={1}
             value={texto}
@@ -186,7 +254,7 @@ const HiloChat = ({ padreId, nombre, onVolver }) => {
           />
           <button
             onClick={enviar}
-            disabled={enviando || !texto.trim()}
+            disabled={enviando || (!texto.trim() && !archivo)}
             className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white p-3.5 rounded-xl shadow-md transition-all active:scale-95 shrink-0"
           >
             {enviando ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}

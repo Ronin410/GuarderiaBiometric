@@ -1,15 +1,22 @@
 package server
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"biometrico/internal/middleware"
 )
+
+// maxTamanoAdjuntoChat -- mismo límite que documentos.go (maxTamanoDocumento):
+// no hay razón para que una foto o PDF mandado por chat pese más que uno de
+// inscripción.
+const maxTamanoAdjuntoChat = maxTamanoDocumento
 
 // ConversacionResumen es una fila del inbox de staff: una conversación por
 // familia (no hay asignación de un maestro específico por niño en el modelo
@@ -25,13 +32,18 @@ type ConversacionResumen struct {
 // MensajeChat es un mensaje del hilo. EsMio se calcula del lado del backend
 // según el rol de quien pide la conversación (papá ve sus propios mensajes
 // como "míos"; staff ve los suyos como "míos") para que el frontend solo
-// tenga que alinear burbujas sin comparar ids/roles.
+// tenga que alinear burbujas sin comparar ids/roles. Los campos de adjunto
+// van en puntero porque la mayoría de los mensajes no traen uno -- si
+// AdjuntoURL es nil, el frontend no muestra nada de adjunto.
 type MensajeChat struct {
-	ID        int    `json:"id"`
-	AutorRol  string `json:"autor_rol"`
-	Contenido string `json:"contenido"`
-	CreadoEn  string `json:"creado_en"`
-	EsMio     bool   `json:"es_mio"`
+	ID            int     `json:"id"`
+	AutorRol      string  `json:"autor_rol"`
+	Contenido     string  `json:"contenido"`
+	CreadoEn      string  `json:"creado_en"`
+	EsMio         bool    `json:"es_mio"`
+	AdjuntoURL    *string `json:"adjunto_url,omitempty"`
+	AdjuntoNombre *string `json:"adjunto_nombre,omitempty"`
+	AdjuntoTipo   *string `json:"adjunto_tipo,omitempty"` // "imagen" | "archivo"
 }
 
 func (s *Server) registrarRutasChat(r *gin.Engine) {
@@ -158,15 +170,19 @@ func (s *Server) handleEnviarMensajeStaff(c *gin.Context) {
 		return
 	}
 
-	contenido, ok := leerContenidoMensaje(c)
+	msj, ok := s.leerMensajeConAdjunto(c, gID, fmt.Sprintf("padre_%v", padreID))
 	if !ok {
 		return
 	}
 
 	if _, err := s.DB.Exec(
-		`INSERT INTO mensajes_chat (guarderia_id, padre_id, autor_id, autor_rol, contenido) VALUES ($1, $2, $3, $4, $5)`,
-		gID, padreID, userID, rol, contenido,
+		`INSERT INTO mensajes_chat (guarderia_id, padre_id, autor_id, autor_rol, contenido, adjunto_s3_key, adjunto_nombre, adjunto_tipo)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		gID, padreID, userID, rol, msj.contenido, msj.s3Key, msj.nombreArchivo, msj.tipoAdjunto,
 	); err != nil {
+		if msj.s3Key != nil {
+			go s.borrarDeS3(*msj.s3Key) // el mensaje no se guardó, no dejamos el adjunto huérfano
+		}
 		log.Printf("No se pudo enviar el mensaje de chat (guardería %v, padre %v): %v", gID, padreID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo enviar el mensaje"})
 		return
@@ -202,15 +218,19 @@ func (s *Server) handleEnviarMensajePadre(c *gin.Context) {
 	gID, _ := c.Get("guarderia_id")
 	userID, _ := c.Get("user_id")
 
-	contenido, ok := leerContenidoMensaje(c)
+	msj, ok := s.leerMensajeConAdjunto(c, gID, fmt.Sprintf("padre_%v", userID))
 	if !ok {
 		return
 	}
 
 	if _, err := s.DB.Exec(
-		`INSERT INTO mensajes_chat (guarderia_id, padre_id, autor_id, autor_rol, contenido) VALUES ($1, $2, $3, 'papa', $4)`,
-		gID, userID, userID, contenido,
+		`INSERT INTO mensajes_chat (guarderia_id, padre_id, autor_id, autor_rol, contenido, adjunto_s3_key, adjunto_nombre, adjunto_tipo)
+         VALUES ($1, $2, $3, 'papa', $4, $5, $6, $7)`,
+		gID, userID, userID, msj.contenido, msj.s3Key, msj.nombreArchivo, msj.tipoAdjunto,
 	); err != nil {
+		if msj.s3Key != nil {
+			go s.borrarDeS3(*msj.s3Key)
+		}
 		log.Printf("No se pudo enviar el mensaje de chat (guardería %v, padre %v): %v", gID, userID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo enviar el mensaje"})
 		return
@@ -219,32 +239,75 @@ func (s *Server) handleEnviarMensajePadre(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"message": "Mensaje enviado"})
 }
 
-// leerContenidoMensaje centraliza la validación que comparten
-// handleEnviarMensajeStaff y handleEnviarMensajePadre: solo cambia quién es
-// el autor y a qué conversación va, no qué hace válido un mensaje.
-func leerContenidoMensaje(c *gin.Context) (string, bool) {
-	var input struct {
-		Contenido string `json:"contenido"`
-	}
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Datos inválidos"})
-		return "", false
-	}
-	contenido := strings.TrimSpace(input.Contenido)
-	if contenido == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "El mensaje no puede estar vacío"})
-		return "", false
-	}
+// mensajeConAdjunto es lo que ya se validó y (si traía archivo) ya se subió
+// a S3, listo para insertarse -- s3Key/nombreArchivo/tipoAdjunto van en
+// puntero porque la mayoría de los mensajes no traen adjunto (se insertan
+// como NULL).
+type mensajeConAdjunto struct {
+	contenido     string
+	s3Key         *string
+	nombreArchivo *string
+	tipoAdjunto   *string
+}
+
+// leerMensajeConAdjunto centraliza lo que comparten handleEnviarMensajeStaff
+// y handleEnviarMensajePadre: el mensaje viaja como multipart/form-data
+// (antes era JSON) para poder traer un archivo opcional junto con el texto
+// -- un mensaje válido trae AL MENOS uno de los dos (texto o adjunto), igual
+// que WhatsApp permite mandar una foto sin caption. rutaKey identifica la
+// conversación dentro de la key de S3 (ya trae "padre_<id>" armado por el
+// caller, porque el staff usa el padre_id de la URL y el papá su propio
+// user_id).
+func (s *Server) leerMensajeConAdjunto(c *gin.Context, gID any, rutaKey string) (mensajeConAdjunto, bool) {
+	contenido := strings.TrimSpace(c.PostForm("contenido"))
 	if len(contenido) > 2000 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "El mensaje es demasiado largo (máximo 2000 caracteres)"})
-		return "", false
+		return mensajeConAdjunto{}, false
 	}
-	return contenido, true
+
+	fileHeader, errArchivo := c.FormFile("archivo")
+	if errArchivo != nil {
+		// Sin archivo: mismo criterio de antes, el mensaje necesita texto.
+		if contenido == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "El mensaje no puede estar vacío"})
+			return mensajeConAdjunto{}, false
+		}
+		return mensajeConAdjunto{contenido: contenido}, true
+	}
+
+	if fileHeader.Size > maxTamanoAdjuntoChat {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "El archivo no puede pesar más de 10 MB"})
+		return mensajeConAdjunto{}, false
+	}
+
+	contentType := fileHeader.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	tipoAdjunto := "archivo"
+	if strings.HasPrefix(contentType, "image/") {
+		tipoAdjunto = "imagen"
+	}
+
+	key := fmt.Sprintf("chat/guarderia_%v/%s/%d_%s", gID, rutaKey, time.Now().UnixNano(), fileHeader.Filename)
+	if _, err := s.uploadToS3(fileHeader, key, contentType); err != nil {
+		log.Printf("leerMensajeConAdjunto: fallo al subir el adjunto a S3 (%s): %v", key, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo subir el archivo"})
+		return mensajeConAdjunto{}, false
+	}
+
+	nombreArchivo := fileHeader.Filename
+	return mensajeConAdjunto{
+		contenido:     contenido,
+		s3Key:         &key,
+		nombreArchivo: &nombreArchivo,
+		tipoAdjunto:   &tipoAdjunto,
+	}, true
 }
 
 func (s *Server) obtenerHiloChat(gID, padreID any) ([]MensajeChat, error) {
 	rows, err := s.DB.Query(
-		`SELECT id, autor_rol, contenido, creado_en FROM mensajes_chat
+		`SELECT id, autor_rol, contenido, creado_en, adjunto_s3_key, adjunto_nombre, adjunto_tipo FROM mensajes_chat
          WHERE guarderia_id = $1 AND padre_id = $2
          ORDER BY creado_en ASC`,
 		gID, padreID,
@@ -257,8 +320,18 @@ func (s *Server) obtenerHiloChat(gID, padreID any) ([]MensajeChat, error) {
 	mensajes := []MensajeChat{}
 	for rows.Next() {
 		var m MensajeChat
-		if err := rows.Scan(&m.ID, &m.AutorRol, &m.Contenido, &m.CreadoEn); err != nil {
+		var adjuntoKey, adjuntoNombre, adjuntoTipo *string
+		if err := rows.Scan(&m.ID, &m.AutorRol, &m.Contenido, &m.CreadoEn, &adjuntoKey, &adjuntoNombre, &adjuntoTipo); err != nil {
 			continue
+		}
+		if adjuntoKey != nil {
+			if url, err := s.firmarURLFoto(*adjuntoKey); err == nil {
+				m.AdjuntoURL = &url
+				m.AdjuntoNombre = adjuntoNombre
+				m.AdjuntoTipo = adjuntoTipo
+			} else {
+				log.Printf("obtenerHiloChat: no se pudo firmar la URL del adjunto %q (mensaje %d): %v", *adjuntoKey, m.ID, err)
+			}
 		}
 		mensajes = append(mensajes, m)
 	}

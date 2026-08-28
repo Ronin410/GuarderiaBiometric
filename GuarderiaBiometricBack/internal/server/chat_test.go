@@ -1,7 +1,9 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -9,6 +11,25 @@ import (
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 )
+
+// multipartMensajeRequest arma un POST multipart con un campo "contenido" y,
+// opcionalmente, un archivo en "archivo" -- los endpoints de enviar mensaje
+// ya no aceptan JSON (ver leerMensajeConAdjunto en chat.go), justo para
+// poder mandar texto y adjunto en la misma petición.
+func multipartMensajeRequest(url, contenido string, incluirArchivo bool) *http.Request {
+	body := &bytes.Buffer{}
+	w := multipart.NewWriter(body)
+	w.WriteField("contenido", contenido)
+	if incluirArchivo {
+		fw, _ := w.CreateFormFile("archivo", "foto.jpg")
+		fw.Write([]byte("contenido de prueba"))
+	}
+	w.Close()
+
+	req := httptest.NewRequest(http.MethodPost, url, body)
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	return req
+}
 
 func TestListarConversaciones(t *testing.T) {
 	srv, mock := nuevoServidorDePruebaConDB(t)
@@ -76,11 +97,11 @@ func TestObtenerMensajesStaff(t *testing.T) {
 		srv, mock := nuevoServidorDePruebaConDB(t)
 		mock.ExpectQuery("SELECT EXISTS").WithArgs("3", 1).
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
-		mock.ExpectQuery("SELECT id, autor_rol, contenido, creado_en FROM mensajes_chat").
+		mock.ExpectQuery("SELECT id, autor_rol, contenido, creado_en, adjunto_s3_key, adjunto_nombre, adjunto_tipo FROM mensajes_chat").
 			WithArgs(1, "3").
-			WillReturnRows(sqlmock.NewRows([]string{"id", "autor_rol", "contenido", "creado_en"}).
-				AddRow(1, "papa", "Hola", "2026-08-12T10:00:00Z").
-				AddRow(2, "staff", "Hola, ¿en qué te ayudo?", "2026-08-12T10:05:00Z"))
+			WillReturnRows(sqlmock.NewRows([]string{"id", "autor_rol", "contenido", "creado_en", "adjunto_s3_key", "adjunto_nombre", "adjunto_tipo"}).
+				AddRow(1, "papa", "Hola", "2026-08-12T10:00:00Z", nil, nil, nil).
+				AddRow(2, "staff", "Hola, ¿en qué te ayudo?", "2026-08-12T10:05:00Z", nil, nil, nil))
 		mock.ExpectExec("UPDATE mensajes_chat SET leido = true").
 			WithArgs(1, "3").
 			WillReturnResult(sqlmock.NewResult(0, 1))
@@ -108,13 +129,13 @@ func TestObtenerMensajesStaff(t *testing.T) {
 }
 
 func TestEnviarMensajeStaff(t *testing.T) {
-	t.Run("mensaje vacío -> 400", func(t *testing.T) {
+	t.Run("mensaje vacío sin adjunto -> 400", func(t *testing.T) {
 		srv, mock := nuevoServidorDePruebaConDB(t)
 		mock.ExpectQuery("SELECT EXISTS").WithArgs("3", 1).
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 
 		r := nuevoRouterDePrueba(srv)
-		req := jsonRequest(http.MethodPost, "/chat/3/mensajes", map[string]string{"contenido": "   "})
+		req := multipartMensajeRequest("/chat/3/mensajes", "   ", false)
 		autenticarRequestPrueba(t, req, srv.JWTKey, "staff", time.Hour)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
@@ -128,11 +149,11 @@ func TestEnviarMensajeStaff(t *testing.T) {
 		mock.ExpectQuery("SELECT EXISTS").WithArgs("3", 1).
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 		mock.ExpectExec("INSERT INTO mensajes_chat").
-			WithArgs(1, "3", 1, "staff", "Claro, con gusto te ayudo.").
+			WithArgs(1, "3", 1, "staff", "Claro, con gusto te ayudo.", nil, nil, nil).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 
 		r := nuevoRouterDePrueba(srv)
-		req := jsonRequest(http.MethodPost, "/chat/3/mensajes", map[string]string{"contenido": "Claro, con gusto te ayudo."})
+		req := multipartMensajeRequest("/chat/3/mensajes", "Claro, con gusto te ayudo.", false)
 		autenticarRequestPrueba(t, req, srv.JWTKey, "staff", time.Hour)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
@@ -146,10 +167,10 @@ func TestEnviarMensajeStaff(t *testing.T) {
 func TestChatPadre(t *testing.T) {
 	t.Run("papá obtiene su propio hilo -> 200", func(t *testing.T) {
 		srv, mock := nuevoServidorDePruebaConDB(t)
-		mock.ExpectQuery("SELECT id, autor_rol, contenido, creado_en FROM mensajes_chat").
+		mock.ExpectQuery("SELECT id, autor_rol, contenido, creado_en, adjunto_s3_key, adjunto_nombre, adjunto_tipo FROM mensajes_chat").
 			WithArgs(1, 1).
-			WillReturnRows(sqlmock.NewRows([]string{"id", "autor_rol", "contenido", "creado_en"}).
-				AddRow(1, "papa", "Hola", "2026-08-12T10:00:00Z"))
+			WillReturnRows(sqlmock.NewRows([]string{"id", "autor_rol", "contenido", "creado_en", "adjunto_s3_key", "adjunto_nombre", "adjunto_tipo"}).
+				AddRow(1, "papa", "Hola", "2026-08-12T10:00:00Z", nil, nil, nil))
 		mock.ExpectExec("UPDATE mensajes_chat SET leido = true").
 			WithArgs(1, 1).
 			WillReturnResult(sqlmock.NewResult(0, 0))
@@ -168,11 +189,11 @@ func TestChatPadre(t *testing.T) {
 	t.Run("papá envía un mensaje -> 201", func(t *testing.T) {
 		srv, mock := nuevoServidorDePruebaConDB(t)
 		mock.ExpectExec("INSERT INTO mensajes_chat").
-			WithArgs(1, 1, 1, "Buenas tardes, tengo una duda.").
+			WithArgs(1, 1, 1, "Buenas tardes, tengo una duda.", nil, nil, nil).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 
 		r := nuevoRouterDePrueba(srv)
-		req := jsonRequest(http.MethodPost, "/padre/chat", map[string]string{"contenido": "Buenas tardes, tengo una duda."})
+		req := multipartMensajeRequest("/padre/chat", "Buenas tardes, tengo una duda.", false)
 		autenticarRequestPrueba(t, req, srv.JWTKey, "papa", time.Hour)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
