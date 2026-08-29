@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { KeyRound, CheckCircle2, XCircle, Building2, RefreshCw, LogOut } from 'lucide-react';
+import { KeyRound, CheckCircle2, XCircle, Building2, RefreshCw, LogOut, Users, Baby, MapPin, Clock, ClipboardList } from 'lucide-react';
 import { mostrarError, mostrarExito, confirmar } from './utils/alertas';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://guarderiabiometricback.onrender.com';
@@ -15,8 +15,11 @@ const STORAGE_KEY = 'pasitos_platform_key';
 const PanelPlataforma = () => {
   const [key, setKey] = useState(() => sessionStorage.getItem(STORAGE_KEY) || '');
   const [keyInput, setKeyInput] = useState('');
+  const [vista, setVista] = useState('solicitudes'); // solicitudes | guarderias
   const [solicitudes, setSolicitudes] = useState(null);
+  const [guarderias, setGuarderias] = useState(null);
   const [cargando, setCargando] = useState(false);
+  const [cargandoGuarderias, setCargandoGuarderias] = useState(false);
   const [errorKey, setErrorKey] = useState('');
 
   const cabeceras = { headers: { 'X-Platform-Key': key } };
@@ -42,10 +45,42 @@ const PanelPlataforma = () => {
     }
   };
 
+  // cargarGuarderias -- panorama de las guarderías YA aprobadas (a
+  // diferencia de "solicitudes", que son las que todavía esperan
+  // revisión): cuántos papás y niños tiene registrados cada una, y cuándo
+  // fue la última vez que alguien de ahí entró de verdad.
+  const cargarGuarderias = async (llave = key) => {
+    setCargandoGuarderias(true);
+    try {
+      const res = await axios.get(`${API_URL}/plataforma/guarderias`, { headers: { 'X-Platform-Key': llave } });
+      setGuarderias(res.data || []);
+    } catch (err) {
+      if (err.response?.status !== 401) {
+        mostrarError('No se pudo cargar la lista de guarderías.');
+      }
+    } finally {
+      setCargandoGuarderias(false);
+    }
+  };
+
   useEffect(() => {
     if (key) cargar(key);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (key && vista === 'guarderias' && guarderias === null) cargarGuarderias(key);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vista, key]);
+
+  const formatoFecha = (iso) => {
+    if (!iso) return null;
+    try {
+      return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
+    } catch {
+      return iso;
+    }
+  };
 
   const aprobar = async (s) => {
     const ok = await confirmar(`¿Crear la guardería "${s.nombre_guarderia}" con el usuario "${s.username_deseado}"?`, 'Aprobar solicitud');
@@ -75,6 +110,8 @@ const PanelPlataforma = () => {
     sessionStorage.removeItem(STORAGE_KEY);
     setKey('');
     setSolicitudes(null);
+    setGuarderias(null);
+    setVista('solicitudes');
   };
 
   if (!key) {
@@ -107,11 +144,14 @@ const PanelPlataforma = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="bg-forest p-2.5 rounded-xl"><Building2 size={20} className="text-white" /></div>
-            <h1 className="text-xl font-black text-slate-900">Solicitudes de guardería</h1>
+            <h1 className="text-xl font-black text-slate-900">{vista === 'solicitudes' ? 'Solicitudes de guardería' : 'Guarderías registradas'}</h1>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => cargar()} className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-500 hover:text-brand-600" title="Actualizar">
-              <RefreshCw size={18} className={cargando ? 'animate-spin' : ''} />
+            <button
+              onClick={() => (vista === 'solicitudes' ? cargar() : cargarGuarderias())}
+              className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-500 hover:text-brand-600" title="Actualizar"
+            >
+              <RefreshCw size={18} className={(vista === 'solicitudes' ? cargando : cargandoGuarderias) ? 'animate-spin' : ''} />
             </button>
             <button onClick={cerrarSesionPlataforma} className="p-2.5 bg-white border border-slate-200 rounded-xl text-rose-500 hover:bg-rose-50" title="Salir">
               <LogOut size={18} />
@@ -119,6 +159,81 @@ const PanelPlataforma = () => {
           </div>
         </div>
 
+        {/* PESTAÑAS -- "Solicitudes" es lo que ya existía (altas pendientes
+            de revisar); "Guarderías" es el panorama nuevo de las que ya
+            están dadas de alta y usando el sistema. */}
+        <div className="flex bg-white border border-slate-200 p-1.5 rounded-2xl w-fit">
+          <button
+            onClick={() => setVista('solicitudes')}
+            className={`px-4 py-2 rounded-xl flex items-center gap-2 font-black text-xs uppercase transition-all ${vista === 'solicitudes' ? 'bg-forest text-white shadow-sm' : 'text-slate-400'}`}
+          >
+            <ClipboardList size={15} /> Solicitudes
+          </button>
+          <button
+            onClick={() => setVista('guarderias')}
+            className={`px-4 py-2 rounded-xl flex items-center gap-2 font-black text-xs uppercase transition-all ${vista === 'guarderias' ? 'bg-forest text-white shadow-sm' : 'text-slate-400'}`}
+          >
+            <Building2 size={15} /> Guarderías
+          </button>
+        </div>
+
+        {vista === 'guarderias' ? (
+          <div className="space-y-3">
+            {cargandoGuarderias && guarderias === null ? (
+              <div className="bg-white p-10 rounded-[2.5rem] border border-dashed border-slate-200 text-center text-slate-400 font-bold uppercase text-xs tracking-widest">
+                Cargando...
+              </div>
+            ) : guarderias?.length === 0 ? (
+              <div className="bg-white p-10 rounded-[2.5rem] border border-dashed border-slate-200 text-center text-slate-400 font-bold uppercase text-xs tracking-widest">
+                Todavía no hay ninguna guardería dada de alta
+              </div>
+            ) : (
+              guarderias?.map((g) => (
+                <div key={g.id} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-4">
+                  <div className="flex items-start justify-between gap-4 flex-wrap">
+                    <div>
+                      <p className="font-black text-slate-900 text-lg">{g.nombre}</p>
+                      <p className="text-[10px] font-black uppercase text-brand-600 tracking-widest mt-1">{g.slug}</p>
+                      {g.direccion && (
+                        <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-2">
+                          <MapPin size={12} className="shrink-0" /> {g.direccion}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Dada de alta</p>
+                      <p className="text-xs font-bold text-slate-600">{formatoFecha(g.creado_en)}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="bg-slate-50 rounded-xl p-3 text-center">
+                      <Baby size={16} className="mx-auto text-brand-500 mb-1" />
+                      <p className="font-black text-slate-900 text-lg leading-none">{g.total_ninos}</p>
+                      <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mt-1">Niños</p>
+                    </div>
+                    <div className="bg-slate-50 rounded-xl p-3 text-center">
+                      <Users size={16} className="mx-auto text-brand-500 mb-1" />
+                      <p className="font-black text-slate-900 text-lg leading-none">{g.total_papas}</p>
+                      <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mt-1">Papás</p>
+                    </div>
+                    <div className="bg-slate-50 rounded-xl p-3 text-center">
+                      <Users size={16} className="mx-auto text-slate-400 mb-1" />
+                      <p className="font-black text-slate-900 text-lg leading-none">{g.total_staff}</p>
+                      <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mt-1">Staff/Admin</p>
+                    </div>
+                    <div className="bg-slate-50 rounded-xl p-3 text-center">
+                      <Clock size={16} className="mx-auto text-slate-400 mb-1" />
+                      <p className="font-black text-slate-900 text-[13px] leading-tight mt-0.5">{g.ultimo_acceso ? formatoFecha(g.ultimo_acceso) : 'Sin accesos'}</p>
+                      <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mt-1">Último acceso</p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        ) : (
+          <>
         {solicitudes?.length === 0 && (
           <div className="bg-white p-10 rounded-[2.5rem] border border-dashed border-slate-200 text-center text-slate-400 font-bold uppercase text-xs tracking-widest">
             No hay solicitudes pendientes
@@ -147,6 +262,8 @@ const PanelPlataforma = () => {
             </div>
           ))}
         </div>
+          </>
+        )}
       </div>
     </div>
   );
