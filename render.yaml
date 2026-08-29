@@ -21,8 +21,11 @@
 #
 # Los nombres de los servicios (pasitos-backend, pasitos-frontend) deciden la
 # URL final (https://pasitos-backend.onrender.com, etc.) -- si Render les
-# agrega un sufijo porque el nombre ya estaba tomado, hay que actualizar
-# ALLOWED_ORIGINS/FRONTEND_URL/VITE_APIUR abajo con la URL real que te dé.
+# agrega un sufijo porque el nombre ya estaba tomado (le pasó al backend de
+# este piloto: quedó en pasitos-backend-f411), hay que actualizar
+# ALLOWED_ORIGINS/FRONTEND_URL (abajo, en el backend) y VITE_API_URL (abajo,
+# en el frontend) con la URL real que te dé Render -- y volver a desplegar
+# el frontend después, porque VITE_API_URL se hornea en el build.
 services:
   - type: web
     name: pasitos-backend
@@ -90,10 +93,17 @@ services:
     envVars:
       # Se hornea en el bundle en tiempo de build (Vite reemplaza
       # import.meta.env.* de forma estática) -- si cambia, hay que volver a
-      # desplegar el frontend, no basta con reiniciarlo. Actualiza esto si
-      # Render le puso un sufijo distinto al nombre del backend.
+      # desplegar el frontend, no basta con reiniciarlo.
+      #
+      # "pasitos-backend" ya estaba tomado en el namespace global de
+      # *.onrender.com cuando se desplegó por primera vez, así que Render le
+      # puso el sufijo "-f411" solo (URL real: pasitos-backend-f411, aunque
+      # el recurso se siga llamando "pasitos-backend" aquí abajo y en el
+      # dashboard) -- si algún día se vuelve a crear este Blueprint desde
+      # cero, revisa la URL real que te dé Render y actualiza esto si
+      # cambia otra vez.
       - key: VITE_API_URL
-        value: https://pasitos-backend.onrender.com
+        value: https://pasitos-backend-f411.onrender.com
     routes:
       # Sin esto, recargar la página en /panel/identificar (o cualquier
       # ruta que no sea la raíz) da 404 -- es una SPA con rutas del lado
