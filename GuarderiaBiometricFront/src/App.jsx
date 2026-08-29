@@ -807,11 +807,18 @@ function MainApp() {
                    )}
                  </div>
                )}
-               {/* Sin max-w-md aquí a propósito -- "quiero que abarque toda la
-                   pantalla el cuadro del facial" -- solo queda acotado por el
-                   max-w-5xl del <main>, así que en un kiosco real (tablet,
-                   pantalla angosta) ocupa prácticamente todo el ancho. */}
-               <div className="relative rounded-[3.5rem] overflow-hidden border-8 border-white bg-slate-200 shadow-2xl aspect-[3/4] mx-auto w-full">
+               {/* "Quiero que abarque toda la pantalla el cuadro del facial"
+                   -- en una tablet angosta (el kiosco real) el 100% del ancho
+                   ya da una caja de alto razonable, así que ahí w-full manda.
+                   En una pantalla de computadora, ese mismo 100% del ancho
+                   (acotado solo por el max-w-5xl del <main>) da una caja
+                   MUY alta con este aspecto 3:4 -- "solo se alcanza a ver una
+                   parte, está muy grande". min(100%, 54vh) resuelve los dos
+                   casos sin depender de un breakpoint fijo: manda el ancho
+                   cuando la pantalla es angosta y alta (tablet en vertical) y
+                   manda el alto de la ventana cuando es ancha y baja
+                   (computadora), acotando la caja a ~54vh de alto máximo. */}
+               <div className="relative rounded-[3.5rem] overflow-hidden border-8 border-white bg-slate-200 shadow-2xl aspect-[3/4] mx-auto w-[min(100%,54vh)]">
                   <Webcam audio={false} ref={webcamRef} screenshotFormat="image/jpeg" videoConstraints={videoConstraints} className="absolute inset-0 w-full h-full object-cover" mirrored={true} />
                   {/* Guía visual de encuadre: no detecta el rostro, solo ayuda a alinearlo antes de escanear */}
                   {!loading && (
