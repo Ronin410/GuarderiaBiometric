@@ -1,0 +1,586 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pasitos — Manual para Papás y Mamás</title>
+<style>
+  :root {
+    --bg: #faf8f5;
+    --surface: #ffffff;
+    --surface-alt: #f2eefb;
+    --text: #201d2b;
+    --text-muted: #6d6880;
+    --border: #e4e0ee;
+    --border-strong: #cfc9e2;
+    --accent: #5539e0;
+    --accent-soft: #ece6fc;
+    --accent-ink: #3d269e;
+    --good: #187a55;
+    --good-soft: #e3f5ec;
+    --warn: #a6650a;
+    --warn-soft: #faeed9;
+    --crit: #c23b3b;
+    --crit-soft: #fbe7e6;
+    --shadow: 0 1px 2px rgba(32,29,43,0.04), 0 8px 24px -12px rgba(32,29,43,0.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #15131e;
+      --surface: #1d1a29;
+      --surface-alt: #241f36;
+      --text: #ece9f7;
+      --text-muted: #a49dbe;
+      --border: #322c46;
+      --border-strong: #423a5c;
+      --accent: #a690ff;
+      --accent-soft: #2c2547;
+      --accent-ink: #d9cfff;
+      --good: #4cc38a;
+      --good-soft: #163227;
+      --warn: #e0a542;
+      --warn-soft: #372a12;
+      --crit: #f0736b;
+      --crit-soft: #3a1e1e;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #15131e;
+    --surface: #1d1a29;
+    --surface-alt: #241f36;
+    --text: #ece9f7;
+    --text-muted: #a49dbe;
+    --border: #322c46;
+    --border-strong: #423a5c;
+    --accent: #a690ff;
+    --accent-soft: #2c2547;
+    --accent-ink: #d9cfff;
+    --good: #4cc38a;
+    --good-soft: #163227;
+    --warn: #e0a542;
+    --warn-soft: #372a12;
+    --crit: #f0736b;
+    --crit-soft: #3a1e1e;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .font-display {
+    font-family: Georgia, "Iowan Old Style", "Palatino Linotype", "URW Palladio L", serif;
+  }
+
+  a { color: var(--accent); }
+  a:focus-visible, button:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .shell {
+    display: grid;
+    grid-template-columns: 272px minmax(0, 1fr);
+    min-height: 100vh;
+  }
+
+  /* ---------- sidebar ---------- */
+  .sidebar {
+    background: var(--surface-alt);
+    border-right: 1px solid var(--border);
+    padding: 1.75rem 1.25rem 3rem;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.15rem;
+  }
+  .brand-mark {
+    width: 1.15rem; height: 1.15rem;
+    border-radius: 0.4rem;
+    background: var(--accent);
+    display: inline-block;
+    flex-shrink: 0;
+  }
+  .brand h1 {
+    font-size: 1.05rem;
+    margin: 0;
+    letter-spacing: 0.01em;
+  }
+  .brand-sub {
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 1.75rem;
+  }
+  .switch-audience {
+    display: block;
+    margin: -0.75rem 0 1.5rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 0.6rem;
+    border: 1px dashed var(--border-strong);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+  .switch-audience strong { display: block; color: var(--text); font-size: 0.82rem; margin-bottom: 0.15rem; }
+  .nav-group { margin-bottom: 1.4rem; }
+  .nav-group-title {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--text-muted);
+    margin: 0 0 0.45rem;
+    font-weight: 600;
+  }
+  .nav-group ul { list-style: none; margin: 0; padding: 0; }
+  .nav-group li a {
+    display: block;
+    padding: 0.28rem 0.5rem;
+    margin-left: -0.5rem;
+    border-radius: 0.4rem;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 0.855rem;
+  }
+  .nav-group li a:hover { background: var(--surface); color: var(--accent-ink); }
+
+  /* ---------- main content ---------- */
+  main {
+    padding: 3rem clamp(1.25rem, 4vw, 4rem) 6rem;
+    min-width: 0;
+  }
+
+  header.intro h1 {
+    font-size: clamp(2rem, 4vw, 2.6rem);
+    margin: 0 0 0.6rem;
+    text-wrap: balance;
+  }
+  header.intro .lede {
+    font-size: 1.05rem;
+    color: var(--text-muted);
+    max-width: 42rem;
+  }
+
+  section.top-section {
+    margin-top: 4.5rem;
+    padding-top: 0.5rem;
+    scroll-margin-top: 1.5rem;
+  }
+  section.top-section > h2 {
+    font-size: 1.7rem;
+    margin: 0 0 0.35rem;
+    text-wrap: balance;
+  }
+  section.top-section > .section-kicker {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent-ink);
+    font-weight: 600;
+    margin: 0 0 0.4rem;
+  }
+  section.top-section > .section-intro {
+    color: var(--text-muted);
+    max-width: 44rem;
+    margin: 0 0 1.75rem;
+  }
+
+  h3.cat-title {
+    font-size: 1.35rem;
+    margin: 3rem 0 0.35rem;
+    scroll-margin-top: 1.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border);
+  }
+  h3.cat-title:first-of-type { border-top: none; margin-top: 2rem; }
+
+  /* manuals grid */
+  .manual-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+  }
+  article.manual {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0.9rem;
+    padding: 1.1rem 1.2rem 1.2rem;
+    scroll-margin-top: 1.5rem;
+    box-shadow: var(--shadow);
+  }
+  article.manual h4 {
+    margin: 0 0 0.55rem;
+    font-size: 1.02rem;
+  }
+  article.manual ul {
+    margin: 0 0 0.6rem;
+    padding-left: 1.1rem;
+    font-size: 0.9rem;
+  }
+  article.manual ul li { margin-bottom: 0.35rem; }
+  article.manual ul li:last-child { margin-bottom: 0; }
+  .manual-note {
+    margin: 0.6rem 0 0;
+    padding-top: 0.6rem;
+    border-top: 1px dashed var(--border);
+    font-size: 0.82rem;
+    color: var(--text-muted);
+  }
+  .manual-note b { color: var(--text); }
+
+  .tip-box {
+    background: var(--good-soft);
+    border: 1px solid var(--good);
+    border-radius: 0.9rem;
+    padding: 1rem 1.2rem;
+    margin: 1.25rem 0;
+    font-size: 0.92rem;
+  }
+  .tip-box b { color: var(--good); }
+
+  footer.doc-footer {
+    margin-top: 4rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+  }
+
+  @media (max-width: 860px) {
+    .shell { grid-template-columns: 1fr; }
+    .sidebar {
+      position: static;
+      height: auto;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 1.25rem;
+    }
+    .nav-group { margin-bottom: 0.9rem; }
+    main { padding: 2rem 1.25rem 4rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <nav class="sidebar" aria-label="Índice del manual">
+    <div class="brand"><span class="brand-mark" aria-hidden="true"></span><h1 class="font-display">Pasitos</h1></div>
+    <p class="brand-sub">Manual para papás y mamás</p>
+    <div class="switch-audience">
+      <strong>¿Trabajas en la guardería?</strong>
+      <a href="/manual.html">Ve al manual para administración y personal →</a>
+    </div>
+
+    <div class="nav-group">
+      <p class="nav-group-title">Empezar aquí</p>
+      <ul>
+        <li><a href="#intro">Bienvenida</a></li>
+        <li><a href="#cuenta">Cómo consigo mi cuenta</a></li>
+        <li><a href="#entrar">Cómo entro al portal</a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <p class="nav-group-title">En el portal</p>
+      <ul>
+        <li><a href="#inicio">Inicio</a></li>
+        <li><a href="#bitacora">Bitácora de mi hijo</a></li>
+        <li><a href="#expediente">Expediente</a></li>
+        <li><a href="#pagos">Pagos</a></li>
+        <li><a href="#chat">Chat con la guardería</a></li>
+        <li><a href="#circulares">Circulares</a></li>
+        <li><a href="#eventos">Eventos</a></li>
+        <li><a href="#encuestas">Encuestas</a></li>
+        <li><a href="#ausencias">Avisar una ausencia</a></li>
+        <li><a href="#comedor">Comedor</a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <p class="nav-group-title">Otras cosas útiles</p>
+      <ul>
+        <li><a href="#notificaciones">Notificaciones</a></li>
+        <li><a href="#instalar">Instalar la app en tu celular</a></li>
+        <li><a href="#privacidad">Aviso de privacidad</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main>
+    <header class="intro" id="intro">
+      <h1 class="font-display">Manual para papás y mamás</h1>
+      <p class="lede">Esta guía te explica, sin tecnicismos, todo lo que puedes hacer desde el portal de Pasitos: ver la bitácora de tu hijo, sus pagos, mandar mensajes a la guardería y más. Busca el tema que necesitas en el menú de la izquierda.</p>
+      <p class="lede">¿Trabajas en la guardería? El manual que te corresponde es <a href="/manual.html">este otro</a>.</p>
+    </header>
+
+    <!-- ================= EMPEZAR AQUÍ ================= -->
+    <section class="top-section" id="cuenta">
+      <p class="section-kicker">Antes de empezar</p>
+      <h2>Cómo consigo mi cuenta</h2>
+      <p class="section-intro">No te registras tú mismo desde internet — tu cuenta la crea la guardería cuando inscriben a tu hijo.</p>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Al inscribir a tu hijo</h4>
+          <ul>
+            <li>Cuando lleves a tu hijo a inscribirse, la persona de recepción te va a pedir aceptar el aviso de privacidad y te va a tomar una foto de tu rostro (para reconocerte cuando entres o salgas de la guardería).</li>
+            <li>En ese mismo momento puedes pedir que te creen tu cuenta del portal, eligiendo un usuario y una contraseña.</li>
+            <li>Si no la creaste ese día, pídesela después a la guardería — te la pueden crear en cualquier momento.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="top-section" id="entrar">
+      <p class="section-kicker">Antes de empezar</p>
+      <h2>Cómo entro al portal</h2>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Iniciar sesión</h4>
+          <ul>
+            <li>Entra a la página de tu guardería y elige la pestaña "Papá".</li>
+            <li>Escribe tu correo (o el usuario que elegiste) y tu contraseña.</li>
+            <li>Si olvidaste tu contraseña, pídele a la guardería que te la restablezca.</li>
+          </ul>
+        </article>
+      </div>
+      <div class="tip-box">
+        <b>Consejo:</b> puedes instalar la app en tu celular para entrar con un solo toque, como cualquier otra app — ver <a href="#instalar">Instalar la app en tu celular</a> más abajo.
+      </div>
+    </section>
+
+    <!-- ================= EN EL PORTAL ================= -->
+    <section class="top-section" id="inicio">
+      <p class="section-kicker">En el portal</p>
+      <h2>Inicio</h2>
+      <p class="section-intro">La pantalla principal al entrar. Ahí ves de un vistazo lo más importante.</p>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Qué encuentras aquí</h4>
+          <ul>
+            <li>La lista de tus hijos — toca cualquiera para ver su información completa.</li>
+            <li>Un botón para el chat con la guardería y otro para las encuestas.</li>
+            <li>El estado de los pagos de cada hijo este mes (pagado, parcial, pendiente o vencido).</li>
+            <li>Un adelanto de la circular más reciente y de los próximos eventos, con acceso al listado completo de cada uno.</li>
+            <li>El menú de comida del día.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="top-section" id="bitacora">
+      <p class="section-kicker">En el portal</p>
+      <h2>Bitácora de mi hijo</h2>
+      <p class="section-intro">Al tocar a uno de tus hijos desde el inicio, entras a su pantalla — la pestaña "Hoy" es la bitácora del día.</p>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Qué reporta la guardería aquí</h4>
+          <ul>
+            <li>Comidas del día (desayuno, comida, colación), si durmió siesta, y cambios de pañal o baño.</li>
+            <li>Notas del personal sobre cómo estuvo tu hijo ese día.</li>
+            <li>Fotos que suban las maestras — puedes tocarlas para verlas en grande.</li>
+            <li>Puedes cambiar la fecha arriba para ver días anteriores.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="top-section" id="expediente">
+      <p class="section-kicker">En el portal</p>
+      <h2>Expediente</h2>
+      <p class="section-intro">Pestaña "Expediente" dentro de la pantalla de tu hijo.</p>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Datos y documentos</h4>
+          <ul>
+            <li>Los datos que la guardería tiene registrados de tu hijo: fecha de nacimiento, dirección y contacto de emergencia.</li>
+            <li>La lista de documentos que la guardería pide (acta de nacimiento, CURP, etc.) y cuáles ya entregaste y cuáles todavía te faltan.</li>
+            <li>Aquí solo consultas — si necesitas entregar un documento, llévaselo a la guardería, ellos lo suben.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="top-section" id="pagos">
+      <p class="section-kicker">En el portal</p>
+      <h2>Pagos</h2>
+      <p class="section-intro">Pestaña "Pagos" dentro de la pantalla de tu hijo.</p>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Ver tu historial de pagos</h4>
+          <ul>
+            <li>Lista de todos los pagos que se han registrado, con fecha, concepto y forma de pago.</li>
+            <li>Toca cualquiera para ver o descargar su recibo.</li>
+            <li>Si debes de un mes anterior, lo verás marcado como deuda de meses anteriores, aparte del estado del mes en curso.</li>
+          </ul>
+        </article>
+        <article class="manual">
+          <h4>Pagar con tarjeta (si tu guardería lo activa)</h4>
+          <ul>
+            <li>Cuando esté disponible, verás una tarjeta que te muestra el saldo pendiente del mes y un espacio para escribir cuánto quieres pagar.</li>
+            <li>Puedes pagar el saldo completo, o solo una parte si es lo que te alcanza en ese momento — lo que falte se queda pendiente para después.</li>
+            <li>Al confirmar, te lleva a una pantalla segura para pagar con tu tarjeta. Al terminar, regresas al portal y te avisa si el pago se procesó bien.</li>
+          </ul>
+          <p class="manual-note">El pago en efectivo o por transferencia lo sigue registrando la guardería como siempre — la opción de tarjeta es solo un método adicional, si tu guardería decide ofrecerlo.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="top-section" id="chat">
+      <p class="section-kicker">En el portal</p>
+      <h2>Chat con la guardería</h2>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Mensajes directos, sin WhatsApp</h4>
+          <ul>
+            <li>Escríbele directamente a la guardería como en cualquier chat.</li>
+            <li>Puedes mandar también fotos y archivos, no solo texto.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="top-section" id="circulares">
+      <p class="section-kicker">En el portal</p>
+      <h2>Circulares</h2>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Avisos de la guardería</h4>
+          <ul>
+            <li>Todos los avisos que ha publicado la guardería, del más reciente al más antiguo.</li>
+            <li>Algunos incluyen una imagen además del texto.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="top-section" id="eventos">
+      <p class="section-kicker">En el portal</p>
+      <h2>Eventos</h2>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Calendario escolar</h4>
+          <ul>
+            <li>Todas las fechas importantes de la guardería: eventos, suspensiones de clases, vacaciones y juntas de padres.</li>
+            <li>Cada una muestra su fecha (o rango de fechas) y una breve descripción.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="top-section" id="encuestas">
+      <p class="section-kicker">En el portal</p>
+      <h2>Encuestas</h2>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Comparte tu opinión</h4>
+          <ul>
+            <li>Cuando la guardería publique una encuesta, la verás aquí — respóndela desde tu celular en un momento.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="top-section" id="ausencias">
+      <p class="section-kicker">En el portal</p>
+      <h2>Avisar una ausencia</h2>
+      <p class="section-intro">Pestaña "Ausencias" dentro de la pantalla de tu hijo.</p>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Avisar que tu hijo no va a asistir</h4>
+          <ul>
+            <li>Elige la fecha (o el rango de fechas) y, si quieres, escribe el motivo.</li>
+            <li>Así la guardería lo sabe con anticipación, sin que tengas que llamar o mandar mensaje aparte.</li>
+            <li>Puedes cancelar un aviso de ausencia si al final sí va a asistir.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="top-section" id="comedor">
+      <p class="section-kicker">En el portal</p>
+      <h2>Comedor</h2>
+      <p class="section-intro">Pestaña "Comedor" dentro de la pantalla de tu hijo.</p>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Avisos especiales de comida</h4>
+          <ul>
+            <li>Si tu hijo no va a comer alguna de las comidas del día (por ejemplo, ya desayunó en casa), avísalo aquí para ese día en específico.</li>
+            <li>Puedes agregar una nota si hace falta (alguna indicación especial, por ejemplo).</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- ================= OTRAS COSAS ÚTILES ================= -->
+    <section class="top-section" id="notificaciones">
+      <p class="section-kicker">Otras cosas útiles</p>
+      <h2>Notificaciones</h2>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Avisos al instante</h4>
+          <ul>
+            <li>Actívalas desde el botón "Activar notificaciones" en la pantalla de inicio.</li>
+            <li>Te avisan en cuanto la guardería registra la entrada o salida de tu hijo, sube la bitácora del día, publica una circular o una encuesta.</li>
+            <li>Si tu celular te pide permiso para mostrar notificaciones, acéptalo — sin eso no pueden llegarte los avisos.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="top-section" id="instalar">
+      <p class="section-kicker">Otras cosas útiles</p>
+      <h2>Instalar la app en tu celular</h2>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Para entrar más rápido, como cualquier app</h4>
+          <ul>
+            <li>El portal te va a sugerir instalarlo en tu pantalla de inicio — solo sigue las instrucciones que aparecen en pantalla (varían un poco entre Android y iPhone).</li>
+            <li>No ocupa espacio como una app normal ni hay que bajarla de ninguna tienda de aplicaciones.</li>
+            <li>Una vez instalada, sigue siendo la misma cuenta y la misma información — solo entras más rápido, con un ícono en tu pantalla de inicio.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="top-section" id="privacidad">
+      <p class="section-kicker">Otras cosas útiles</p>
+      <h2>Aviso de privacidad</h2>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Cómo se usan los datos de tu hijo</h4>
+          <ul>
+            <li>Cada guardería tiene su propio aviso de privacidad, que aceptaste al inscribir a tu hijo.</li>
+            <li>Puedes pedirle a la guardería en cualquier momento que te muestre, corrija o elimine la información que tienen registrada de tu familia.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <footer class="doc-footer">
+      Manual para papás y mamás de Pasitos. Si algo no te queda claro o no funciona como se describe aquí, contacta directamente a tu guardería.
+    </footer>
+  </main>
+</div>
+</body>
+</html>

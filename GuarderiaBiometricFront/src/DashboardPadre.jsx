@@ -18,7 +18,8 @@ import {
   MessageCircle,
   CalendarDays,
   ClipboardCheck,
-  AlertTriangle
+  AlertTriangle,
+  BookOpen
 } from 'lucide-react';
 import VistaPadreDetalle from './VistaPadreDetalle';
 import ChatPadre from './ChatPadre';
@@ -227,9 +228,18 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
           </div>
           <span className="font-black text-slate-900 uppercase tracking-tighter text-sm">PASITOS <span className="text-brand-600">FAMILIA</span></span>
         </div>
-        <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-rose-500 transition-colors">
-          <LogOut size={20} />
-        </button>
+        <div className="flex items-center gap-1">
+          <a
+            href="/manual-papa.html" target="_blank" rel="noopener noreferrer"
+            className="p-2 text-slate-400 hover:text-brand-600 transition-colors"
+            title="Manual"
+          >
+            <BookOpen size={20} />
+          </a>
+          <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-rose-500 transition-colors">
+            <LogOut size={20} />
+          </button>
+        </div>
       </div>
 
       <div className="max-w-md mx-auto p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
