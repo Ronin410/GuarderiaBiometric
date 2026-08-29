@@ -251,7 +251,11 @@ function MainApp() {
       hidratarSesion(res.data);
     } catch (error) {
       console.error("Error en login:", error);
-      mostrarError("Credenciales incorrectas para el perfil seleccionado");
+      // El backend ahora distingue "credenciales inválidas" de "esta cuenta
+      // es de otro tipo de perfil" (ver auth.go) -- se muestra tal cual en
+      // vez del genérico de antes, que dejaba pensar que la contraseña
+      // estaba mal cuando en realidad era la pestaña equivocada.
+      mostrarError(error.response?.data?.error || "Credenciales incorrectas para el perfil seleccionado");
     }
   };
 

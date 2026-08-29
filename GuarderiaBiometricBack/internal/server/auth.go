@@ -70,6 +70,15 @@ func (s *Server) handleLogin(c *gin.Context) {
 	var creds struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
+		// Tipo es el selector "Staff/Admin" vs "Soy Papá" de la pantalla de
+		// login -- "aunque deje la opción de staff/admin, si pongo el
+		// usuario y contraseña del papá me deja iniciar sesión como papá":
+		// antes esto se mandaba pero nunca se validaba contra el rol real
+		// de la cuenta, así que cualquier credencial válida entraba sin
+		// importar qué pestaña estuviera seleccionada. Opcional (peticiones
+		// viejas o de otros clientes sin este campo no se rompen: sin tipo
+		// no se aplica el filtro).
+		Tipo string `json:"tipo"`
 	}
 
 	if err := c.ShouldBindJSON(&creds); err != nil {
@@ -109,6 +118,25 @@ func (s *Server) handleLogin(c *gin.Context) {
 		log.Printf("Intento de login inválido para usuario %s", creds.Username)
 		s.registrarAcceso("login_fallido", gID, id, "contraseña incorrecta", c.ClientIP())
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Contraseña incorrecta"})
+		return
+	}
+
+	// Mismo criterio que la validación de "activo" de abajo: se revisa
+	// DESPUÉS de la contraseña, para no revelarle a quien intenta el login
+	// si el usuario existe bajo el otro rol solo por el mensaje de error.
+	// "papa" solo entra por la pestaña "Soy Papá"; "admin"/"staff" solo por
+	// "Staff/Admin" -- sin esto, cualquier credencial válida entraba sin
+	// importar qué pestaña estuviera seleccionada.
+	if creds.Tipo == "papa" && rol != "papa" {
+		log.Printf("Login rechazado (tipo de acceso incorrecto): %s intentó entrar como papá siendo %s", creds.Username, rol)
+		s.registrarAcceso("login_fallido", gID, id, "tipo de acceso incorrecto: "+creds.Username, c.ClientIP())
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Esta cuenta no es de una familia. Entra desde \"Staff / Admin\"."})
+		return
+	}
+	if creds.Tipo == "staff" && rol == "papa" {
+		log.Printf("Login rechazado (tipo de acceso incorrecto): %s intentó entrar como staff siendo papá", creds.Username)
+		s.registrarAcceso("login_fallido", gID, id, "tipo de acceso incorrecto: "+creds.Username, c.ClientIP())
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Esta cuenta es de una familia. Entra desde \"Soy Papá\"."})
 		return
 	}
 

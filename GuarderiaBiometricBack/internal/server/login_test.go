@@ -16,7 +16,13 @@ import (
 )
 
 func loginRequest(username, password string) *http.Request {
-	body, _ := json.Marshal(map[string]string{"username": username, "password": password})
+	return loginRequestConTipo(username, password, "")
+}
+
+// loginRequestConTipo -- igual que loginRequest, pero mandando el selector
+// "Staff/Admin" vs "Soy Papá" de la pantalla de login (campo "tipo").
+func loginRequestConTipo(username, password, tipo string) *http.Request {
+	body, _ := json.Marshal(map[string]string{"username": username, "password": password, "tipo": tipo})
 	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	return req
@@ -147,6 +153,91 @@ func TestLogin(t *testing.T) {
 			if ck.Name == middleware.CookieToken && ck.Value != "" {
 				t.Errorf("una cuenta desactivada no debe recibir cookie de sesión, se encontró: %v", ck)
 			}
+		}
+	})
+
+	// "Aunque deje la opción de staff/admin, si pongo el usuario y
+	// contraseña del papá me deja iniciar sesión como papá" -- el selector
+	// de la pantalla de login debe rechazar credenciales válidas de un rol
+	// que no coincide con la pestaña elegida, en vez de dejar entrar de
+	// todos modos.
+	t.Run("credenciales de papá con tipo=staff -> 401", func(t *testing.T) {
+		mockDB, mock, err := sqlmock.New()
+		if err != nil {
+			t.Fatalf("sqlmock: %v", err)
+		}
+		defer mockDB.Close()
+
+		srv := New()
+		srv.DBAuth = mockDB
+		srv.JWTKey = []byte("clave-de-prueba-solo-para-tests")
+
+		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.username = \\$1").
+			WithArgs("papa_demo").
+			WillReturnRows(sqlmock.NewRows(columnas).
+				AddRow(3, 1, string(hashCorrecto), "papa", "1234", "Guardería Demo", "demo", true, nil))
+
+		r := nuevoRouterDePrueba(srv)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, loginRequestConTipo("papa_demo", "Correcta123!", "staff"))
+
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("código = %d; esperado 401 (body: %s)", w.Code, w.Body.String())
+		}
+		for _, ck := range w.Result().Cookies() {
+			if ck.Name == middleware.CookieToken && ck.Value != "" {
+				t.Errorf("no debe emitirse cookie de sesión cuando el tipo no coincide con el rol, se encontró: %v", ck)
+			}
+		}
+	})
+
+	t.Run("credenciales de admin con tipo=papa -> 401", func(t *testing.T) {
+		mockDB, mock, err := sqlmock.New()
+		if err != nil {
+			t.Fatalf("sqlmock: %v", err)
+		}
+		defer mockDB.Close()
+
+		srv := New()
+		srv.DBAuth = mockDB
+		srv.JWTKey = []byte("clave-de-prueba-solo-para-tests")
+
+		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.username = \\$1").
+			WithArgs("admin_demo").
+			WillReturnRows(sqlmock.NewRows(columnas).
+				AddRow(1, 1, string(hashCorrecto), "admin", "1234", "Guardería Demo", "demo", true, nil))
+
+		r := nuevoRouterDePrueba(srv)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, loginRequestConTipo("admin_demo", "Correcta123!", "papa"))
+
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("código = %d; esperado 401 (body: %s)", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("tipo coincide con el rol -> 200", func(t *testing.T) {
+		mockDB, mock, err := sqlmock.New()
+		if err != nil {
+			t.Fatalf("sqlmock: %v", err)
+		}
+		defer mockDB.Close()
+
+		srv := New()
+		srv.DBAuth = mockDB
+		srv.JWTKey = []byte("clave-de-prueba-solo-para-tests")
+
+		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.username = \\$1").
+			WithArgs("staff_demo").
+			WillReturnRows(sqlmock.NewRows(columnas).
+				AddRow(2, 1, string(hashCorrecto), "staff", "1234", "Guardería Demo", "demo", true, nil))
+
+		r := nuevoRouterDePrueba(srv)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, loginRequestConTipo("staff_demo", "Correcta123!", "staff"))
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("código = %d; esperado 200 (body: %s)", w.Code, w.Body.String())
 		}
 	})
 
