@@ -24,6 +24,7 @@ import VistaPadreDetalle from './VistaPadreDetalle';
 import ChatPadre from './ChatPadre';
 import EncuestasPadre from './EncuestasPadre';
 import CircularesPadre from './CircularesPadre';
+import EventosPadre from './EventosPadre';
 import { suscribirseAPush, suscripcionActiva, pushSoportado } from './utils/push';
 import { hoyLocal } from './utils/fecha';
 import InstalarApp from './components/InstalarApp';
@@ -51,6 +52,7 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
   const [mostrarChat, setMostrarChat] = useState(false);
   const [mostrarEncuestas, setMostrarEncuestas] = useState(false);
   const [mostrarCirculares, setMostrarCirculares] = useState(false);
+  const [mostrarEventos, setMostrarEventos] = useState(false);
   const [loading, setLoading] = useState(true);
   const usuarioNombre = nombreUsuario || 'Familia';
   const [pagos, setPagos] = useState([]);
@@ -200,6 +202,10 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
     return <CircularesPadre onVolver={() => setMostrarCirculares(false)} />;
   }
 
+  if (mostrarEventos) {
+    return <EventosPadre onVolver={() => setMostrarEventos(false)} />;
+  }
+
   if (hijoSeleccionado) {
     return (
       <VistaPadreDetalle
@@ -272,6 +278,22 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
           <div className="flex-1 text-left">
             <p className="text-[11px] font-black text-slate-900 uppercase leading-tight">Encuestas</p>
             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Comparte tu opinión con la guardería</p>
+          </div>
+          <ChevronRight size={20} className="text-slate-300 shrink-0" />
+        </button>
+
+        {/* EVENTOS -- "quiero que los eventos también estén en un menú
+            aparte", mismo criterio que Chat/Encuestas: entrada fija, no
+            condicionada a si hay algo próximo (a diferencia del teaser de
+            "Próximos eventos" más abajo, que sí depende de eso). */}
+        <button
+          onClick={() => setMostrarEventos(true)}
+          className="w-full bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-all active:scale-[0.98]"
+        >
+          <div className="bg-brand-100 p-3 rounded-2xl text-brand-600 shrink-0"><CalendarDays size={20} /></div>
+          <div className="flex-1 text-left">
+            <p className="text-[11px] font-black text-slate-900 uppercase leading-tight">Eventos</p>
+            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Calendario escolar de la guardería</p>
           </div>
           <ChevronRight size={20} className="text-slate-300 shrink-0" />
         </button>
@@ -356,18 +378,24 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
           </button>
         )}
 
-        {/* PRÓXIMOS EVENTOS DEL CALENDARIO */}
+        {/* PRÓXIMOS EVENTOS DEL CALENDARIO -- adelanto de lo que hay en el
+            menú "Eventos" de arriba; tocar cualquiera manda al listado
+            completo, igual que el resto de la app. */}
         {eventos.length > 0 && (
           <div className="space-y-3">
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Próximos eventos</h3>
             {eventos.map((ev) => (
-              <div key={ev.id} className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-3">
+              <button
+                key={ev.id}
+                onClick={() => setMostrarEventos(true)}
+                className="w-full bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-3 text-left hover:shadow-md transition-all active:scale-[0.98]"
+              >
                 <div className="bg-slate-50 p-2.5 rounded-xl text-brand-500 shrink-0"><CalendarDays size={16} /></div>
                 <div className="min-w-0">
                   <p className="font-black text-sm text-slate-900 truncate">{ev.titulo}</p>
                   <p className="text-[10px] text-slate-400 font-bold uppercase">{formatoFechaEvento(ev.fecha_inicio)}{ev.fecha_fin && ev.fecha_fin !== ev.fecha_inicio ? ` – ${formatoFechaEvento(ev.fecha_fin)}` : ''}</p>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         )}
