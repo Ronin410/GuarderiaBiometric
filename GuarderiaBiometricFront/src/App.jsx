@@ -144,6 +144,18 @@ function MainApp() {
   const avisoExpiracionMostrado = useRef(false);
   const webcamRef = useRef(null);
   const resultadoRef = useRef(null);
+  // "A veces prende la cámara y a veces no... me cambio a otra parte del
+  // menú y regreso y ya no se ve" -- react-webcam sí libera la cámara al
+  // desmontar y la vuelve a pedir al montar, pero en tablets Android el
+  // hardware de cámara a veces tarda en soltarse (o el getUserMedia
+  // simplemente no resuelve) y, como antes no había onUserMedia ni
+  // onUserMediaError, esa falla quedaba MUDA: un rectángulo en blanco sin
+  // ningún aviso ni forma de reintentar. camaraLista/camaraError hacen ese
+  // estado visible; camaraKey fuerza un remount limpio del <Webcam> al
+  // reintentar (desmonta el que quedó colgado y pide la cámara de cero).
+  const [camaraLista, setCamaraLista] = useState(false);
+  const [camaraError, setCamaraError] = useState(false);
+  const [camaraKey, setCamaraKey] = useState(0);
   const [nombre, setNombre] = useState('');
   const [resultado, setResultado] = useState(null);
   const [seleccionados, setSeleccionados] = useState([]);
@@ -458,6 +470,43 @@ function MainApp() {
       resultadoRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, [resultado]);
+
+  // mostrarCamara se queda en true al alternar entre "identificar" y
+  // "registrar" (los dos comparten el mismo <Webcam>, nunca se desmonta
+  // entre ellos) -- por eso el efecto de abajo usa ESTE booleano como
+  // dependencia y no `tab` directo: solo debe reiniciar el estado de la
+  // cámara cuando de verdad se sale y se vuelve a esta vista, no en cada
+  // clic entre esas dos pestañas.
+  const mostrarCamara = tab === 'identificar' || tab === 'registrar';
+  useEffect(() => {
+    if (!mostrarCamara) return;
+    setCamaraLista(false);
+    setCamaraError(false);
+  }, [mostrarCamara, camaraKey]);
+
+  // Si onUserMedia/onUserMediaError nunca llegan a dispararse (pasa en
+  // algunas tablets Android: el hardware de cámara se queda "colgado" sin
+  // resolver ni rechazar la promesa de getUserMedia), esto lo trata igual
+  // que un error después de un rato en vez de dejarlo en blanco para
+  // siempre sin ningún aviso.
+  useEffect(() => {
+    if (!mostrarCamara) return;
+    const limite = setTimeout(() => {
+      setCamaraLista((listo) => {
+        if (!listo) setCamaraError(true);
+        return listo;
+      });
+    }, 6000);
+    return () => clearTimeout(limite);
+  }, [mostrarCamara, camaraKey]);
+
+  const reintentarCamara = () => {
+    // Cambiar la key de <Webcam> obliga a React a desmontarla y volver a
+    // montarla de cero -- suelta cualquier stream que se hubiera quedado a
+    // medias y hace un getUserMedia nuevo, en vez de reintentar sobre el
+    // mismo componente que ya falló.
+    setCamaraKey((k) => k + 1);
+  };
 
   const capturarYEnviar = async (endpoint) => {
     if (!webcamRef.current) return;
@@ -829,7 +878,40 @@ function MainApp() {
                    ancho completo con este aspecto 3:4 da una caja más alta
                    que la ventana. */}
                <div className="relative rounded-[3.5rem] overflow-hidden border-8 border-white bg-slate-200 shadow-2xl aspect-[3/4] mx-auto w-full landscape:w-[min(100%,54vh)]">
-                  <Webcam audio={false} ref={webcamRef} screenshotFormat="image/jpeg" videoConstraints={videoConstraints} className="absolute inset-0 w-full h-full object-cover" mirrored={true} />
+                  <Webcam
+                    key={camaraKey}
+                    audio={false}
+                    ref={webcamRef}
+                    screenshotFormat="image/jpeg"
+                    videoConstraints={videoConstraints}
+                    className="absolute inset-0 w-full h-full object-cover"
+                    mirrored={true}
+                    onUserMedia={() => { setCamaraLista(true); setCamaraError(false); }}
+                    onUserMediaError={(err) => { console.error('No se pudo activar la cámara:', err); setCamaraError(true); }}
+                  />
+                  {/* "A veces prende la cámara y a veces no... me cambio a otra parte
+                      del menú y regreso y ya no se ve" -- sin este aviso, una cámara que
+                      no arrancó (hardware ocupado, WebView tardado, lo que sea) se veía
+                      igual que una que sí -- un rectángulo gris, sin ninguna pista de que
+                      algo falló ni forma de reintentar sin recargar toda la página. */}
+                  {!camaraLista && (
+                    <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-4 bg-slate-800/90 px-8 text-center">
+                      {camaraError ? (
+                        <>
+                          <AlertCircle className="text-rose-300" size={36} />
+                          <p className="text-white text-xs font-black uppercase tracking-widest">No se pudo activar la cámara</p>
+                          <button onClick={reintentarCamara} className="bg-white text-slate-900 text-[11px] font-black uppercase tracking-widest px-6 py-3 rounded-2xl shadow-md active:scale-95 transition-all">
+                            Reintentar
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="animate-spin text-white" size={32} />
+                          <p className="text-white text-[10px] font-black uppercase tracking-widest">Iniciando cámara...</p>
+                        </>
+                      )}
+                    </div>
+                  )}
                   {/* Guía visual de encuadre: no detecta el rostro, solo ayuda a alinearlo antes de escanear.
                       "El óvalo se ve muy pequeño" -- antes este contenedor centraba el óvalo en el alto
                       COMPLETO de la caja (inset-0), así que agrandarlo lo empujaba contra el botón de abajo.
