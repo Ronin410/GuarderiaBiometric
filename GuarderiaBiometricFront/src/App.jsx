@@ -133,6 +133,7 @@ function MainApp() {
 
   const avisoExpiracionMostrado = useRef(false);
   const webcamRef = useRef(null);
+  const resultadoRef = useRef(null);
   const [nombre, setNombre] = useState('');
   const [resultado, setResultado] = useState(null);
   const [seleccionados, setSeleccionados] = useState([]);
@@ -376,6 +377,17 @@ function MainApp() {
     setMostrarModalAviso(false);
     capturarYEnviar('registrar');
   };
+
+  // "Quiero que la pantalla vaya hacia abajo cuando sale más info o el
+  // error" -- el cuadro de la cámara ahora ocupa casi toda la pantalla
+  // (ver más abajo), así que el resultado (identificado o el aviso de
+  // error) queda fuera de la vista hasta que alguien baje solo; esto lo
+  // lleva ahí automáticamente en cuanto aparece.
+  useEffect(() => {
+    if (resultado) {
+      resultadoRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [resultado]);
 
   const capturarYEnviar = async (endpoint) => {
     if (!webcamRef.current) return;
@@ -689,9 +701,9 @@ function MainApp() {
 
         {(tab === 'identificar' || tab === 'registrar') && (
           <div className="flex flex-col items-center gap-8 animate-in fade-in duration-500">
-            <div className="w-full max-w-md space-y-6">
+            <div className="w-full space-y-6">
                {tab === 'registrar' && (
-                 <div className="space-y-3">
+                 <div className="max-w-md mx-auto space-y-3">
                    <div className="space-y-2">
                      <label className="text-[10px] font-black uppercase text-slate-400 ml-4 tracking-widest">Nombre Completo del Tutor</label>
                      <input type="text" placeholder="Ej. Juan Pérez" value={nombre} onChange={(e) => setNombre(e.target.value)} className="w-full bg-white border border-slate-200 p-4 rounded-2xl text-slate-900 focus:ring-2 focus:ring-brand-500 outline-none shadow-sm" />
@@ -710,6 +722,10 @@ function MainApp() {
                    )}
                  </div>
                )}
+               {/* Sin max-w-md aquí a propósito -- "quiero que abarque toda la
+                   pantalla el cuadro del facial" -- solo queda acotado por el
+                   max-w-5xl del <main>, así que en un kiosco real (tablet,
+                   pantalla angosta) ocupa prácticamente todo el ancho. */}
                <div className="relative rounded-[3.5rem] overflow-hidden border-8 border-white bg-slate-200 shadow-2xl aspect-[3/4] mx-auto w-full">
                   <Webcam audio={false} ref={webcamRef} screenshotFormat="image/jpeg" videoConstraints={videoConstraints} className="absolute inset-0 w-full h-full object-cover" mirrored={true} />
                   {/* Guía visual de encuadre: no detecta el rostro, solo ayuda a alinearlo antes de escanear */}
@@ -723,13 +739,19 @@ function MainApp() {
                       </span>
                     </div>
                   )}
-                  {loading && <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center z-20"><RefreshCw className="animate-spin text-brand-600" size={54} /></div>}
+                  {/* El botón vive DENTRO del cuadro de la cámara (flotando
+                      sobre el video, pegado abajo pero respetando el margen
+                      del marco blanco) en vez de un bloque aparte debajo --
+                      así no le suma más alto a la pantalla. */}
+                  <div className="absolute inset-x-0 bottom-0 z-20 p-5 sm:p-7">
+                    <button onClick={() => procesarRostro(tab)} disabled={loading} className="w-full py-5 sm:py-6 bg-brand-600/95 hover:bg-brand-700 text-white rounded-[2rem] font-black uppercase text-lg sm:text-xl shadow-lg backdrop-blur-sm active:scale-95 transition-all disabled:opacity-50">
+                      {loading ? 'Procesando...' : (tab === 'registrar' ? 'Confirmar Registro' : 'Escanear Rostro')}
+                    </button>
+                  </div>
+                  {loading && <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center z-30"><RefreshCw className="animate-spin text-brand-600" size={54} /></div>}
                </div>
-               <button onClick={() => procesarRostro(tab)} disabled={loading} className="w-full py-6 bg-brand-600 hover:bg-brand-700 text-white rounded-[2rem] font-black uppercase text-xl shadow-lg active:scale-95 transition-all disabled:opacity-50">
-                 {loading ? 'Procesando...' : (tab === 'registrar' ? 'Confirmar Registro' : 'Escanear Rostro')}
-               </button>
             </div>
-            <div className="w-full max-w-md">
+            <div ref={resultadoRef} className="w-full max-w-md scroll-mt-6">
                {resultado ? (
                  <div className={`p-6 sm:p-8 rounded-[3rem] border-2 bg-white shadow-xl animate-in zoom-in duration-300 ${resultado.type === 'success' ? 'border-emerald-100' : 'border-rose-100'}`}>
                     <div className="flex items-center gap-4 mb-6">
