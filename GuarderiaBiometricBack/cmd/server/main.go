@@ -86,8 +86,11 @@ func conectarServicios(cfg appconfig.Config) *server.Server {
 	}
 
 	dbAuth, err := sql.Open("postgres", cfg.DatabaseURLAuth)
-	if err != nil || dbAuth.Ping() != nil {
-		log.Fatal("Error conectando a DB Auth")
+	if err != nil {
+		log.Fatalf("Error conectando a DB Auth (DATABASE_URL_AUTH mal formada): %v", err)
+	}
+	if err := dbAuth.Ping(); err != nil {
+		log.Fatalf("Error conectando a DB Auth: %v", err)
 	}
 
 	conexion, err := sql.Open("postgres", cfg.DatabaseURL)
