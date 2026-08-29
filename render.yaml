@@ -1,45 +1,50 @@
-# Blueprint de Render para probar Pasitos en el plan gratuito desde otros
-# dispositivos. Crea 3 recursos: la base de datos, el backend (Docker, el
-# mismo Dockerfile que ya usan podman/docker localmente) y el frontend
-# (Static Site nativo de Render -- sin Docker/nginx, así queda siempre
-# gratis y sin el "duerme tras 15 min" que sí tiene el backend).
+# Blueprint de Render para correr Pasitos en producción (piloto de un mes
+# con la primera guardería). Crea 2 recursos: el backend (Docker, el mismo
+# Dockerfile que ya usan podman/docker localmente) y el frontend (Static
+# Site nativo de Render -- sin Docker/nginx, así queda siempre gratis y sin
+# el "duerme tras 15 min" que sí tiene el backend en el plan free).
+#
+# NO hay un recurso `databases:` aquí a propósito: en vez de una Postgres
+# propia (que tendría su propio costo), este piloto reutiliza una base de
+# datos que ya vive en otra instancia de Postgres que la empresa ya paga
+# (una base nueva, con su propio usuario, dentro de esa misma instancia --
+# ver el hilo donde se armó con pgAdmin). Por eso DATABASE_URL/
+# DATABASE_URL_AUTH abajo son "sync: false": Render las deja en blanco tras
+# el primer deploy y hay que pegarles a mano, desde el dashboard, la cadena
+# de conexión a esa base ya creada.
 #
 # Cómo usarlo: en el dashboard de Render, "New +" -> "Blueprint" -> conecta
 # este repo -> Render detecta este archivo solo. Después del primer deploy
-# hay que rellenar a mano las variables marcadas "sync: false" (secretos
-# reales: credenciales de AWS, etc.) -- ver podman/README.md para instrucciones
-# detalladas paso a paso.
+# hay que rellenar a mano las variables marcadas "sync: false" (DATABASE_URL/
+# DATABASE_URL_AUTH, credenciales de AWS, etc.) -- ver podman/README.md para
+# instrucciones detalladas paso a paso.
 #
 # Los nombres de los servicios (pasitos-backend, pasitos-frontend) deciden la
 # URL final (https://pasitos-backend.onrender.com, etc.) -- si Render les
 # agrega un sufijo porque el nombre ya estaba tomado, hay que actualizar
 # ALLOWED_ORIGINS/FRONTEND_URL/VITE_APIUR abajo con la URL real que te dé.
-databases:
-  - name: pasitos-db
-    plan: free
-    databaseName: pasitos
-    user: pasitos
-
 services:
   - type: web
     name: pasitos-backend
     runtime: docker
+    # Se queda en free por ahora -- se duerme tras 15 min sin uso (tarda
+    # ~30-60s en despertar la siguiente petición), pero para las primeras
+    # pruebas antes de pasarle la guardería de verdad no hace falta pagarlo
+    # todavía. Subir esto a un plan pago (ej. "starter") es el pendiente
+    # antes de que la guardería piloto empiece a usarlo a diario.
     plan: free
     dockerfilePath: ./GuarderiaBiometricBack/Dockerfile
     dockerContext: ./GuarderiaBiometricBack
     healthCheckPath: /health
     envVars:
-      # DATABASE_URL y DATABASE_URL_AUTH pueden apuntar a la misma base (ver
-      # el comentario en GuarderiaBiometricBack/README.md) -- para probar en
-      # Render no hace falta separarlas.
+      # Cadena de conexión a la base "pasitos" creada a mano dentro de la
+      # instancia de Postgres compartida (no la genera Render, por eso
+      # sync: false en vez de fromDatabase) -- pueden ser idénticas, ver el
+      # comentario en GuarderiaBiometricBack/README.md.
       - key: DATABASE_URL
-        fromDatabase:
-          name: pasitos-db
-          property: connectionString
+        sync: false
       - key: DATABASE_URL_AUTH
-        fromDatabase:
-          name: pasitos-db
-          property: connectionString
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       # El Dockerfile hornea un certificado autofirmado y estas dos
