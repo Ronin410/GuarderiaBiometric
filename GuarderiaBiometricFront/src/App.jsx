@@ -722,14 +722,21 @@ function MainApp() {
 
   return (
     <div className="min-h-screen bg-paper text-ink flex">
-      {/* MENÚ LATERAL — escritorio */}
-      <aside className="hidden md:flex md:flex-col w-64 shrink-0 bg-forest p-5 sticky top-0 h-screen">
+      {/* MENÚ LATERAL — escritorio. "En la tablet grande el menú no se
+          colapsa" -- md: por sí solo solo mira el ANCHO, y una tablet
+          grande en vertical (kiosco real, igual que la chica) tiene más de
+          768px de ancho aunque siga siendo un dispositivo angosto y alto,
+          no una pantalla de escritorio. md:landscape: exige ADEMÁS
+          orientación horizontal, que es la señal real de "esto es una
+          pantalla de computadora" -- una tablet en vertical, sin importar
+          su ancho, sigue usando el menú móvil de abajo. */}
+      <aside className="hidden md:landscape:flex md:landscape:flex-col w-64 shrink-0 bg-forest p-5 sticky top-0 h-screen">
         {contenidoSidebar}
       </aside>
 
       {/* MENÚ LATERAL — móvil (se abre como cajón encima del contenido) */}
       {sidebarAbierto && (
-        <div className="fixed inset-0 z-40 md:hidden flex">
+        <div className="fixed inset-0 z-40 md:landscape:hidden flex">
           <div className="absolute inset-0 bg-slate-900/60" onClick={() => setSidebarAbierto(false)} />
           <aside className="relative w-72 max-w-[80vw] h-full bg-forest p-5 flex flex-col animate-in slide-in-from-left duration-200">
             {contenidoSidebar}
@@ -738,8 +745,9 @@ function MainApp() {
       )}
 
       <div className="flex-1 min-w-0 flex flex-col">
-        {/* BARRA SUPERIOR — solo móvil, el sidebar reemplaza esto en escritorio */}
-        <div className="md:hidden flex items-center justify-between px-4 py-3.5 bg-white border-b border-slate-200 sticky top-0 z-20">
+        {/* BARRA SUPERIOR — se ve siempre que el sidebar de escritorio esté
+            oculto (mismo criterio md:landscape: de arriba). */}
+        <div className="md:landscape:hidden flex items-center justify-between px-4 py-3.5 bg-white border-b border-slate-200 sticky top-0 z-20">
           <button onClick={() => setSidebarAbierto(true)} className="p-1 text-ink" title="Abrir menú"><Menu size={22} /></button>
           <span className="font-black uppercase text-sm text-ink">Pasitos</span>
           <button onClick={cerrarSesion} className="p-1 text-rose-500" title="Cerrar sesión"><LogOut size={20} /></button>
@@ -808,17 +816,19 @@ function MainApp() {
                  </div>
                )}
                {/* "Quiero que abarque toda la pantalla el cuadro del facial"
-                   -- en una tablet angosta (el kiosco real) el 100% del ancho
-                   ya da una caja de alto razonable, así que ahí w-full manda.
-                   En una pantalla de computadora, ese mismo 100% del ancho
-                   (acotado solo por el max-w-5xl del <main>) da una caja
-                   MUY alta con este aspecto 3:4 -- "solo se alcanza a ver una
-                   parte, está muy grande". min(100%, 54vh) resuelve los dos
-                   casos sin depender de un breakpoint fijo: manda el ancho
-                   cuando la pantalla es angosta y alta (tablet en vertical) y
-                   manda el alto de la ventana cuando es ancha y baja
-                   (computadora), acotando la caja a ~54vh de alto máximo. */}
-               <div className="relative rounded-[3.5rem] overflow-hidden border-8 border-white bg-slate-200 shadow-2xl aspect-[3/4] mx-auto w-[min(100%,54vh)]">
+                   -- un min(100%, Xvh) fijo por ancho de pantalla se rompía
+                   con una tablet grande EN VERTICAL: tiene más de 768px de
+                   ancho (como una computadora) pero un alto de pantalla
+                   modesto, así que el tope en vh la encogía igual que a una
+                   computadora -- "en la grande se ve pequeño", aunque siga
+                   siendo un kiosco en vertical como la chica. La señal
+                   correcta no es el ancho sino la ORIENTACIÓN: en vertical
+                   (cualquier tablet, grande o chica) manda w-full, ancho
+                   completo. Solo en horizontal (pantalla de computadora de
+                   verdad) se topa el alto a ~54vh -- ahí sí, ese mismo
+                   ancho completo con este aspecto 3:4 da una caja más alta
+                   que la ventana. */}
+               <div className="relative rounded-[3.5rem] overflow-hidden border-8 border-white bg-slate-200 shadow-2xl aspect-[3/4] mx-auto w-full landscape:w-[min(100%,54vh)]">
                   <Webcam audio={false} ref={webcamRef} screenshotFormat="image/jpeg" videoConstraints={videoConstraints} className="absolute inset-0 w-full h-full object-cover" mirrored={true} />
                   {/* Guía visual de encuadre: no detecta el rostro, solo ayuda a alinearlo antes de escanear */}
                   {!loading && (
