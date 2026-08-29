@@ -8,12 +8,14 @@ import { mostrarError } from './utils/alertas';
 
 const INTERVALO_POLLING_MS = 5000;
 
-// PanelChat -- inbox de staff para el "Chat privado padres↔maestros". No hay
-// asignación de un maestro por niño en el modelo actual, así que es una sola
-// conversación compartida por familia: cualquier staff/admin puede leer y
-// responder a cualquiera (mismo criterio que Circulares, en espejo: allá es
-// un solo emisor hacia todos los padres, aquí son todos los que atienden
-// hacia un padre a la vez).
+// PanelChat -- inbox de staff para el "Chat privado padres↔guardería".
+// "Quiero que al papá le aparezcan los staff o administradores... para
+// escoger con quién hablar" -- ya no es una sola conversación compartida
+// por familia: cada quien ve y responde solo las conversaciones que un
+// papá le dirigió a él/ella. El admin, además, ve TODAS (supervisión) --
+// por eso las conversaciones de otros traen personal_nombre, para que sepa
+// de quién es cada una; un staff normal solo ve las suyas, así que ese
+// dato no le hace falta (viene vacío).
 const PanelChat = () => {
   const [conversaciones, setConversaciones] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -37,6 +39,7 @@ const PanelChat = () => {
     return (
       <HiloChat
         padreId={seleccionada.padre_id}
+        personalId={seleccionada.personal_id}
         nombre={seleccionada.nombre}
         onVolver={() => { setSeleccionada(null); cargarConversaciones(); }}
       />
@@ -62,7 +65,7 @@ const PanelChat = () => {
           <div className="space-y-3">
             {conversaciones.map((c) => (
               <button
-                key={c.padre_id}
+                key={`${c.padre_id}-${c.personal_id}`}
                 onClick={() => setSeleccionada(c)}
                 className="w-full text-left bg-slate-50 border border-slate-100 hover:border-brand-300 hover:shadow-md p-5 rounded-[1.75rem] transition-all active:scale-[0.98] flex items-center gap-4"
               >
@@ -70,6 +73,12 @@ const PanelChat = () => {
                 <div className="min-w-0 flex-1">
                   <p className="font-black uppercase text-sm text-slate-900 truncate">{c.nombre}</p>
                   <p className="text-xs text-slate-500 font-medium truncate">{c.ultimo_mensaje}</p>
+                  {/* Solo el admin recibe personal_nombre (ve conversaciones
+                      de todos) -- un staff normal solo ve las suyas, así
+                      que aquí siempre viene vacío para él. */}
+                  {c.personal_nombre && (
+                    <p className="text-[9px] text-brand-500 font-black uppercase tracking-widest mt-0.5">Con {c.personal_nombre}</p>
+                  )}
                 </div>
                 {c.no_leidos > 0 && (
                   <span className="shrink-0 flex items-center gap-1 bg-brand-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full">
@@ -85,7 +94,7 @@ const PanelChat = () => {
   );
 };
 
-const HiloChat = ({ padreId, nombre, onVolver }) => {
+const HiloChat = ({ padreId, personalId, nombre, onVolver }) => {
   const [mensajes, setMensajes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [texto, setTexto] = useState('');
@@ -98,7 +107,7 @@ const HiloChat = ({ padreId, nombre, onVolver }) => {
   const cargarMensajes = async (mostrarLoading) => {
     if (mostrarLoading) setLoading(true);
     try {
-      const res = await api.get(`/chat/${padreId}/mensajes`);
+      const res = await api.get(`/chat/${padreId}/${personalId}/mensajes`);
       setMensajes(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error('Error al cargar mensajes:', err);
@@ -112,7 +121,8 @@ const HiloChat = ({ padreId, nombre, onVolver }) => {
     cargarMensajes(true);
     const intervalo = setInterval(() => cargarMensajes(false), INTERVALO_POLLING_MS);
     return () => clearInterval(intervalo);
-  }, [padreId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [padreId, personalId]);
 
   useEffect(() => {
     finRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -142,7 +152,7 @@ const HiloChat = ({ padreId, nombre, onVolver }) => {
       const data = new FormData();
       data.append('contenido', contenido);
       if (archivo) data.append('archivo', archivo);
-      await api.post(`/chat/${padreId}/mensajes`, data);
+      await api.post(`/chat/${padreId}/${personalId}/mensajes`, data);
       setTexto('');
       quitarArchivo();
       await cargarMensajes(false);

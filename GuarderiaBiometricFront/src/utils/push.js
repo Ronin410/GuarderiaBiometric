@@ -76,3 +76,27 @@ export async function suscribirseAPush(api) {
   await api.post('/push/suscribir', subscription.toJSON());
   return true;
 }
+
+// desuscribirseDePush cancela la suscripción push de este navegador --
+// "quiero que las notificaciones las pueda cancelar el papá con el mismo
+// botón". La borra en dos lados: del navegador (pushManager.unsubscribe,
+// para que dejen de llegar de verdad) y del backend (DELETE
+// /push/suscribir, para que ya no intente mandarle nada a un endpoint que
+// el papá ya canceló). Devuelve true tanto si se canceló como si ya no
+// había ninguna suscripción activa (nada que hacer).
+export async function desuscribirseDePush(api) {
+  if (!pushSoportado()) return true;
+  try {
+    const registration = await conTimeout(navigator.serviceWorker.ready, 5000, 'sin Service Worker activo');
+    const subscription = await registration.pushManager.getSubscription();
+    if (!subscription) return true;
+
+    const endpoint = subscription.endpoint;
+    await subscription.unsubscribe();
+    await api.delete('/push/suscribir', { data: { endpoint } });
+    return true;
+  } catch (err) {
+    console.error('Error al desuscribirse de push:', err);
+    return false;
+  }
+}

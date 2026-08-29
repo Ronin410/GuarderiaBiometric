@@ -26,7 +26,7 @@ import ChatPadre from './ChatPadre';
 import EncuestasPadre from './EncuestasPadre';
 import CircularesPadre from './CircularesPadre';
 import EventosPadre from './EventosPadre';
-import { suscribirseAPush, suscripcionActiva, pushSoportado } from './utils/push';
+import { suscribirseAPush, desuscribirseDePush, suscripcionActiva, pushSoportado } from './utils/push';
 import { hoyLocal } from './utils/fecha';
 import InstalarApp from './components/InstalarApp';
 import { mostrarExito, mostrarAviso } from './utils/alertas';
@@ -170,6 +170,24 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
       console.error('Error al activar notificaciones', err);
       setNotifEstado('default');
       alert(err.message || 'No se pudieron activar las notificaciones. Inténtalo de nuevo.');
+    }
+  };
+
+  // "Quiero que las notificaciones las pueda cancelar el papá con el
+  // mismo botón" -- mismo botón que activa, ahora también desactiva
+  // cuando ya están prendidas.
+  const handleDesactivarNotificaciones = async () => {
+    setNotifEstado('desactivando');
+    try {
+      const ok = await desuscribirseDePush(api);
+      setNotifEstado(ok ? 'default' : 'granted');
+      if (!ok) {
+        alert('No se pudieron desactivar las notificaciones. Inténtalo de nuevo.');
+      }
+    } catch (err) {
+      console.error('Error al desactivar notificaciones', err);
+      setNotifEstado('granted');
+      alert('No se pudieron desactivar las notificaciones. Inténtalo de nuevo.');
     }
   };
 
@@ -322,15 +340,15 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
                 Entradas, salidas y bitácora al instante
               </p>
             </div>
-            {notifEstado !== 'granted' && (
-              <button
-                onClick={handleActivarNotificaciones}
-                disabled={notifEstado === 'activando'}
-                className="bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white text-[10px] font-black uppercase px-4 py-2.5 rounded-xl shadow-md transition-all active:scale-95"
-              >
-                {notifEstado === 'activando' ? '...' : 'Activar'}
-              </button>
-            )}
+            <button
+              onClick={notifEstado === 'granted' ? handleDesactivarNotificaciones : handleActivarNotificaciones}
+              disabled={notifEstado === 'activando' || notifEstado === 'desactivando'}
+              className={`text-[10px] font-black uppercase px-4 py-2.5 rounded-xl shadow-md transition-all active:scale-95 disabled:opacity-50 ${
+                notifEstado === 'granted' ? 'bg-slate-100 hover:bg-slate-200 text-slate-500' : 'bg-brand-600 hover:bg-brand-700 text-white'
+              }`}
+            >
+              {notifEstado === 'activando' || notifEstado === 'desactivando' ? '...' : notifEstado === 'granted' ? 'Desactivar' : 'Activar'}
+            </button>
           </div>
         )}
 

@@ -1,16 +1,90 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from './axiosConfig';
-import { ChevronLeft, Send, Loader2, MessageCircle, Paperclip, X, FileText, Download } from 'lucide-react';
+import { ChevronLeft, Send, Loader2, MessageCircle, Paperclip, X, FileText, Download, ShieldCheck, User } from 'lucide-react';
 import { mostrarError } from './utils/alertas';
 
 const INTERVALO_POLLING_MS = 5000;
 
-// ChatPadre -- vista de pantalla completa (mismo patrón que VistaPadreDetalle:
-// swap desde DashboardPadre, no una ruta ni un modal) para el chat privado
-// padre↔guardería. Es una sola conversación por familia con "la guardería"
-// (no un maestro en particular -- el modelo actual no asigna un maestro fijo
-// por niño), así reemplaza el enlace wa.me de WhatsApp sin depender de Meta.
+// ChatPadre -- vista de pantalla completa (mismo patrón que
+// VistaPadreDetalle: swap desde DashboardPadre, no una ruta ni un modal)
+// para el chat privado. "Quiero que al papá le aparezcan los staff o
+// administradores de la guardería... para escoger con quién hablar" -- ya
+// no es una sola conversación con "la guardería" en general, así que esto
+// primero muestra un selector de contactos y solo entra al hilo de
+// mensajes una vez que el papá elige con quién.
 const ChatPadre = ({ onVolver }) => {
+  const [contactos, setContactos] = useState(null);
+  const [cargandoContactos, setCargandoContactos] = useState(true);
+  const [contacto, setContacto] = useState(null);
+
+  useEffect(() => {
+    api.get('/padre/chat/contactos')
+      .then((res) => setContactos(Array.isArray(res.data) ? res.data : []))
+      .catch((err) => {
+        console.error('Error al cargar el staff de la guardería:', err);
+        mostrarError('No se pudo cargar la lista de contactos');
+        setContactos([]);
+      })
+      .finally(() => setCargandoContactos(false));
+  }, []);
+
+  if (contacto) {
+    return <HiloChat contacto={contacto} onVolver={() => setContacto(null)} />;
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50 pb-10 animate-in fade-in duration-500">
+      <div className="bg-white p-6 pb-8 rounded-b-[3rem] shadow-sm border-b border-slate-100 sticky top-0 z-30">
+        <button
+          onClick={onVolver}
+          className="flex items-center gap-2 text-slate-400 font-black uppercase text-[10px] tracking-widest mb-6 hover:text-brand-600 transition-colors"
+        >
+          <ChevronLeft size={16} /> Volver
+        </button>
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Chat</h2>
+          <div className="bg-brand-600 p-3 rounded-2xl text-white shadow-lg shadow-brand-200">
+            <MessageCircle size={20} />
+          </div>
+        </div>
+        <p className="text-xs text-slate-400 font-bold mt-3">¿Con quién quieres hablar?</p>
+      </div>
+
+      <div className="max-w-md mx-auto p-4 space-y-3">
+        {cargandoContactos ? (
+          <div className="py-20 text-center text-slate-400 font-black uppercase tracking-widest text-xs">Cargando...</div>
+        ) : contactos.length === 0 ? (
+          <div className="bg-white p-10 rounded-[2.5rem] border border-dashed border-slate-200 text-center">
+            <MessageCircle size={40} className="mx-auto text-slate-200 mb-4" />
+            <p className="text-slate-400 font-bold uppercase text-[10px]">Tu guardería todavía no tiene personal disponible para chat</p>
+          </div>
+        ) : (
+          contactos.map((ct) => (
+            <button
+              key={ct.id}
+              onClick={() => setContacto(ct)}
+              className="w-full bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-all active:scale-[0.98]"
+            >
+              <div className="bg-brand-100 p-3 rounded-2xl text-brand-600 shrink-0">
+                {ct.rol === 'admin' ? <ShieldCheck size={20} /> : <User size={20} />}
+              </div>
+              <div className="flex-1 text-left min-w-0">
+                <p className="text-[13px] font-black text-slate-900 uppercase leading-tight truncate">{ct.nombre}</p>
+                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">{ct.rol === 'admin' ? 'Administración' : 'Personal'}</p>
+              </div>
+            </button>
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
+
+// HiloChat -- el hilo de mensajes con UN contacto en particular. Antes era
+// todo ChatPadre; se separa para que el selector de arriba pueda montarlo y
+// desmontarlo por contacto sin arrastrar el estado de una conversación a la
+// siguiente (mensajes, texto a medio escribir, adjunto elegido, etc.).
+const HiloChat = ({ contacto, onVolver }) => {
   const [mensajes, setMensajes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [texto, setTexto] = useState('');
@@ -23,7 +97,7 @@ const ChatPadre = ({ onVolver }) => {
   const cargarMensajes = async (mostrarLoading) => {
     if (mostrarLoading) setLoading(true);
     try {
-      const res = await api.get('/padre/chat');
+      const res = await api.get(`/padre/chat/${contacto.id}`);
       setMensajes(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error('Error al cargar mensajes:', err);
@@ -37,7 +111,8 @@ const ChatPadre = ({ onVolver }) => {
     cargarMensajes(true);
     const intervalo = setInterval(() => cargarMensajes(false), INTERVALO_POLLING_MS);
     return () => clearInterval(intervalo);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contacto.id]);
 
   useEffect(() => {
     finRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -67,7 +142,7 @@ const ChatPadre = ({ onVolver }) => {
       const data = new FormData();
       data.append('contenido', contenido);
       if (archivo) data.append('archivo', archivo);
-      await api.post('/padre/chat', data);
+      await api.post(`/padre/chat/${contacto.id}`, data);
       setTexto('');
       quitarArchivo();
       await cargarMensajes(false);
@@ -102,12 +177,12 @@ const ChatPadre = ({ onVolver }) => {
           onClick={onVolver}
           className="flex items-center gap-2 text-slate-400 font-black uppercase text-[10px] tracking-widest mb-6 hover:text-brand-600 transition-colors"
         >
-          <ChevronLeft size={16} /> Volver
+          <ChevronLeft size={16} /> Contactos
         </button>
 
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Chat con la Guardería</h2>
-          <div className="bg-brand-600 p-3 rounded-2xl text-white shadow-lg shadow-brand-200">
+          <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter truncate">{contacto.nombre}</h2>
+          <div className="bg-brand-600 p-3 rounded-2xl text-white shadow-lg shadow-brand-200 shrink-0">
             <MessageCircle size={20} />
           </div>
         </div>
