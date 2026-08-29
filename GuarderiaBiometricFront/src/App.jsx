@@ -9,7 +9,7 @@ import {
   Lock, LogOut, CheckCircle, KeyRound, RefreshCw, X, Send, Clock, LogOut as LogOutIcon,
   User, IdCard, Wallet, BarChart3, ShieldCheck as ShieldCheckIcon, UserCog, UtensilsCrossed,
   CalendarDays, LayoutDashboard, Settings, Megaphone, MessageCircle, CalendarOff, Soup, ClipboardCheck,
-  BookOpen, Menu
+  BookOpen, Menu, BellRing
 } from 'lucide-react';
 
 // Componentes secundarios
@@ -33,6 +33,7 @@ import DashboardPadre from './DashboardPadre';
 import AvisoPrivacidadModal from './AvisoPrivacidadModal';
 import { mostrarError, mostrarExito, mostrarAviso, confirmar as confirmarAccion } from './utils/alertas';
 import { segundosHastaExpirar } from './utils/sesion';
+import { suscribirseAPush, desuscribirseDePush, suscripcionActiva, pushSoportado } from './utils/push';
 import ReportePublico from './ReportePublico'; // <-- Tu nueva ruta pública
 import RegistroGuarderia from './RegistroGuarderia';
 import PanelPlataforma from './PanelPlataforma';
@@ -76,6 +77,15 @@ function MainApp() {
   // Solo controla el drawer del menú lateral en pantallas angostas -- en
   // md+ el sidebar siempre está visible y este estado no se usa.
   const [sidebarAbierto, setSidebarAbierto] = useState(false);
+  // "Si llega un mensaje a la guardería, el botón del menú de los mensajes
+  // aparecerá un icono de cuántos chats han llegado sin leer" -- chats
+  // (no mensajes sueltos) pendientes, se refresca por polling igual que el
+  // resto de contadores de este panel.
+  const [chatNoLeidos, setChatNoLeidos] = useState(0);
+  // "A la guardería también le llegarán notificaciones" -- mismo estado
+  // 'default'/'granted'/'activando'/'desactivando' que ya usa DashboardPadre
+  // del lado del papá, ahora también para staff/admin.
+  const [notifEstado, setNotifEstado] = useState('default');
 
   // La pestaña activa vive en la URL (/panel/:tab) en vez de en estado local:
   // así sobrevive a un refresh y el botón "atrás" del navegador funciona.
@@ -281,6 +291,62 @@ function MainApp() {
     const intervalo = setInterval(revisarExpiracion, 60000);
     return () => clearInterval(intervalo);
   }, [isLoggedIn, expiraEn]);
+
+  // Icono de chats sin leer en el menú lateral -- se revisa al entrar y
+  // luego por polling, igual que la expiración de sesión de arriba.
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    const revisarNoLeidos = async () => {
+      try {
+        const res = await api.get('/chat/no-leidos');
+        setChatNoLeidos(res.data?.no_leidos || 0);
+      } catch (err) {
+        console.error('Error al revisar los chats sin leer', err);
+      }
+    };
+
+    revisarNoLeidos();
+    const intervalo = setInterval(revisarNoLeidos, 30000);
+    return () => clearInterval(intervalo);
+  }, [isLoggedIn]);
+
+  // Aparte del resto (no debe frenar la carga de la sesión): revisa si ya
+  // hay una suscripción push activa en este navegador.
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    suscripcionActiva().then((activa) => setNotifEstado(activa ? 'granted' : 'default'));
+  }, [isLoggedIn]);
+
+  const handleActivarNotificaciones = async () => {
+    setNotifEstado('activando');
+    try {
+      const ok = await suscribirseAPush(api);
+      setNotifEstado(ok ? 'granted' : 'default');
+      if (!ok) {
+        mostrarError('No se pudieron activar las notificaciones. Revisa los permisos de notificaciones de tu navegador.');
+      }
+    } catch (err) {
+      console.error('Error al activar notificaciones', err);
+      setNotifEstado('default');
+      mostrarError(err.message || 'No se pudieron activar las notificaciones. Inténtalo de nuevo.');
+    }
+  };
+
+  const handleDesactivarNotificaciones = async () => {
+    setNotifEstado('desactivando');
+    try {
+      const ok = await desuscribirseDePush(api);
+      setNotifEstado(ok ? 'default' : 'granted');
+      if (!ok) {
+        mostrarError('No se pudieron desactivar las notificaciones. Inténtalo de nuevo.');
+      }
+    } catch (err) {
+      console.error('Error al desactivar notificaciones', err);
+      setNotifEstado('granted');
+      mostrarError('No se pudieron desactivar las notificaciones. Inténtalo de nuevo.');
+    }
+  };
 
   const cambiarTab = (targetTab) => {
     if (TABS_PROTEGIDAS.includes(targetTab) && userRole !== 'admin') {
@@ -613,6 +679,9 @@ function MainApp() {
             {seccion.items.map(({ tab: t, label, Icon }) => (
               <button key={t} onClick={() => { cambiarTab(t); setSidebarAbierto(false); }} className={claseItemNav(tab === t)}>
                 <Icon size={17} className="shrink-0" /> {label}
+                {t === 'chat' && chatNoLeidos > 0 && (
+                  <span className="ml-auto bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shrink-0">{chatNoLeidos}</span>
+                )}
               </button>
             ))}
           </div>
@@ -620,6 +689,18 @@ function MainApp() {
       </div>
 
       <div className="mt-4 space-y-2 shrink-0">
+        {pushSoportado() && (
+          <button
+            onClick={notifEstado === 'granted' ? handleDesactivarNotificaciones : handleActivarNotificaciones}
+            disabled={notifEstado === 'activando' || notifEstado === 'desactivando'}
+            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-bold text-white/70 hover:bg-white/10 hover:text-white transition-all disabled:opacity-50"
+          >
+            <BellRing size={17} className={`shrink-0 ${notifEstado === 'granted' ? 'text-emerald-300' : ''}`} />
+            {notifEstado === 'activando' || notifEstado === 'desactivando'
+              ? 'Un momento...'
+              : notifEstado === 'granted' ? 'Notificaciones activas' : 'Activar notificaciones'}
+          </button>
+        )}
         <a
           href="/manual.html" target="_blank" rel="noopener noreferrer"
           className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[13px] font-bold text-white/70 hover:bg-white/10 hover:text-white transition-all"
@@ -668,7 +749,7 @@ function MainApp() {
         {tab === 'estadisticas' && <PanelEstadisticas />}
         {tab === 'menu' && <PanelMenu />}
         {tab === 'circulares' && <PanelCirculares />}
-        {tab === 'chat' && <PanelChat />}
+        {tab === 'chat' && <PanelChat usuarioActualId={userId} />}
         {tab === 'ausencias' && <PanelAusencias />}
         {tab === 'calendario' && <PanelCalendario />}
         {tab === 'comedor' && <PanelComedor />}

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -165,6 +166,12 @@ func (s *Server) handleGuardarPedidoComedor(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo guardar el pedido"})
 		return
 	}
+
+	var nombreNino string
+	if err := s.DB.QueryRow(`SELECT nombre_niño FROM hijos WHERE id = $1`, hijoID).Scan(&nombreNino); err != nil {
+		nombreNino = "Un niño"
+	}
+	go s.notificarStaffDeGuarderia(gID, "🍽️ Pedido de comedor", fmt.Sprintf("%s tiene un pedido especial de comedor para el %s.", nombreNino, fecha))
 
 	c.JSON(http.StatusOK, gin.H{"message": "Pedido guardado"})
 }

@@ -98,6 +98,9 @@ func TestCrearAusencia(t *testing.T) {
 		mock.ExpectExec("INSERT INTO ausencias_planificadas").
 			WithArgs("5", 1, manana, "Cita médica", 1).
 			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectQuery("SELECT nombre_niño FROM hijos").
+			WithArgs("5").
+			WillReturnRows(sqlmock.NewRows([]string{"nombre_niño"}).AddRow("Ryan"))
 
 		r := nuevoRouterDePrueba(srv)
 		req := jsonRequest(http.MethodPost, "/padre/hijos/5/ausencias", map[string]string{

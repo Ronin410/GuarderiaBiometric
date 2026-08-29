@@ -37,6 +37,7 @@ func (s *Server) registrarRutasPush(r *gin.Engine) {
 
 		gID, _ := c.Get("guarderia_id")
 		userID, _ := c.Get("user_id")
+		rol, _ := c.Get("rol")
 
 		var input pushSubscriptionInput
 		if err := c.ShouldBindJSON(&input); err != nil || input.Endpoint == "" || input.Keys.P256dh == "" || input.Keys.Auth == "" {
@@ -44,16 +45,28 @@ func (s *Server) registrarRutasPush(r *gin.Engine) {
 			return
 		}
 
+		// "A la guardería también le llegarán notificaciones" -- ahora
+		// también se suscribe staff/admin, no solo papás. Cada fila trae UNO
+		// de los dos ids (nunca ambos): se decide aquí según el rol de quien
+		// se suscribe, no según qué campos mandó el cliente.
+		var padreID, personalID any
+		if rol == "papa" {
+			padreID = userID
+		} else {
+			personalID = userID
+		}
+
 		query := `
-        INSERT INTO push_subscripciones (padre_id, guarderia_id, endpoint, p256dh, auth)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO push_subscripciones (padre_id, personal_id, guarderia_id, endpoint, p256dh, auth)
+        VALUES ($1, $2, $3, $4, $5, $6)
         ON CONFLICT (endpoint) DO UPDATE SET
             padre_id = EXCLUDED.padre_id,
+            personal_id = EXCLUDED.personal_id,
             p256dh = EXCLUDED.p256dh,
             auth = EXCLUDED.auth`
 
-		if _, err := s.DB.Exec(query, userID, gID, input.Endpoint, input.Keys.P256dh, input.Keys.Auth); err != nil {
-			log.Printf("No se pudo guardar la suscripción push (padre %v, guardería %v): %v", userID, gID, err)
+		if _, err := s.DB.Exec(query, padreID, personalID, gID, input.Endpoint, input.Keys.P256dh, input.Keys.Auth); err != nil {
+			log.Printf("No se pudo guardar la suscripción push (usuario %v, guardería %v): %v", userID, gID, err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo guardar la suscripción"})
 			return
 		}
@@ -208,6 +221,72 @@ func (s *Server) notificarMensajeChat(padreID int) {
 	payload, err := json.Marshal(pushPayload{Titulo: "💬 Nuevo mensaje", Cuerpo: "La guardería te envió un mensaje.", URL: "/"})
 	if err != nil {
 		log.Printf("notificarMensajeChat: error serializando payload: %v", err)
+		return
+	}
+
+	s.enviarPushATodos(destinos, payload)
+}
+
+// notificarStaffDeGuarderia avisa a TODO el staff/admin de una guardería
+// (no a un papá) -- "a la guardería también le llegarán notificaciones...
+// de pedidos de comedor y otras cosas". Igual que notificarCircular, debe
+// llamarse como "go s.notificarStaffDeGuarderia(...)".
+func (s *Server) notificarStaffDeGuarderia(guarderiaID any, titulo, cuerpo string) {
+	if !s.PushConfigurado() {
+		return
+	}
+
+	rows, err := s.DB.Query(`SELECT id, endpoint, p256dh, auth FROM push_subscripciones WHERE guarderia_id = $1 AND personal_id IS NOT NULL`, guarderiaID)
+	if err != nil {
+		log.Printf("notificarStaffDeGuarderia: error consultando suscripciones: %v", err)
+		return
+	}
+	var destinos []destinoPush
+	for rows.Next() {
+		var d destinoPush
+		if err := rows.Scan(&d.id, &d.sub.Endpoint, &d.sub.Keys.P256dh, &d.sub.Keys.Auth); err != nil {
+			continue
+		}
+		destinos = append(destinos, d)
+	}
+	rows.Close()
+
+	payload, err := json.Marshal(pushPayload{Titulo: titulo, Cuerpo: cuerpo, URL: "/"})
+	if err != nil {
+		log.Printf("notificarStaffDeGuarderia: error serializando payload: %v", err)
+		return
+	}
+
+	s.enviarPushATodos(destinos, payload)
+}
+
+// notificarStaffEspecifico avisa a UN miembro del staff (no a toda la
+// guardería, a diferencia de notificarStaffDeGuarderia) -- para cuando un
+// papá le escribe a alguien en concreto en el chat. No se manda el
+// contenido del mensaje, mismo criterio que notificarMensajeChat.
+func (s *Server) notificarStaffEspecifico(personalID any, titulo, cuerpo string) {
+	if !s.PushConfigurado() {
+		return
+	}
+
+	rows, err := s.DB.Query(`SELECT id, endpoint, p256dh, auth FROM push_subscripciones WHERE personal_id = $1`, personalID)
+	if err != nil {
+		log.Printf("notificarStaffEspecifico: error consultando suscripciones: %v", err)
+		return
+	}
+	var destinos []destinoPush
+	for rows.Next() {
+		var d destinoPush
+		if err := rows.Scan(&d.id, &d.sub.Endpoint, &d.sub.Keys.P256dh, &d.sub.Keys.Auth); err != nil {
+			continue
+		}
+		destinos = append(destinos, d)
+	}
+	rows.Close()
+
+	payload, err := json.Marshal(pushPayload{Titulo: titulo, Cuerpo: cuerpo, URL: "/"})
+	if err != nil {
+		log.Printf("notificarStaffEspecifico: error serializando payload: %v", err)
 		return
 	}
 

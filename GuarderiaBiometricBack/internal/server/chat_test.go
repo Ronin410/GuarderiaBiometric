@@ -140,6 +140,88 @@ func TestListarConversaciones(t *testing.T) {
 	})
 }
 
+func TestListarFamiliasChat(t *testing.T) {
+	srv, mock := nuevoServidorDePruebaChat(t)
+	mock.ExpectQuery("SELECT id, COALESCE\\(nombre, 'Familia'\\) FROM padres").
+		WithArgs(1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "nombre"}).
+			AddRow(3, "Laura Ramirez").
+			AddRow(4, "Carlos Pérez"))
+
+	r := nuevoRouterDePrueba(srv)
+	req := jsonRequest(http.MethodGet, "/chat/familias", nil)
+	autenticarRequestPrueba(t, req, srv.JWTKey, "staff", time.Hour)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("código = %d; esperado 200 (body: %s)", w.Code, w.Body.String())
+	}
+	var familias []FamiliaChat
+	if err := json.Unmarshal(w.Body.Bytes(), &familias); err != nil {
+		t.Fatalf("respuesta no es JSON válido: %v", err)
+	}
+	// A propósito lista TODAS las familias, sin filtrar por si ya tienen
+	// algún mensaje -- "aunque nunca hayan hablado".
+	if len(familias) != 2 {
+		t.Fatalf("se esperaban 2 familias, se recibieron %d", len(familias))
+	}
+}
+
+func TestContarNoLeidos(t *testing.T) {
+	t.Run("staff normal solo cuenta lo suyo", func(t *testing.T) {
+		srv, mock := nuevoServidorDePruebaChat(t)
+		mock.ExpectQuery("SELECT COUNT\\(DISTINCT \\(padre_id, personal_id\\)\\) FROM mensajes_chat").
+			WithArgs(1, false, 1).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
+
+		r := nuevoRouterDePrueba(srv)
+		req := jsonRequest(http.MethodGet, "/chat/no-leidos", nil)
+		autenticarRequestPrueba(t, req, srv.JWTKey, "staff", time.Hour)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("código = %d; esperado 200 (body: %s)", w.Code, w.Body.String())
+		}
+		var respuesta struct {
+			NoLeidos int `json:"no_leidos"`
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &respuesta); err != nil {
+			t.Fatalf("respuesta no es JSON válido: %v", err)
+		}
+		if respuesta.NoLeidos != 2 {
+			t.Errorf("no_leidos = %d; esperado 2", respuesta.NoLeidos)
+		}
+	})
+
+	t.Run("admin cuenta todos los hilos de la guardería", func(t *testing.T) {
+		srv, mock := nuevoServidorDePruebaChat(t)
+		mock.ExpectQuery("SELECT COUNT\\(DISTINCT \\(padre_id, personal_id\\)\\) FROM mensajes_chat").
+			WithArgs(1, true, 1).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(5))
+
+		r := nuevoRouterDePrueba(srv)
+		req := jsonRequest(http.MethodGet, "/chat/no-leidos", nil)
+		autenticarRequestPrueba(t, req, srv.JWTKey, "admin", time.Hour)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("código = %d; esperado 200 (body: %s)", w.Code, w.Body.String())
+		}
+		var respuesta struct {
+			NoLeidos int `json:"no_leidos"`
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &respuesta); err != nil {
+			t.Fatalf("respuesta no es JSON válido: %v", err)
+		}
+		if respuesta.NoLeidos != 5 {
+			t.Errorf("no_leidos = %d; esperado 5", respuesta.NoLeidos)
+		}
+	})
+}
+
 func TestObtenerMensajesStaff(t *testing.T) {
 	t.Run("familia de otra guardería -> 404", func(t *testing.T) {
 		srv, mock := nuevoServidorDePruebaChat(t)
@@ -358,6 +440,9 @@ func TestChatPadre(t *testing.T) {
 		mock.ExpectExec("INSERT INTO mensajes_chat").
 			WithArgs(1, 1, "2", 1, "Buenas tardes, tengo una duda.", nil, nil, nil).
 			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectQuery("SELECT COALESCE\\(nombre, 'Un tutor'\\) FROM padres").
+			WithArgs(1).
+			WillReturnRows(sqlmock.NewRows([]string{"nombre"}).AddRow("Laura Ramirez"))
 
 		r := nuevoRouterDePrueba(srv)
 		req := multipartMensajeRequest("/padre/chat/2", "Buenas tardes, tengo una duda.", false)

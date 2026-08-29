@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -156,6 +157,16 @@ func (s *Server) handleCrearAusencia(c *gin.Context) {
 			return
 		}
 	}
+
+	var nombreNino string
+	if err := s.DB.QueryRow(`SELECT nombre_niño FROM hijos WHERE id = $1`, hijoID).Scan(&nombreNino); err != nil {
+		nombreNino = "Un niño"
+	}
+	rango := inicio.Format("02/01")
+	if !fin.Equal(inicio) {
+		rango += " al " + fin.Format("02/01")
+	}
+	go s.notificarStaffDeGuarderia(gID, "📅 Ausencia avisada", fmt.Sprintf("%s no asistirá el %s.", nombreNino, rango))
 
 	c.JSON(http.StatusCreated, gin.H{"message": "Ausencia registrada", "dias": dias})
 }

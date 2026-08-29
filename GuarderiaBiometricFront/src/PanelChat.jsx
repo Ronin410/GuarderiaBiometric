@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import api from './axiosConfig';
 import {
   MessageCircle, ArrowLeft, Send, Loader2, User, CircleDot,
-  Paperclip, X, FileText, Download,
+  Paperclip, X, FileText, Download, Plus, Search,
 } from 'lucide-react';
 import { mostrarError } from './utils/alertas';
 
@@ -16,10 +16,17 @@ const INTERVALO_POLLING_MS = 5000;
 // por eso las conversaciones de otros traen personal_nombre, para que sepa
 // de quién es cada una; un staff normal solo ve las suyas, así que ese
 // dato no le hace falta (viene vacío).
-const PanelChat = () => {
+//
+// usuarioActualId identifica al staff/admin que tiene la sesión abierta --
+// lo necesita el flujo de "Nueva conversación" ("quiero que la guardería
+// también escoja con qué papá hablar aunque nunca hayan hablado"): un hilo
+// nuevo se abre como HiloChat con personalId = usuarioActualId, sin esperar
+// a que exista ya un mensaje previo en /chat/conversaciones.
+const PanelChat = ({ usuarioActualId }) => {
   const [conversaciones, setConversaciones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [seleccionada, setSeleccionada] = useState(null);
+  const [mostrarSelectorFamilia, setMostrarSelectorFamilia] = useState(false);
 
   const cargarConversaciones = async () => {
     try {
@@ -46,15 +53,35 @@ const PanelChat = () => {
     );
   }
 
+  if (mostrarSelectorFamilia) {
+    return (
+      <SelectorFamilia
+        onElegir={(familia) => {
+          setMostrarSelectorFamilia(false);
+          setSeleccionada({ padre_id: familia.id, personal_id: usuarioActualId, nombre: familia.nombre });
+        }}
+        onCancelar={() => setMostrarSelectorFamilia(false)}
+      />
+    );
+  }
+
   return (
     <div className="animate-in fade-in duration-500">
       <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl">
-        <div className="flex items-center gap-4 mb-8">
-          <div className="bg-brand-100 p-3 rounded-2xl text-brand-600"><MessageCircle size={28} /></div>
-          <div>
-            <h3 className="text-xl font-black uppercase text-slate-900">Chat con Familias</h3>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mensajes privados, sin apps de terceros</p>
+        <div className="flex items-center justify-between gap-4 mb-8">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="bg-brand-100 p-3 rounded-2xl text-brand-600 shrink-0"><MessageCircle size={28} /></div>
+            <div className="min-w-0">
+              <h3 className="text-xl font-black uppercase text-slate-900">Chat con Familias</h3>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mensajes privados, sin apps de terceros</p>
+            </div>
           </div>
+          <button
+            onClick={() => setMostrarSelectorFamilia(true)}
+            className="shrink-0 flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-black uppercase tracking-widest px-4 py-3 rounded-2xl shadow-md transition-all active:scale-95"
+          >
+            <Plus size={16} /> Nueva conversación
+          </button>
         </div>
 
         {loading ? (
@@ -85,6 +112,73 @@ const PanelChat = () => {
                     <CircleDot size={10} /> {c.no_leidos}
                   </span>
                 )}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// SelectorFamilia -- directorio COMPLETO de familias de la guardería (no
+// solo las que ya escribieron), para arrancar una conversación desde cero.
+const SelectorFamilia = ({ onElegir, onCancelar }) => {
+  const [familias, setFamilias] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busqueda, setBusqueda] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.get('/chat/familias');
+        setFamilias(Array.isArray(res.data) ? res.data : []);
+      } catch (err) {
+        console.error('Error al cargar las familias:', err);
+        mostrarError('No se pudieron cargar las familias');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const filtradas = familias.filter((f) => f.nombre.toLowerCase().includes(busqueda.trim().toLowerCase()));
+
+  return (
+    <div className="animate-in fade-in duration-500">
+      <button onClick={onCancelar} className="mb-6 flex items-center gap-2 text-brand-600 font-black uppercase text-xs tracking-widest hover:opacity-70 transition-all">
+        <ArrowLeft size={16} /> Volver a conversaciones
+      </button>
+
+      <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl">
+        <h3 className="text-xl font-black uppercase text-slate-900 mb-1">Elige una familia</h3>
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6">Aunque todavía no hayan escrito</p>
+
+        <div className="relative mb-6">
+          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+          <input
+            type="text"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar familia..."
+            className="w-full bg-slate-50 border border-slate-200 pl-11 pr-4 py-3 rounded-2xl outline-none focus:ring-2 focus:ring-brand-500 text-sm font-medium"
+          />
+        </div>
+
+        {loading ? (
+          <div className="py-20 text-center text-slate-400 font-black uppercase tracking-widest text-xs">Cargando...</div>
+        ) : filtradas.length === 0 ? (
+          <div className="py-20 text-center text-slate-400 font-black uppercase tracking-widest text-xs">Ninguna familia coincide</div>
+        ) : (
+          <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
+            {filtradas.map((f) => (
+              <button
+                key={f.id}
+                onClick={() => onElegir(f)}
+                className="w-full text-left bg-slate-50 border border-slate-100 hover:border-brand-300 hover:shadow-md p-4 rounded-2xl transition-all active:scale-[0.98] flex items-center gap-3"
+              >
+                <div className="bg-white p-2.5 rounded-xl text-slate-300 border border-slate-100 shrink-0"><User size={18} /></div>
+                <p className="font-black uppercase text-sm text-slate-900 truncate">{f.nombre}</p>
               </button>
             ))}
           </div>

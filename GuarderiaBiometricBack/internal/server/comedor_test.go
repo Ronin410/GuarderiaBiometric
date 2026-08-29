@@ -100,6 +100,9 @@ func TestGuardarPedidoComedor(t *testing.T) {
 		mock.ExpectExec("INSERT INTO pedidos_comedor").
 			WithArgs("5", 1, "2026-09-01", false, true, true, "Ya desayunó en casa", 1).
 			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectQuery("SELECT nombre_niño FROM hijos").
+			WithArgs("5").
+			WillReturnRows(sqlmock.NewRows([]string{"nombre_niño"}).AddRow("Ryan"))
 
 		r := nuevoRouterDePrueba(srv)
 		req := jsonRequest(http.MethodPut, "/padre/hijos/5/pedidos-comedor/2026-09-01", map[string]any{

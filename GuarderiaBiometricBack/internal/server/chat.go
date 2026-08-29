@@ -44,6 +44,16 @@ type ContactoChat struct {
 	Rol    string `json:"rol"`
 }
 
+// FamiliaChat es una fila del selector "con qué papá quieres hablar" del
+// lado del staff -- "quiero que la guardería también escoja con qué papá
+// hablar aunque nunca hayan hablado", así que a diferencia de
+// /chat/conversaciones esto lista TODAS las familias de la guardería, no
+// solo las que ya tienen algún mensaje.
+type FamiliaChat struct {
+	ID     int    `json:"id"`
+	Nombre string `json:"nombre"`
+}
+
 // MensajeChat es un mensaje del hilo. EsMio se calcula del lado del backend
 // según el rol de quien pide la conversación (papá ve sus propios mensajes
 // como "míos"; staff ve los suyos como "míos") para que el frontend solo
@@ -66,6 +76,8 @@ func (s *Server) registrarRutasChat(r *gin.Engine) {
 	staff := middleware.RequireStaff()
 
 	r.GET("/chat/conversaciones", auth, staff, s.handleListarConversaciones)
+	r.GET("/chat/familias", auth, staff, s.handleListarFamiliasChat)
+	r.GET("/chat/no-leidos", auth, staff, s.handleContarNoLeidos)
 	r.GET("/chat/:padreId/:personalId/mensajes", auth, staff, s.handleObtenerMensajesStaff)
 	r.POST("/chat/:padreId/:personalId/mensajes", auth, staff, s.handleEnviarMensajeStaff)
 
@@ -211,6 +223,61 @@ func sortConversacionesPorRecencia(conversaciones []ConversacionResumen) {
 	}
 }
 
+// handleListarFamiliasChat -- "quiero que la guardería también escoja con
+// qué papá hablar aunque nunca hayan hablado": el directorio completo de
+// familias de la guardería, para que el staff pueda arrancar una
+// conversación nueva sin depender de que el papá haya escrito primero.
+func (s *Server) handleListarFamiliasChat(c *gin.Context) {
+	gID, _ := c.Get("guarderia_id")
+
+	rows, err := s.DB.Query(`SELECT id, COALESCE(nombre, 'Familia') FROM padres WHERE guarderia_id = $1 ORDER BY nombre ASC`, gID)
+	if err != nil {
+		log.Printf("Error al consultar las familias para el chat: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar las familias"})
+		return
+	}
+	defer rows.Close()
+
+	familias := []FamiliaChat{}
+	for rows.Next() {
+		var f FamiliaChat
+		if err := rows.Scan(&f.ID, &f.Nombre); err != nil {
+			continue
+		}
+		familias = append(familias, f)
+	}
+	c.JSON(http.StatusOK, familias)
+}
+
+// handleContarNoLeidos regresa cuántos mensajes de papás siguen sin leer --
+// "si llega un mensaje a la guardería, el botón del menú de los mensajes
+// aparecerá un icono de cuántos chats han llegado sin leer". Cuenta HILOS
+// con al menos un mensaje sin leer (no mensajes sueltos), que es lo que
+// tiene sentido mostrar como número de "chats" pendientes en la campanita
+// del menú. Mismo criterio de visibilidad que /chat/conversaciones: staff
+// normal solo ve lo suyo, admin ve todo.
+func (s *Server) handleContarNoLeidos(c *gin.Context) {
+	gID, _ := c.Get("guarderia_id")
+	rol, _ := c.Get("rol")
+	userID, _ := c.Get("user_id")
+	esAdmin := rol == "admin"
+
+	var noLeidos int
+	err := s.DB.QueryRow(`
+        SELECT COUNT(DISTINCT (padre_id, personal_id)) FROM mensajes_chat
+        WHERE guarderia_id = $1 AND autor_rol = 'papa' AND NOT leido AND personal_id IS NOT NULL
+          AND ($2 OR personal_id = $3)`,
+		gID, esAdmin, userID,
+	).Scan(&noLeidos)
+	if err != nil {
+		log.Printf("Error al contar los chats sin leer: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al contar los chats sin leer"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"no_leidos": noLeidos})
+}
+
 // puedeAccederAlHiloDeStaff decide si quien hace la petición (rol/userID del
 // token) puede ver/escribir en el hilo dirigido a personalID -- solo ese
 // mismo miembro del staff, o cualquier admin (supervisión).
@@ -346,6 +413,12 @@ func (s *Server) handleEnviarMensajePadre(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo enviar el mensaje"})
 		return
 	}
+
+	var nombrePadre string
+	if err := s.DB.QueryRow(`SELECT COALESCE(nombre, 'Un tutor') FROM padres WHERE id = $1`, userID).Scan(&nombrePadre); err != nil {
+		nombrePadre = "Un tutor"
+	}
+	go s.notificarStaffEspecifico(personalID, "💬 Nuevo mensaje", nombrePadre+" te envió un mensaje.")
 
 	c.JSON(http.StatusCreated, gin.H{"message": "Mensaje enviado"})
 }
