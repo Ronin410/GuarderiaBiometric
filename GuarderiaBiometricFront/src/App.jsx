@@ -830,10 +830,15 @@ function MainApp() {
                    que la ventana. */}
                <div className="relative rounded-[3.5rem] overflow-hidden border-8 border-white bg-slate-200 shadow-2xl aspect-[3/4] mx-auto w-full landscape:w-[min(100%,54vh)]">
                   <Webcam audio={false} ref={webcamRef} screenshotFormat="image/jpeg" videoConstraints={videoConstraints} className="absolute inset-0 w-full h-full object-cover" mirrored={true} />
-                  {/* Guía visual de encuadre: no detecta el rostro, solo ayuda a alinearlo antes de escanear */}
+                  {/* Guía visual de encuadre: no detecta el rostro, solo ayuda a alinearlo antes de escanear.
+                      "El óvalo se ve muy pequeño" -- antes este contenedor centraba el óvalo en el alto
+                      COMPLETO de la caja (inset-0), así que agrandarlo lo empujaba contra el botón de abajo.
+                      Ahora el contenedor solo ocupa el alto que NO usa el botón (bottom-24 sm:bottom-28,
+                      calcado del espacio real que reserva el botón + su padding), así el óvalo puede crecer
+                      bastante más sin encimarse. */}
                   {!loading && (
-                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-none">
-                      <svg viewBox="0 0 200 260" className="w-[62%] h-[62%]">
+                    <div className="absolute inset-x-0 top-0 bottom-24 sm:bottom-28 z-10 flex flex-col items-center justify-center pointer-events-none">
+                      <svg viewBox="0 0 200 260" className="w-[95%] h-[95%]">
                         <ellipse cx="100" cy="130" rx="85" ry="115" fill="none" stroke="white" strokeOpacity="0.85" strokeWidth="4" strokeDasharray="14 10" />
                       </svg>
                       <span className="mt-3 text-white text-[10px] font-black uppercase tracking-widest drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]">
