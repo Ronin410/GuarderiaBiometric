@@ -104,6 +104,15 @@ services:
       # cambia otra vez.
       - key: VITE_API_URL
         value: https://pasitos-backend-f411.onrender.com
+      # La llave PÚBLICA del mismo par VAPID que se genera para el backend
+      # (ver VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY arriba) -- el frontend la
+      # necesita para pedirle permiso de notificaciones al navegador
+      # (pushManager.subscribe), aunque nunca vea la privada. Sin esto,
+      # "Activar notificaciones" en el portal del papá siempre falla con
+      # "No se pudieron activar las notificaciones", incluso con el resto
+      # bien configurado -- ver el comentario largo en utils/push.js.
+      - key: VITE_VAPID_PUBLIC_KEY
+        sync: false
     routes:
       # Sin esto, recargar la página en /panel/identificar (o cualquier
       # ruta que no sea la raíz) da 404 -- es una SPA con rutas del lado
