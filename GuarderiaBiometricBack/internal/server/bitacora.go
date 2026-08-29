@@ -1,6 +1,7 @@
 package server
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -282,6 +283,42 @@ type seguimientoCompleto struct {
 	Observaciones string   `json:"observaciones"`
 	Durmio        bool     `json:"durmio"`
 	Fotos         []string `json:"fotos"`
+	// HoraEntrada/HoraSalida ("acá no aparece que el niño entró o ya
+	// salió") vienen del kiosco (tabla asistencia), no de lo que el staff
+	// escribe a mano en la bitácora -- por eso se resuelven aparte, no son
+	// columnas de seguimiento_diario. nil cuando ese movimiento no pasó
+	// ese día (ej. todavía no ha llegado, o llegó pero no se ha ido).
+	HoraEntrada *string `json:"hora_entrada"`
+	HoraSalida  *string `json:"hora_salida"`
+}
+
+// horasAsistenciaDelDia regresa la hora (HH:MM, zona de la guardería) de la
+// última entrada y de la última salida que el kiosco registró para un niño
+// en una fecha. Aparte de seguimiento_diario a propósito: existe aunque el
+// staff nunca haya llenado la bitácora ese día.
+func (s *Server) horasAsistenciaDelDia(hijoID any, fecha string) (entrada, salida *string) {
+	var entradaNull, salidaNull sql.NullTime
+	err := s.DB.QueryRow(`
+        SELECT MAX(fecha_hora) FILTER (WHERE tipo_movimiento = 'ENTRADA'),
+               MAX(fecha_hora) FILTER (WHERE tipo_movimiento = 'SALIDA')
+        FROM asistencia
+        WHERE hijo_id = $1 AND fecha_hora::date = $2::date`,
+		hijoID, fecha,
+	).Scan(&entradaNull, &salidaNull)
+	if err != nil {
+		log.Printf("horasAsistenciaDelDia: error consultando asistencia del hijo %v: %v", hijoID, err)
+		return nil, nil
+	}
+	loc := zonaMazatlan()
+	if entradaNull.Valid {
+		h := entradaNull.Time.In(loc).Format("15:04")
+		entrada = &h
+	}
+	if salidaNull.Valid {
+		h := salidaNull.Time.In(loc).Format("15:04")
+		salida = &h
+	}
+	return entrada, salida
 }
 
 func (s *Server) handleObtenerSeguimiento(c *gin.Context) {
@@ -328,6 +365,8 @@ func (s *Server) handleObtenerSeguimiento(c *gin.Context) {
 			}
 		}
 	}
+
+	sc.HoraEntrada, sc.HoraSalida = s.horasAsistenciaDelDia(hijoID, fechaConsulta)
 
 	c.JSON(http.StatusOK, sc)
 }
@@ -386,6 +425,8 @@ func (s *Server) handleSeguimientoPublico(c *gin.Context) {
 			}
 		}
 	}
+
+	sc.HoraEntrada, sc.HoraSalida = s.horasAsistenciaDelDia(sc.HijoID, fechaConsulta)
 
 	s.registrarAcceso("bitacora_publica", guarderiaID, nil, fmt.Sprintf("hijo_id=%d", sc.HijoID), c.ClientIP())
 

@@ -325,8 +325,13 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
             </div>
           </div>
 
-          {/* SELECTOR DE PESTAÑAS */}
-          <div className="flex bg-slate-100 p-1.5 rounded-2xl">
+          {/* SELECTOR DE PESTAÑAS -- "el menú que está arriba no se ve
+              bien no sale completo": con 6 pestañas y flex-1 repartiendo el
+              ancho en partes iguales, en una pantalla angosta el texto se
+              cortaba. Ahora cada botón mide lo que necesita su contenido
+              (shrink-0) y la fila entera se desliza horizontal en vez de
+              apretarse. */}
+          <div className="flex gap-1.5 bg-slate-100 p-1.5 rounded-2xl overflow-x-auto">
             {[
               { key: 'bitacora', label: 'Hoy', icon: ClipboardList },
               { key: 'expediente', label: 'Expediente', icon: IdCard },
@@ -340,7 +345,7 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
                 <button
                   key={tab.key}
                   onClick={() => setVista(tab.key)}
-                  className={`flex-1 py-2.5 rounded-xl flex items-center justify-center gap-1.5 font-black text-[10px] uppercase transition-all ${vista === tab.key ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-400'}`}
+                  className={`shrink-0 px-3.5 py-2.5 rounded-xl flex items-center justify-center gap-1.5 font-black text-[10px] uppercase whitespace-nowrap transition-all ${vista === tab.key ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-400'}`}
                 >
                   <Icono size={13} /> {tab.label}
                 </button>

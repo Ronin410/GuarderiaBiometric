@@ -1,5 +1,5 @@
 import React from 'react';
-import { Utensils, Moon, Camera, CheckCircle2, Baby, Info } from 'lucide-react';
+import { Utensils, Moon, Camera, CheckCircle2, Baby, Info, LogIn, LogOut } from 'lucide-react';
 
 const COLOR_COMIDA = { desayuno: 'bg-blue-500', comida: 'bg-orange-500', merienda: 'bg-pink-500' };
 
@@ -29,6 +29,31 @@ const ReporteDiario = ({ reporte, onFotoClick, tituloObservaciones = 'Observacio
 
   return (
     <>
+      {/* ENTRADA/SALIDA -- "no aparece que el niño entró o ya salió": lo que
+          marca el kiosco (asistencia), no lo que el staff escribe a mano en
+          la bitácora. Se muestra siempre, aunque falte alguno, para no
+          dejar la duda de si ya llegó o no. */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className={`rounded-[2rem] p-5 border ${reporte.hora_entrada ? 'bg-emerald-50 border-emerald-100' : 'bg-white border-slate-100'}`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${reporte.hora_entrada ? 'bg-emerald-500 text-white' : 'bg-slate-50 text-slate-300'}`}>
+            <LogIn size={18} />
+          </div>
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Entrada</p>
+          <p className={reporte.hora_entrada ? 'text-lg font-black text-emerald-700' : 'text-sm font-black text-slate-300 italic'}>
+            {reporte.hora_entrada || 'Sin registro'}
+          </p>
+        </div>
+        <div className={`rounded-[2rem] p-5 border ${reporte.hora_salida ? 'bg-amber-50 border-amber-100' : 'bg-white border-slate-100'}`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${reporte.hora_salida ? 'bg-amber-500 text-white' : 'bg-slate-50 text-slate-300'}`}>
+            <LogOut size={18} />
+          </div>
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Salida</p>
+          <p className={reporte.hora_salida ? 'text-lg font-black text-amber-700' : 'text-sm font-black text-slate-300 italic'}>
+            {reporte.hora_salida || (reporte.hora_entrada ? 'Sigue aquí' : 'Sin registro')}
+          </p>
+        </div>
+      </div>
+
       <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-slate-100">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-amber-100 text-amber-600 rounded-xl"><Utensils size={20} /></div>
