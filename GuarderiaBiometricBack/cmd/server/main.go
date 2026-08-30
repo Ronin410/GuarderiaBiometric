@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"fmt"
-	"log"
 	"os"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -15,6 +13,7 @@ import (
 	_ "github.com/lib/pq"
 	"time"
 
+	"biometrico/internal/applog"
 	appdb "biometrico/internal/db"
 	"biometrico/internal/middleware"
 	"biometrico/internal/server"
@@ -23,10 +22,19 @@ import (
 )
 
 func main() {
+	applog.Init()
+
 	cfg := appconfig.Load()
 	srv := conectarServicios(cfg)
 
-	r := gin.Default()
+	// gin.New() en vez de gin.Default(): Default() trae su propio logger de
+	// texto plano (gin.Logger()), que reemplazamos por
+	// middleware.StructuredLogger() -- mismo formato JSON que el resto del
+	// logging de la app, para que un 5xx se pueda encontrar buscando
+	// "level":"ERROR" sin importar qué ruta lo produjo. gin.Recovery() se
+	// mantiene igual (recupera panics, no tiene relación con el logging).
+	r := gin.New()
+	r.Use(middleware.StructuredLogger(), gin.Recovery())
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     middleware.ParseAllowedOrigins(cfg.AllowedOriginsRaw),
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
@@ -38,13 +46,13 @@ func main() {
 
 	srv.IniciarTareasProgramadas()
 	if !srv.PushConfigurado() {
-		log.Println("ADVERTENCIA: VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY no configuradas; las notificaciones push quedan deshabilitadas.")
+		applog.Warn("VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY no configuradas; las notificaciones push quedan deshabilitadas")
 	}
 	if !srv.StripeHabilitado() {
-		log.Println("INFO: STRIPE_SECRET_KEY no configurada; los pagos en línea quedan deshabilitados (el resto de la app no se ve afectado).")
+		applog.Info("STRIPE_SECRET_KEY no configurada; los pagos en línea quedan deshabilitados (el resto de la app no se ve afectado)")
 	}
 	if srv.PlatformAdminKey == "" {
-		log.Println("INFO: PLATFORM_ADMIN_KEY no configurada; las solicitudes de alta de guardería se pueden recibir pero no revisar/aprobar desde /plataforma.")
+		applog.Info("PLATFORM_ADMIN_KEY no configurada; las solicitudes de alta de guardería se pueden recibir pero no revisar/aprobar desde /plataforma")
 	}
 
 	srv.RegisterRoutes(r)
@@ -59,10 +67,49 @@ func main() {
 	}
 
 	if cfg.TLSCertFile != "" && cfg.TLSKeyFile != "" {
-		log.Println("Sirviendo HTTPS directamente (TLS_CERT_FILE/TLS_KEY_FILE configurados)")
-		log.Fatal(r.RunTLS(":"+puerto, cfg.TLSCertFile, cfg.TLSKeyFile))
+		applog.Info("Sirviendo HTTPS directamente (TLS_CERT_FILE/TLS_KEY_FILE configurados)")
+		if err := r.RunTLS(":"+puerto, cfg.TLSCertFile, cfg.TLSKeyFile); err != nil {
+			applog.Error("El servidor HTTPS se detuvo", err)
+			os.Exit(1)
+		}
+		return
 	}
-	r.Run(":" + puerto)
+	if err := r.Run(":" + puerto); err != nil {
+		applog.Error("El servidor se detuvo", err)
+		os.Exit(1)
+	}
+}
+
+// fatal registra un error de arranque en el mismo formato JSON que el
+// resto de la app (en vez de log.Fatal, que imprime texto plano) y termina
+// el proceso -- estos errores pasan ANTES de levantar el servidor, así que
+// nunca hay una petición real de por medio que loguear, pero el mensaje
+// igual debe quedar en el mismo formato buscable que todo lo demás.
+func fatal(msg string, err error) {
+	applog.Error(msg, err)
+	os.Exit(1)
+}
+
+// configurarPoolDB pone un tope explícito al pool de conexiones de cada
+// *sql.DB (DB y DBAuth se configuran por separado, cada una con su propio
+// pool). Sin esto, database/sql no limita cuántas conexiones abre: bajo
+// carga (o con una fuga por un bug) podría abrir tantas como el servidor de
+// Postgres le deje. Esto importa especialmente aquí porque DATABASE_URL/
+// DATABASE_URL_AUTH apuntan a una instancia de Postgres COMPARTIDA con otro
+// proyecto que ya paga esa instancia (ver render.yaml) -- sin tope, un pico
+// de tráfico o un bug en Pasitos podría agotarle las conexiones disponibles
+// también al otro proyecto, no solo al propio.
+//
+// Los números son deliberadamente conservadores para el tamaño actual (un
+// piloto de una sola guardería, todavía sin tráfico real): hay margen de
+// sobra para crecer antes de necesitar tocar esto. ConnMaxIdleTime bajo
+// además ayuda a soltar conexiones ociosas rápido en vez de dejarlas
+// reservadas sin usarlas.
+func configurarPoolDB(db *sql.DB) {
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(30 * time.Minute)
+	db.SetConnMaxIdleTime(5 * time.Minute)
 }
 
 // conectarServicios valida la configuración y abre las conexiones externas
@@ -71,41 +118,43 @@ func main() {
 // el proceso también correría al ejecutar "go test" sobre ese paquete.
 func conectarServicios(cfg appconfig.Config) *server.Server {
 	if cfg.AWSAccessKeyID == "" || cfg.AWSSecretAccessKey == "" {
-		log.Fatal("ERROR: Credenciales de AWS no configuradas.")
+		fatal("Credenciales de AWS no configuradas", nil)
 	}
 
 	if cfg.JWTSecret == "" {
-		log.Fatal("ERROR: JWT_SECRET no configurada. Define esta variable de entorno con una clave secreta segura antes de iniciar el servidor.")
+		fatal("JWT_SECRET no configurada. Define esta variable de entorno con una clave secreta segura antes de iniciar el servidor", nil)
 	}
 
 	awsCfg, err := config.LoadDefaultConfig(context.TODO(),
 		config.WithRegion(cfg.AWSRegion),
 	)
 	if err != nil {
-		log.Fatalf("No se pudo cargar la configuración de AWS: %v", err)
+		fatal("No se pudo cargar la configuración de AWS", err)
 	}
 
 	dbAuth, err := sql.Open("postgres", cfg.DatabaseURLAuth)
 	if err != nil {
-		log.Fatalf("Error conectando a DB Auth (DATABASE_URL_AUTH mal formada): %v", err)
+		fatal("Error conectando a DB Auth (DATABASE_URL_AUTH mal formada)", err)
 	}
+	configurarPoolDB(dbAuth)
 	if err := dbAuth.Ping(); err != nil {
-		log.Fatalf("Error conectando a DB Auth: %v", err)
+		fatal("Error conectando a DB Auth", err)
 	}
 
 	conexion, err := sql.Open("postgres", cfg.DatabaseURL)
 	if err != nil {
-		log.Fatal(err)
+		fatal("Error conectando a la DB (DATABASE_URL mal formada)", err)
 	}
+	configurarPoolDB(conexion)
 
 	if err := appdb.RunMigrations(conexion); err != nil {
-		log.Fatal(err)
+		fatal("No se pudieron aplicar las migraciones", err)
 	}
 
 	if err = conexion.Ping(); err != nil {
-		log.Fatal("No se pudo conectar a la DB:", err)
+		fatal("No se pudo conectar a la DB", err)
 	}
-	fmt.Println("Conexión a Postgres exitosa")
+	applog.Info("Conexión a Postgres exitosa")
 
 	srv := server.New()
 	srv.DB = conexion
