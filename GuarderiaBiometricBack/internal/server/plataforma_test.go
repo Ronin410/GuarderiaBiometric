@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -71,9 +72,9 @@ func TestListarGuarderiasPlataforma(t *testing.T) {
 		srv, mock := nuevoServidorDePruebaPlataforma(t)
 
 		mock.ExpectQuery("SELECT(.|\n)*FROM guarderias(.|\n)*LEFT JOIN usuarios").
-			WillReturnRows(sqlmock.NewRows([]string{"id", "nombre", "slug", "direccion", "created_at", "total_papas", "total_staff"}).
-				AddRow(1, "Guardería Uno", "guarderia-uno", "Calle Falsa 123", "2026-08-01T10:00:00Z", 12, 3).
-				AddRow(2, "Guardería Dos", "guarderia-dos", nil, "2026-08-15T10:00:00Z", 0, 1))
+			WillReturnRows(sqlmock.NewRows([]string{"id", "nombre", "slug", "direccion", "created_at", "bloqueada", "bloqueada_en", "total_papas", "total_staff"}).
+				AddRow(1, "Guardería Uno", "guarderia-uno", "Calle Falsa 123", "2026-08-01T10:00:00Z", false, nil, 12, 3).
+				AddRow(2, "Guardería Dos", "guarderia-dos", nil, "2026-08-15T10:00:00Z", true, "2026-08-20T10:00:00Z", 0, 1))
 
 		mock.ExpectQuery("SELECT guarderia_id, COUNT\\(\\*\\) FROM hijos").
 			WillReturnRows(sqlmock.NewRows([]string{"guarderia_id", "count"}).
@@ -104,6 +105,78 @@ func TestListarGuarderiasPlataforma(t *testing.T) {
 			if !strings.Contains(body, esperado) {
 				t.Errorf("body no trae %q (valores en cero/null de la guardería 2): %s", esperado, body)
 			}
+		}
+
+		var guarderias []GuarderiaPlataforma
+		if err := json.Unmarshal(w.Body.Bytes(), &guarderias); err != nil {
+			t.Fatalf("respuesta no es JSON válido: %v", err)
+		}
+		if len(guarderias) != 2 || guarderias[0].Bloqueada || !guarderias[1].Bloqueada {
+			t.Errorf("se esperaba guardería 1 sin bloquear y guardería 2 bloqueada: %+v", guarderias)
+		}
+		if guarderias[1].BloqueadaEn == nil || *guarderias[1].BloqueadaEn != "2026-08-20T10:00:00Z" {
+			t.Errorf("bloqueada_en de la guardería 2 incorrecto: %+v", guarderias[1].BloqueadaEn)
+		}
+	})
+}
+
+func TestBloquearYDesbloquearGuarderia(t *testing.T) {
+	t.Run("bloquear -> 200", func(t *testing.T) {
+		srv, mock := nuevoServidorDePruebaPlataforma(t)
+		mock.ExpectExec("UPDATE guarderias SET bloqueada = true").
+			WithArgs("1").
+			WillReturnResult(sqlmock.NewResult(0, 1))
+
+		r := nuevoRouterDePrueba(srv)
+		req := jsonRequest(http.MethodPost, "/plataforma/guarderias/1/bloquear", nil)
+		req.Header.Set("X-Platform-Key", "clave-de-plataforma-de-prueba")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("código = %d; esperado 200 (body: %s)", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("bloquear una guardería inexistente -> 404", func(t *testing.T) {
+		srv, mock := nuevoServidorDePruebaPlataforma(t)
+		mock.ExpectExec("UPDATE guarderias SET bloqueada = true").
+			WithArgs("999").
+			WillReturnResult(sqlmock.NewResult(0, 0))
+
+		r := nuevoRouterDePrueba(srv)
+		req := jsonRequest(http.MethodPost, "/plataforma/guarderias/999/bloquear", nil)
+		req.Header.Set("X-Platform-Key", "clave-de-plataforma-de-prueba")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusNotFound {
+			t.Fatalf("código = %d; esperado 404 (body: %s)", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("desbloquear -> 200", func(t *testing.T) {
+		srv, mock := nuevoServidorDePruebaPlataforma(t)
+		mock.ExpectExec("UPDATE guarderias SET bloqueada = false").
+			WithArgs("1").
+			WillReturnResult(sqlmock.NewResult(0, 1))
+
+		r := nuevoRouterDePrueba(srv)
+		req := jsonRequest(http.MethodPost, "/plataforma/guarderias/1/desbloquear", nil)
+		req.Header.Set("X-Platform-Key", "clave-de-plataforma-de-prueba")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("código = %d; esperado 200 (body: %s)", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("sin llave -> 401", func(t *testing.T) {
+		srv, _ := nuevoServidorDePruebaPlataforma(t)
+		r := nuevoRouterDePrueba(srv)
+		req := jsonRequest(http.MethodPost, "/plataforma/guarderias/1/bloquear", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("código = %d; esperado 401 (body: %s)", w.Code, w.Body.String())
 		}
 	})
 }

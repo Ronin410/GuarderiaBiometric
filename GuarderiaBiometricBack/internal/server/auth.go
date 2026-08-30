@@ -87,19 +87,19 @@ func (s *Server) handleLogin(c *gin.Context) {
 
 	var id, gID int
 	var passHash, rol, pinAdmin, gNombre, gSlug string
-	var activo bool
+	var activo, bloqueada bool
 	var permisos []string
 	// Nota: pin_admin se consulta solo para mantener la forma de la fila; nunca se
 	// expone en la respuesta. La verificación del PIN se hace en /verificar-pin.
 	query := `
 		SELECT
             u.id, u.guarderia_id, u.password_hash, u.rol, u.pin_admin,
-            g.nombre, g.slug, u.activo, u.permisos
+            g.nombre, g.slug, u.activo, u.permisos, g.bloqueada
         FROM usuarios u
         INNER JOIN guarderias g ON u.guarderia_id = g.id
         WHERE u.username = $1`
 
-	err := s.DBAuth.QueryRow(query, creds.Username).Scan(&id, &gID, &passHash, &rol, &pinAdmin, &gNombre, &gSlug, &activo, pq.Array(&permisos))
+	err := s.DBAuth.QueryRow(query, creds.Username).Scan(&id, &gID, &passHash, &rol, &pinAdmin, &gNombre, &gSlug, &activo, pq.Array(&permisos), &bloqueada)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			applog.Warn("Login: usuario no encontrado", "username", creds.Username)
@@ -153,6 +153,22 @@ func (s *Server) handleLogin(c *gin.Context) {
 		applog.Warn("Login rechazado: cuenta desactivada", "username", creds.Username)
 		s.registrarAcceso("login_fallido", gID, id, "cuenta desactivada: "+creds.Username, c.ClientIP())
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Esta cuenta está desactivada"})
+		return
+	}
+
+	// "Quiero una forma de bloquear el acceso a una guardería... dándoles
+	// tiempo para que paguen, pero eso lo haré manualmente" -- un
+	// interruptor que el dueño de la plataforma prende/apaga a mano desde
+	// /plataforma (ver handleBloquearGuarderia en plataforma.go), aplica a
+	// CUALQUIER cuenta de esa guardería (admin, staff o papá), no solo a
+	// una en particular. Mismo trade-off documentado arriba para "activo":
+	// corta logins nuevos de inmediato; una sesión ya abierta sigue viva
+	// hasta que expira (o hasta la próxima vez que pase por handleMe, que
+	// si sí vuelve a consultar esto).
+	if bloqueada {
+		applog.Warn("Login rechazado: guardería bloqueada", "username", creds.Username, "guarderia_id", gID)
+		s.registrarAcceso("login_fallido", gID, id, "guardería bloqueada: "+creds.Username, c.ClientIP())
+		c.JSON(http.StatusForbidden, gin.H{"error": "El acceso de tu guardería está temporalmente suspendido. Contacta a Pasitos para más información."})
 		return
 	}
 
@@ -230,16 +246,29 @@ func (s *Server) handleMe(c *gin.Context) {
 	rol, _ := c.Get("rol")
 
 	var username, gNombre, gSlug string
+	var bloqueada bool
 	err := s.DBAuth.QueryRow(
-		`SELECT u.username, g.nombre, g.slug
+		`SELECT u.username, g.nombre, g.slug, g.bloqueada
          FROM usuarios u
          INNER JOIN guarderias g ON u.guarderia_id = g.id
          WHERE u.id = $1`,
 		uid,
-	).Scan(&username, &gNombre, &gSlug)
+	).Scan(&username, &gNombre, &gSlug, &bloqueada)
 	if err != nil {
 		s.logError(c, "No se pudo cargar la sesión", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo cargar la sesión"})
+		return
+	}
+
+	// Segundo punto de corte para una guardería bloqueada DESPUÉS del login
+	// (ver el comentario largo en handleLogin) -- /me se llama cada vez que
+	// la app arranca o se recarga, así que una sesión ya abierta queda
+	// efectivamente cortada la próxima vez que la pestaña se recargue,
+	// aunque su JWT todavía no haya expirado. El frontend trata cualquier
+	// error de /me como "no hay sesión" (ver hidratarSesion en App.jsx), así
+	// que no hace falta un código de estado especial.
+	if bloqueada {
+		c.JSON(http.StatusForbidden, gin.H{"error": "El acceso de tu guardería está temporalmente suspendido. Contacta a Pasitos para más información."})
 		return
 	}
 

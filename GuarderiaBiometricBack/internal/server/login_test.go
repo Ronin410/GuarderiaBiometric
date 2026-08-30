@@ -34,7 +34,7 @@ func TestLogin(t *testing.T) {
 		t.Fatalf("no se pudo generar el hash de prueba: %v", err)
 	}
 
-	columnas := []string{"id", "guarderia_id", "password_hash", "rol", "pin_admin", "nombre", "slug", "activo", "permisos"}
+	columnas := []string{"id", "guarderia_id", "password_hash", "rol", "pin_admin", "nombre", "slug", "activo", "permisos", "bloqueada"}
 
 	t.Run("credenciales correctas -> 200 con token", func(t *testing.T) {
 		mockDB, mock, err := sqlmock.New()
@@ -50,7 +50,7 @@ func TestLogin(t *testing.T) {
 		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.username = \\$1").
 			WithArgs("admin_demo").
 			WillReturnRows(sqlmock.NewRows(columnas).
-				AddRow(1, 1, string(hashCorrecto), "admin", "1234", "Guardería Demo", "demo", true, nil))
+				AddRow(1, 1, string(hashCorrecto), "admin", "1234", "Guardería Demo", "demo", true, nil, false))
 
 		r := nuevoRouterDePrueba(srv)
 		w := httptest.NewRecorder()
@@ -114,7 +114,7 @@ func TestLogin(t *testing.T) {
 		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.username = \\$1").
 			WithArgs("admin_demo").
 			WillReturnRows(sqlmock.NewRows(columnas).
-				AddRow(1, 1, string(hashCorrecto), "admin", "1234", "Guardería Demo", "demo", true, nil))
+				AddRow(1, 1, string(hashCorrecto), "admin", "1234", "Guardería Demo", "demo", true, nil, false))
 
 		r := nuevoRouterDePrueba(srv)
 		w := httptest.NewRecorder()
@@ -139,7 +139,7 @@ func TestLogin(t *testing.T) {
 		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.username = \\$1").
 			WithArgs("staff_baja").
 			WillReturnRows(sqlmock.NewRows(columnas).
-				AddRow(2, 1, string(hashCorrecto), "staff", "1234", "Guardería Demo", "demo", false, nil))
+				AddRow(2, 1, string(hashCorrecto), "staff", "1234", "Guardería Demo", "demo", false, nil, false))
 
 		r := nuevoRouterDePrueba(srv)
 		w := httptest.NewRecorder()
@@ -175,7 +175,7 @@ func TestLogin(t *testing.T) {
 		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.username = \\$1").
 			WithArgs("papa_demo").
 			WillReturnRows(sqlmock.NewRows(columnas).
-				AddRow(3, 1, string(hashCorrecto), "papa", "1234", "Guardería Demo", "demo", true, nil))
+				AddRow(3, 1, string(hashCorrecto), "papa", "1234", "Guardería Demo", "demo", true, nil, false))
 
 		r := nuevoRouterDePrueba(srv)
 		w := httptest.NewRecorder()
@@ -205,7 +205,7 @@ func TestLogin(t *testing.T) {
 		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.username = \\$1").
 			WithArgs("admin_demo").
 			WillReturnRows(sqlmock.NewRows(columnas).
-				AddRow(1, 1, string(hashCorrecto), "admin", "1234", "Guardería Demo", "demo", true, nil))
+				AddRow(1, 1, string(hashCorrecto), "admin", "1234", "Guardería Demo", "demo", true, nil, false))
 
 		r := nuevoRouterDePrueba(srv)
 		w := httptest.NewRecorder()
@@ -230,7 +230,7 @@ func TestLogin(t *testing.T) {
 		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.username = \\$1").
 			WithArgs("staff_demo").
 			WillReturnRows(sqlmock.NewRows(columnas).
-				AddRow(2, 1, string(hashCorrecto), "staff", "1234", "Guardería Demo", "demo", true, nil))
+				AddRow(2, 1, string(hashCorrecto), "staff", "1234", "Guardería Demo", "demo", true, nil, false))
 
 		r := nuevoRouterDePrueba(srv)
 		w := httptest.NewRecorder()
@@ -238,6 +238,36 @@ func TestLogin(t *testing.T) {
 
 		if w.Code != http.StatusOK {
 			t.Fatalf("código = %d; esperado 200 (body: %s)", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("guardería bloqueada -> 403", func(t *testing.T) {
+		mockDB, mock, err := sqlmock.New()
+		if err != nil {
+			t.Fatalf("sqlmock: %v", err)
+		}
+		defer mockDB.Close()
+
+		srv := New()
+		srv.DBAuth = mockDB
+		srv.JWTKey = []byte("clave-de-prueba-solo-para-tests")
+
+		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.username = \\$1").
+			WithArgs("admin_moroso").
+			WillReturnRows(sqlmock.NewRows(columnas).
+				AddRow(1, 1, string(hashCorrecto), "admin", "1234", "Guardería Morosa", "morosa", true, nil, true))
+
+		r := nuevoRouterDePrueba(srv)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, loginRequest("admin_moroso", "Correcta123!"))
+
+		if w.Code != http.StatusForbidden {
+			t.Fatalf("código = %d; esperado 403 (body: %s)", w.Code, w.Body.String())
+		}
+		for _, ck := range w.Result().Cookies() {
+			if ck.Name == middleware.CookieToken && ck.Value != "" {
+				t.Errorf("una guardería bloqueada no debe recibir cookie de sesión, se encontró: %v", ck)
+			}
 		}
 	})
 
@@ -271,7 +301,7 @@ func TestLogin(t *testing.T) {
 // cada vez que abren la app), mientras que admin/staff conservan su sesión
 // corta de siempre sin renovación automática.
 func TestMe(t *testing.T) {
-	columnasMe := []string{"username", "nombre", "slug"}
+	columnasMe := []string{"username", "nombre", "slug", "bloqueada"}
 
 	t.Run("papá -> se renueva a ~90 días y llega cookie nueva", func(t *testing.T) {
 		mockDB, mock, err := sqlmock.New()
@@ -286,7 +316,7 @@ func TestMe(t *testing.T) {
 
 		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.id = \\$1").
 			WithArgs(1).
-			WillReturnRows(sqlmock.NewRows(columnasMe).AddRow("papa_demo", "Guardería Demo", "demo"))
+			WillReturnRows(sqlmock.NewRows(columnasMe).AddRow("papa_demo", "Guardería Demo", "demo", false))
 
 		r := nuevoRouterDePrueba(srv)
 		req := httptest.NewRequest(http.MethodGet, "/me", nil)
@@ -341,7 +371,7 @@ func TestMe(t *testing.T) {
 
 		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.id = \\$1").
 			WithArgs(1).
-			WillReturnRows(sqlmock.NewRows(columnasMe).AddRow("admin_demo", "Guardería Demo", "demo"))
+			WillReturnRows(sqlmock.NewRows(columnasMe).AddRow("admin_demo", "Guardería Demo", "demo", false))
 
 		r := nuevoRouterDePrueba(srv)
 		req := httptest.NewRequest(http.MethodGet, "/me", nil)
@@ -371,6 +401,40 @@ func TestMe(t *testing.T) {
 
 		if err := mock.ExpectationsWereMet(); err != nil {
 			t.Errorf("expectativas de sqlmock no cumplidas: %v", err)
+		}
+	})
+
+	// "Bloquear el acceso a una guardería" también corta a alguien que ya
+	// tenía sesión abierta: la próxima vez que la app llame /me (recarga,
+	// reapertura), aunque el JWT siga siendo válido.
+	t.Run("guardería bloqueada -> 403, ni siquiera intenta renovar", func(t *testing.T) {
+		mockDB, mock, err := sqlmock.New()
+		if err != nil {
+			t.Fatalf("sqlmock: %v", err)
+		}
+		defer mockDB.Close()
+
+		srv := New()
+		srv.DBAuth = mockDB
+		srv.JWTKey = []byte("clave-de-prueba-solo-para-tests")
+
+		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.id = \\$1").
+			WithArgs(1).
+			WillReturnRows(sqlmock.NewRows(columnasMe).AddRow("papa_demo", "Guardería Morosa", "morosa", true))
+
+		r := nuevoRouterDePrueba(srv)
+		req := httptest.NewRequest(http.MethodGet, "/me", nil)
+		autenticarRequestPrueba(t, req, srv.JWTKey, "papa", 1*time.Hour)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusForbidden {
+			t.Fatalf("código = %d; esperado 403 (body: %s)", w.Code, w.Body.String())
+		}
+		for _, ck := range w.Result().Cookies() {
+			if ck.Name == middleware.CookieToken {
+				t.Errorf("no debe emitirse una cookie renovada para una guardería bloqueada, se encontró: %v", ck)
+			}
 		}
 	})
 }
