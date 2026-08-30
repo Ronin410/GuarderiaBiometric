@@ -15,7 +15,6 @@ import (
 
 	"biometrico/internal/applog"
 	appdb "biometrico/internal/db"
-	"biometrico/internal/email"
 	"biometrico/internal/middleware"
 	"biometrico/internal/server"
 
@@ -54,9 +53,6 @@ func main() {
 	}
 	if srv.PlatformAdminKey == "" {
 		applog.Info("PLATFORM_ADMIN_KEY no configurada; las solicitudes de alta de guardería se pueden recibir pero no revisar/aprobar desde /plataforma")
-	}
-	if !srv.Email.Configurado() {
-		applog.Info("SMTP_HOST/SMTP_USER/SMTP_PASS no configuradas; el aviso por correo de mensajes nuevos en el chat de soporte queda deshabilitado")
 	}
 
 	srv.RegisterRoutes(r)
@@ -175,16 +171,5 @@ func conectarServicios(cfg appconfig.Config) *server.Server {
 	srv.StripeCurrency = cfg.StripeCurrency
 	srv.FrontendURL = cfg.FrontendURL
 	srv.PlatformAdminKey = cfg.PlatformAdminKey
-	srv.Email = email.Config{
-		Host: cfg.SMTPHost,
-		Port: cfg.SMTPPort,
-		User: cfg.SMTPUser,
-		Pass: cfg.SMTPPass,
-		From: cfg.SMTPFrom,
-	}
-	srv.PlatformNotifyEmail = cfg.PlatformNotifyEmail
-	if srv.PlatformNotifyEmail == "" {
-		srv.PlatformNotifyEmail = cfg.SMTPUser
-	}
 	return srv
 }

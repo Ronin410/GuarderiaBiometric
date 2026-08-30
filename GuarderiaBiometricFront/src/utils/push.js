@@ -43,8 +43,12 @@ export async function suscripcionActiva() {
 }
 
 // suscribirseAPush pide permiso de notificaciones y, si se concede, registra la
-// suscripción en el backend. Devuelve true si quedó activa.
-export async function suscribirseAPush(api) {
+// suscripción en el backend. Devuelve true si quedó activa. ruta es
+// opcional -- por defecto es la de un papá/staff con sesión normal
+// (/push/suscribir); /plataforma la manda como '/plataforma/push/suscribir'
+// porque esa sesión se autentica con X-Platform-Key, no con el JWT normal
+// (ver PanelPlataforma.jsx).
+export async function suscribirseAPush(api, ruta = '/push/suscribir') {
   if (!pushSoportado()) return false;
 
   const permiso = await Notification.requestPermission();
@@ -73,18 +77,18 @@ export async function suscribirseAPush(api) {
     );
   }
 
-  await api.post('/push/suscribir', subscription.toJSON());
+  await api.post(ruta, subscription.toJSON());
   return true;
 }
 
 // desuscribirseDePush cancela la suscripción push de este navegador --
 // "quiero que las notificaciones las pueda cancelar el papá con el mismo
 // botón". La borra en dos lados: del navegador (pushManager.unsubscribe,
-// para que dejen de llegar de verdad) y del backend (DELETE
-// /push/suscribir, para que ya no intente mandarle nada a un endpoint que
-// el papá ya canceló). Devuelve true tanto si se canceló como si ya no
-// había ninguna suscripción activa (nada que hacer).
-export async function desuscribirseDePush(api) {
+// para que dejen de llegar de verdad) y del backend (DELETE ruta, para que
+// ya no intente mandarle nada a un endpoint que ya se canceló). Devuelve
+// true tanto si se canceló como si ya no había ninguna suscripción activa
+// (nada que hacer). ruta -- ver el comentario de suscribirseAPush.
+export async function desuscribirseDePush(api, ruta = '/push/suscribir') {
   if (!pushSoportado()) return true;
   try {
     const registration = await conTimeout(navigator.serviceWorker.ready, 5000, 'sin Service Worker activo');
@@ -93,7 +97,7 @@ export async function desuscribirseDePush(api) {
 
     const endpoint = subscription.endpoint;
     await subscription.unsubscribe();
-    await api.delete('/push/suscribir', { data: { endpoint } });
+    await api.delete(ruta, { data: { endpoint } });
     return true;
   } catch (err) {
     console.error('Error al desuscribirse de push:', err);

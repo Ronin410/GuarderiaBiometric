@@ -46,25 +46,6 @@ type Config struct {
 	// altas de guardería nueva) -- vacía por defecto, deja esas rutas
 	// deshabilitadas. Ver middleware.RequirePlatformKey.
 	PlatformAdminKey string
-
-	// Aviso por correo cuando entra un mensaje nuevo al chat de soporte
-	// (ver internal/email y chat_soporte.go) -- vacías por defecto, deja la
-	// función deshabilitada (igual que Vapid*/Stripe*). Con Gmail: SMTP_HOST
-	// smtp.gmail.com, SMTP_PORT 587, SMTP_USER el correo, SMTP_PASS una
-	// "contraseña de aplicación" (no la contraseña normal de la cuenta).
-	SMTPHost string
-	SMTPPort string
-	SMTPUser string
-	SMTPPass string
-	// SMTPFrom es el remitente que ve quien recibe el correo -- si queda
-	// vacío, se usa SMTPUser (Gmail de todos modos exige que el remitente
-	// sea la cuenta autenticada, así que en la práctica casi siempre son el
-	// mismo correo).
-	SMTPFrom string
-	// PlatformNotifyEmail es a dónde llega el aviso de "nuevo mensaje de
-	// soporte" -- si queda vacío, se usa SMTPUser (avisarte a ti mismo con
-	// la misma cuenta que manda el correo es el caso normal).
-	PlatformNotifyEmail string
 }
 
 func Load() Config {
@@ -89,13 +70,6 @@ func Load() Config {
 		FrontendURL:          os.Getenv("FRONTEND_URL"),
 
 		PlatformAdminKey: os.Getenv("PLATFORM_ADMIN_KEY"),
-
-		SMTPHost:            os.Getenv("SMTP_HOST"),
-		SMTPPort:            os.Getenv("SMTP_PORT"),
-		SMTPUser:            os.Getenv("SMTP_USER"),
-		SMTPPass:            os.Getenv("SMTP_PASS"),
-		SMTPFrom:            os.Getenv("SMTP_FROM"),
-		PlatformNotifyEmail: os.Getenv("PLATFORM_NOTIFY_EMAIL"),
 	}
 }
 

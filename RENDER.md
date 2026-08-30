@@ -44,15 +44,10 @@ credenciales reales a git). Una vez creado `pasitos-backend`:
      esa pantalla queda deshabilitada.
    - `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` -- opcional,
      solo si quieres probar notificaciones push (genera el par con
-     `npx web-push generate-vapid-keys`).
-   - `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` -- opcional, solo
-     si quieres el aviso por correo de mensajes nuevos en el chat de
-     soporte (ver el botón "Soporte" flotante y la pestaña "Soporte" en
-     `/plataforma`). Con Gmail: `smtp.gmail.com`, `587`, tu correo, y una
-     **contraseña de aplicación** (myaccount.google.com/apppasswords -- NO
-     la contraseña normal de la cuenta, esa Gmail la rechaza para SMTP).
-     `PLATFORM_NOTIFY_EMAIL` es opcional -- si lo dejas vacío, el aviso
-     llega al mismo `SMTP_USER`.
+     `npx web-push generate-vapid-keys`). El mismo par también manda el
+     aviso push de mensajes nuevos en el chat de soporte a `/plataforma`
+     (botón "Activar notificaciones" -- ver la pestaña "Soporte") -- no
+     hace falta ninguna variable extra para eso.
 3. Guarda -- Render vuelve a desplegar el servicio solo.
 
 ## 3. Confirmar las URLs reales

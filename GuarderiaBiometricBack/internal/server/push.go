@@ -147,7 +147,7 @@ func (s *Server) notificarEvento(hijoID int, evento string, detalle string) {
 		return
 	}
 
-	s.enviarPushATodos(destinos, payload)
+	s.enviarPushATodos(destinos, payload, "push_subscripciones")
 }
 
 // notificarCircular avisa a TODOS los tutores de la guardería (no solo a los
@@ -189,7 +189,7 @@ func (s *Server) notificarCircular(guarderiaID any, titulo, contenido string) {
 		return
 	}
 
-	s.enviarPushATodos(destinos, payload)
+	s.enviarPushATodos(destinos, payload, "push_subscripciones")
 }
 
 // notificarMensajeChat avisa a UN tutor (no a toda la guardería, a
@@ -223,7 +223,7 @@ func (s *Server) notificarMensajeChat(padreID int) {
 		return
 	}
 
-	s.enviarPushATodos(destinos, payload)
+	s.enviarPushATodos(destinos, payload, "push_subscripciones")
 }
 
 // notificarStaffDeGuarderia avisa a TODO el staff/admin de una guardería
@@ -256,7 +256,7 @@ func (s *Server) notificarStaffDeGuarderia(guarderiaID any, titulo, cuerpo strin
 		return
 	}
 
-	s.enviarPushATodos(destinos, payload)
+	s.enviarPushATodos(destinos, payload, "push_subscripciones")
 }
 
 // notificarStaffEspecifico avisa a UN miembro del staff (no a toda la
@@ -289,7 +289,7 @@ func (s *Server) notificarStaffEspecifico(personalID any, titulo, cuerpo string)
 		return
 	}
 
-	s.enviarPushATodos(destinos, payload)
+	s.enviarPushATodos(destinos, payload, "push_subscripciones")
 }
 
 // destinoPush es una suscripción push resuelta, lista para mandarle una
@@ -303,8 +303,15 @@ type destinoPush struct {
 // enviarPushATodos manda el mismo payload a cada destino y limpia del lado
 // de la BD cualquier suscripción que el navegador ya invalidó (404/410) --
 // lógica de envío común para no duplicarla entre notificarEvento y
-// notificarCircular.
-func (s *Server) enviarPushATodos(destinos []destinoPush, payload []byte) {
+// notificarCircular. tabla es SIEMPRE un literal fijo que decide el
+// caller (nunca dato de entrada) -- "push_subscripciones" para
+// papás/staff de una guardería, "push_suscripciones_plataforma" para el
+// dueño de la plataforma (ver push_plataforma.go); hace falta porque cada
+// una vive en su propia tabla con sus propios ids autonuméricos, así que
+// no basta con un DELETE ... WHERE id = $1 fijo a una sola tabla -- borraría
+// (o fallaría en borrar) la fila equivocada según de cuál suscripción se
+// trate.
+func (s *Server) enviarPushATodos(destinos []destinoPush, payload []byte, tabla string) {
 	for _, d := range destinos {
 		resp, err := webpush.SendNotification(payload, &d.sub, &webpush.Options{
 			VAPIDPublicKey:  s.VapidPublicKey,
@@ -320,7 +327,7 @@ func (s *Server) enviarPushATodos(destinos []destinoPush, payload []byte) {
 
 		// 404/410: la suscripción ya no existe del lado del navegador. La limpiamos.
 		if resp.StatusCode == http.StatusGone || resp.StatusCode == http.StatusNotFound {
-			s.DB.Exec("DELETE FROM push_subscripciones WHERE id = $1", d.id)
+			s.DB.Exec("DELETE FROM "+tabla+" WHERE id = $1", d.id)
 		}
 	}
 }

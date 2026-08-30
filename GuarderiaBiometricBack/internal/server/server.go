@@ -14,7 +14,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gin-gonic/gin"
 
-	"biometrico/internal/email"
 	"biometrico/internal/middleware"
 )
 
@@ -48,13 +47,6 @@ type Server struct {
 
 	// Ver middleware.RequirePlatformKey.
 	PlatformAdminKey string
-
-	// Aviso por correo de mensajes nuevos en el chat de soporte -- ver
-	// internal/email y notificarPlataformaNuevoMensajeSoporte en
-	// chat_soporte.go. Email queda con su valor cero (Configurado() ==
-	// false) si no se llenan las variables SMTP_*, igual que Vapid*/Stripe*.
-	Email               email.Config
-	PlatformNotifyEmail string
 
 	loginLimiter       *middleware.RateLimiter
 	pinLimiter         *middleware.RateLimiter
@@ -138,4 +130,5 @@ func (s *Server) RegisterRoutes(r *gin.Engine) {
 	s.registrarRutasSolicitudes(r)
 	s.registrarRutasPlataformaGuarderias(r)
 	s.registrarRutasSoporte(r)
+	s.registrarRutasPushPlataforma(r)
 }

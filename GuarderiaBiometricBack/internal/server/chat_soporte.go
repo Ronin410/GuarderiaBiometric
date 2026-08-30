@@ -9,7 +9,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"biometrico/internal/applog"
 	"biometrico/internal/middleware"
 )
 
@@ -156,7 +155,7 @@ func (s *Server) handleCrearConversacionProspecto(c *gin.Context) {
 		return
 	}
 
-	go s.notificarPlataformaNuevoMensajeSoporte("Prospecto nuevo: "+input.Nombre, input.Mensaje)
+	go s.notificarPlataformaNuevoMensajeSoporte("Prospecto nuevo: " + input.Nombre)
 
 	c.JSON(http.StatusCreated, gin.H{"token": token})
 }
@@ -222,7 +221,7 @@ func (s *Server) handleEnviarMensajeProspecto(c *gin.Context) {
 		return
 	}
 
-	go s.notificarPlataformaNuevoMensajeSoporteDeConversacion(convID, "Prospecto", contenido)
+	go s.notificarPlataformaNuevoMensajeSoporteDeConversacion(convID, "Prospecto")
 
 	c.JSON(http.StatusCreated, gin.H{"message": "Mensaje enviado"})
 }
@@ -350,7 +349,7 @@ func (s *Server) handleEnviarMensajeSoporte(c *gin.Context) {
 	if fmtRol(rol) == "papa" {
 		etiquetaRol = "Papá"
 	}
-	go s.notificarPlataformaNuevoMensajeSoporteDeConversacion(convID, etiquetaRol, contenido)
+	go s.notificarPlataformaNuevoMensajeSoporteDeConversacion(convID, etiquetaRol)
 
 	c.JSON(http.StatusCreated, gin.H{"message": "Mensaje enviado"})
 }
@@ -526,40 +525,57 @@ func (s *Server) handleContarNoLeidosSoportePlataforma(c *gin.Context) {
 
 // ---------- compartido ----------
 
-// notificarPlataformaNuevoMensajeSoporte -- "quiero que me avises por
-// correo... cuando entra algo nuevo para el chat de soporte". Manda el
-// correo directo (ya con el nombre de quien escribe en la mano, ej. el
-// prospecto que se acaba de dar de alta). Ver
-// notificarPlataformaNuevoMensajeSoporteDeConversacion para cuando hace
-// falta resolver el nombre primero.
-func (s *Server) notificarPlataformaNuevoMensajeSoporte(quien, contenido string) {
-	if !s.Email.Configurado() {
-		return
-	}
-	asunto := "💬 Nuevo mensaje de soporte -- " + quien
-	cuerpo := quien + " escribió:\n\n" + contenido + "\n\nResponde desde /plataforma (pestaña Soporte)."
-	if err := s.Email.Enviar(s.PlatformNotifyEmail, asunto, cuerpo); err != nil {
-		applog.Warn("No se pudo mandar el aviso por correo del chat de soporte", "error", err.Error())
-	}
+// notificarPlataformaNuevoMensajeSoporte -- "quiero que las notificaciones
+// de los chats sean notificaciones push... que lleguen al iniciar como mi
+// cuenta de admin". Manda un push a las suscripciones del dueño de la
+// plataforma (ver push_plataforma.go) con quién escribió, ya resuelto por
+// el caller (ver notificarPlataformaNuevoMensajeSoporteDeConversacion para
+// cuando hace falta resolver el nombre/guardería primero). No lleva el
+// contenido del mensaje -- mismo criterio de privacidad que
+// notificarMensajeChat/notificarStaffEspecifico en push.go: el papá/staff/
+// prospecto que escribió no dio su consentimiento para que su mensaje viaje
+// en el payload de una notificación del sistema operativo.
+func (s *Server) notificarPlataformaNuevoMensajeSoporte(quien string) {
+	s.notificarPlataformaPush("💬 Nuevo mensaje de soporte", quien+" te escribió. Responde desde /plataforma.")
 }
 
 // notificarPlataformaNuevoMensajeSoporteDeConversacion -- misma idea, pero
 // para las respuestas de una conversación YA existente (papá/staff/admin
 // autenticados, o un prospecto que sigue escribiendo): el caller solo tiene
-// el conversacion_id, así que esto resuelve el nombre guardado ahí. Pensada
-// para llamarse SIEMPRE con "go" (ver los tres call sites en este archivo)
-// -- la consulta a la base y el envío del correo quedan fuera del camino de
-// la respuesta HTTP, igual que notificarMensajeChat en chat.go. Si
-// Server.Email no está configurado, ni siquiera hace la consulta.
-func (s *Server) notificarPlataformaNuevoMensajeSoporteDeConversacion(convID any, etiquetaRol, contenido string) {
-	if !s.Email.Configurado() {
-		return
-	}
+// el conversacion_id, así que esto resuelve el nombre y, si aplica, la
+// guardería ("quiero que los chats con administradores y los chats con los
+// papás me digan a qué guardería pertenecen") guardados ahí. Pensada para
+// llamarse SIEMPRE con "go" (ver los tres call sites en este archivo) -- la
+// consulta a la base y el envío del push quedan fuera del camino de la
+// respuesta HTTP, igual que notificarMensajeChat.
+func (s *Server) notificarPlataformaNuevoMensajeSoporteDeConversacion(convID any, etiquetaRol string) {
 	var nombre string
-	if err := s.DB.QueryRow(`SELECT nombre FROM conversaciones_soporte WHERE id = $1`, convID).Scan(&nombre); err != nil {
+	var guarderiaID *int
+	if err := s.DB.QueryRow(`SELECT nombre, guarderia_id FROM conversaciones_soporte WHERE id = $1`, convID).Scan(&nombre, &guarderiaID); err != nil {
 		nombre = "alguien"
 	}
-	s.notificarPlataformaNuevoMensajeSoporte(etiquetaRol+": "+nombre, contenido)
+	quien := etiquetaRol + ": " + nombre
+	if guarderiaID != nil {
+		if gNombre := s.nombreGuarderiaParaSoporte(*guarderiaID); gNombre != "" {
+			quien += " (" + gNombre + ")"
+		}
+	}
+	s.notificarPlataformaNuevoMensajeSoporte(quien)
+}
+
+// nombreGuarderiaParaSoporte resuelve el nombre de una guardería por id --
+// guarderias vive en DBAuth (mismo cruce que ya usa
+// resolverNombresGuarderiasSoporte para el listado completo; aquí es una
+// sola fila porque esto corre para UNA conversación en la goroutine de
+// notificación). Un error se traga en vez de propagarse: como en
+// resolverNombreParaSoporte, esto solo alimenta el texto de una
+// notificación, no debe tumbar nada.
+func (s *Server) nombreGuarderiaParaSoporte(guarderiaID int) string {
+	var nombre string
+	if err := s.DBAuth.QueryRow(`SELECT nombre FROM guarderias WHERE id = $1`, guarderiaID).Scan(&nombre); err != nil {
+		return ""
+	}
+	return nombre
 }
 
 // leerMensajeSoporte valida el cuerpo JSON {"contenido": "..."} que

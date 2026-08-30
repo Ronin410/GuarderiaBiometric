@@ -1,8 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { KeyRound, CheckCircle2, XCircle, Building2, RefreshCw, LogOut, Users, Baby, MapPin, Clock, ClipboardList, LifeBuoy } from 'lucide-react';
+import { KeyRound, CheckCircle2, XCircle, Building2, RefreshCw, LogOut, Users, Baby, MapPin, Clock, ClipboardList, LifeBuoy, BellRing, Lock, Unlock } from 'lucide-react';
 import { mostrarError, mostrarExito, confirmar } from './utils/alertas';
+import { suscribirseAPush, desuscribirseDePush, suscripcionActiva, pushSoportado } from './utils/push';
 import PanelSoportePlataforma from './PanelSoportePlataforma';
+
+// Ruta de suscripción push de esta sesión -- distinta de la de un papá/
+// staff (/push/suscribir): /plataforma se autentica con X-Platform-Key, no
+// con el JWT normal, así que necesita su propio endpoint (ver
+// registrarRutasPushPlataforma en el backend).
+const RUTA_PUSH_PLATAFORMA = '/plataforma/push/suscribir';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://guarderiabiometricback.onrender.com';
 const STORAGE_KEY = 'pasitos_platform_key';
@@ -23,8 +30,15 @@ const PanelPlataforma = () => {
   const [cargandoGuarderias, setCargandoGuarderias] = useState(false);
   const [errorKey, setErrorKey] = useState('');
   const [noLeidosSoporte, setNoLeidosSoporte] = useState(0);
+  const [notifEstado, setNotifEstado] = useState('default'); // default | granted | activando | desactivando
 
   const cabeceras = { headers: { 'X-Platform-Key': key } };
+
+  // Instancia de axios con la llave de plataforma ya puesta -- suscribirseAPush/
+  // desuscribirseDePush (utils/push.js) piden un objeto con .post/.delete
+  // como el axios instance normal (api.js), no uno con headers sueltos por
+  // llamada como el resto de este archivo.
+  const apiPlataforma = useMemo(() => axios.create({ baseURL: API_URL, headers: { 'X-Platform-Key': key } }), [key]);
 
   const cargar = async (llave = key) => {
     setCargando(true);
@@ -90,6 +104,41 @@ const PanelPlataforma = () => {
     return () => clearInterval(intervalo);
   }, [key]);
 
+  // "Quiero que las notificaciones de los chats sean notificaciones push...
+  // que lleguen al iniciar como mi cuenta de admin" -- revisa si este
+  // navegador ya tiene una suscripción activa, igual que hace App.jsx para
+  // el papá/staff.
+  useEffect(() => {
+    if (!key) return;
+    suscripcionActiva().then((activa) => setNotifEstado(activa ? 'granted' : 'default'));
+  }, [key]);
+
+  const handleActivarNotificaciones = async () => {
+    setNotifEstado('activando');
+    try {
+      const ok = await suscribirseAPush(apiPlataforma, RUTA_PUSH_PLATAFORMA);
+      setNotifEstado(ok ? 'granted' : 'default');
+      if (!ok) mostrarError('No se pudieron activar las notificaciones. Revisa los permisos de notificaciones de tu navegador.');
+    } catch (err) {
+      console.error('Error al activar notificaciones', err);
+      setNotifEstado('default');
+      mostrarError(err.message || 'No se pudieron activar las notificaciones. Inténtalo de nuevo.');
+    }
+  };
+
+  const handleDesactivarNotificaciones = async () => {
+    setNotifEstado('desactivando');
+    try {
+      const ok = await desuscribirseDePush(apiPlataforma, RUTA_PUSH_PLATAFORMA);
+      setNotifEstado(ok ? 'default' : 'granted');
+      if (!ok) mostrarError('No se pudieron desactivar las notificaciones. Inténtalo de nuevo.');
+    } catch (err) {
+      console.error('Error al desactivar notificaciones', err);
+      setNotifEstado('granted');
+      mostrarError('No se pudieron desactivar las notificaciones. Inténtalo de nuevo.');
+    }
+  };
+
   const formatoFecha = (iso) => {
     if (!iso) return null;
     try {
@@ -120,6 +169,35 @@ const PanelPlataforma = () => {
       cargar();
     } catch (err) {
       mostrarError(err.response?.data?.error || 'No se pudo rechazar la solicitud.');
+    }
+  };
+
+  // "Quiero una forma de bloquear el acceso a una guardería, ya que si no
+  // pagan manualmente quiero quitarles el acceso dándoles tiempo para que
+  // paguen, pero eso lo haré manualmente" -- actualiza la lista en
+  // memoria en vez de recargar todo el listado, para que el cambio se vea
+  // al instante.
+  const bloquearGuarderia = async (g) => {
+    const ok = await confirmar(`¿Bloquear el acceso de "${g.nombre}"? Ningún admin, staff o papá de esa guardería podrá iniciar sesión hasta que la desbloquees.`, 'Bloquear guardería');
+    if (!ok) return;
+    try {
+      await axios.post(`${API_URL}/plataforma/guarderias/${g.id}/bloquear`, {}, cabeceras);
+      mostrarExito(`"${g.nombre}" quedó bloqueada.`);
+      setGuarderias((prev) => prev.map((x) => (x.id === g.id ? { ...x, bloqueada: true, bloqueada_en: new Date().toISOString() } : x)));
+    } catch (err) {
+      mostrarError(err.response?.data?.error || 'No se pudo bloquear la guardería.');
+    }
+  };
+
+  const desbloquearGuarderia = async (g) => {
+    const ok = await confirmar(`¿Devolver el acceso a "${g.nombre}"?`, 'Desbloquear guardería');
+    if (!ok) return;
+    try {
+      await axios.post(`${API_URL}/plataforma/guarderias/${g.id}/desbloquear`, {}, cabeceras);
+      mostrarExito(`"${g.nombre}" ya puede volver a iniciar sesión.`);
+      setGuarderias((prev) => prev.map((x) => (x.id === g.id ? { ...x, bloqueada: false, bloqueada_en: null } : x)));
+    } catch (err) {
+      mostrarError(err.response?.data?.error || 'No se pudo desbloquear la guardería.');
     }
   };
 
@@ -166,6 +244,16 @@ const PanelPlataforma = () => {
             </h1>
           </div>
           <div className="flex gap-2">
+            {pushSoportado() && (
+              <button
+                onClick={notifEstado === 'granted' ? handleDesactivarNotificaciones : handleActivarNotificaciones}
+                disabled={notifEstado === 'activando' || notifEstado === 'desactivando'}
+                className={`p-2.5 bg-white border border-slate-200 rounded-xl transition-all disabled:opacity-50 ${notifEstado === 'granted' ? 'text-emerald-500' : 'text-slate-500 hover:text-brand-600'}`}
+                title={notifEstado === 'granted' ? 'Notificaciones activas' : 'Activar notificaciones'}
+              >
+                <BellRing size={18} />
+              </button>
+            )}
             <button
               onClick={() => (vista === 'solicitudes' ? cargar() : vista === 'guarderias' ? cargarGuarderias() : null)}
               className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-500 hover:text-brand-600" title="Actualizar"
@@ -222,20 +310,47 @@ const PanelPlataforma = () => {
               </div>
             ) : (
               guarderias?.map((g) => (
-                <div key={g.id} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-4">
+                <div key={g.id} className={`bg-white p-6 rounded-[2rem] border shadow-sm space-y-4 ${g.bloqueada ? 'border-rose-200' : 'border-slate-200'}`}>
                   <div className="flex items-start justify-between gap-4 flex-wrap">
                     <div>
-                      <p className="font-black text-slate-900 text-lg">{g.nombre}</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-black text-slate-900 text-lg">{g.nombre}</p>
+                        {g.bloqueada && (
+                          <span className="bg-rose-100 text-rose-700 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full flex items-center gap-1">
+                            <Lock size={10} /> Bloqueada
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[10px] font-black uppercase text-brand-600 tracking-widest mt-1">{g.slug}</p>
                       {g.direccion && (
                         <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-2">
                           <MapPin size={12} className="shrink-0" /> {g.direccion}
                         </p>
                       )}
+                      {g.bloqueada && g.bloqueada_en && (
+                        <p className="text-[10px] text-rose-500 font-bold mt-1.5">Bloqueada desde {formatoFecha(g.bloqueada_en)}</p>
+                      )}
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Dada de alta</p>
-                      <p className="text-xs font-bold text-slate-600">{formatoFecha(g.creado_en)}</p>
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      <div className="text-right">
+                        <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Dada de alta</p>
+                        <p className="text-xs font-bold text-slate-600">{formatoFecha(g.creado_en)}</p>
+                      </div>
+                      {g.bloqueada ? (
+                        <button
+                          onClick={() => desbloquearGuarderia(g)}
+                          className="px-3.5 py-2 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-[11px] uppercase flex items-center gap-1.5 hover:bg-emerald-100 transition-all"
+                        >
+                          <Unlock size={13} /> Desbloquear
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => bloquearGuarderia(g)}
+                          className="px-3.5 py-2 rounded-xl bg-rose-50 text-rose-600 font-bold text-[11px] uppercase flex items-center gap-1.5 hover:bg-rose-100 transition-all"
+                        >
+                          <Lock size={13} /> Bloquear
+                        </button>
+                      )}
                     </div>
                   </div>
 
