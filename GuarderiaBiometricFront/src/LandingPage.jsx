@@ -310,9 +310,14 @@ const LandingPage = () => {
           </div>
           <span className="font-black uppercase text-sm text-ink">Pasitos</span>
         </div>
-        <a href="mailto:alejandrobuenomendoza@gmail.com" className="text-xs font-bold text-slate-500 hover:text-brand-600 transition-colors">
-          alejandrobuenomendoza@gmail.com
-        </a>
+        <div className="flex items-center gap-5">
+          <Link to="/terminos" className="text-xs font-bold text-slate-500 hover:text-brand-600 transition-colors">
+            Términos y condiciones
+          </Link>
+          <a href="mailto:alejandrobuenomendoza@gmail.com" className="text-xs font-bold text-slate-500 hover:text-brand-600 transition-colors">
+            alejandrobuenomendoza@gmail.com
+          </a>
+        </div>
       </footer>
     </div>
     {/* "Posibles nuevos clientes" -- para alguien interesado que todavía no

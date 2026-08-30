@@ -38,6 +38,7 @@ import ReportePublico from './ReportePublico'; // <-- Tu nueva ruta pública
 import RegistroGuarderia from './RegistroGuarderia';
 import PanelPlataforma from './PanelPlataforma';
 import LandingPage from './LandingPage';
+import TerminosCondiciones from './TerminosCondiciones';
 import SoporteChat from './SoporteChat';
 
 const videoConstraints = {
@@ -1102,6 +1103,12 @@ function App() {
             El login/kiosco se queda en /panel/identificar, alcanzable desde
             el botón "Iniciar sesión" de la propia LandingPage. */}
         <Route path="/" element={<LandingPage />} />
+
+        {/* Términos y Condiciones -- pública, sin sesión, para que
+            cualquiera (prospecto o guardería ya dada de alta) pueda
+            leerlos. Ver TERMINOS_Y_CONDICIONES.md en la raíz del repo,
+            misma redacción. */}
+        <Route path="/terminos" element={<TerminosCondiciones />} />
 
         {/* Redirección por defecto si algo sale mal */}
         <Route path="*" element={<Navigate to="/panel/identificar" replace />} />

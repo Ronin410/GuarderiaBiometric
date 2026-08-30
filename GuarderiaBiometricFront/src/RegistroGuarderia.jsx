@@ -128,6 +128,14 @@ const RegistroGuarderia = () => {
 
           {error && <p className="text-rose-600 font-bold bg-rose-50 p-4 rounded-xl text-center text-sm">{error}</p>}
 
+          <p className="text-center text-[11px] text-slate-400 font-medium">
+            Al enviar esta solicitud aceptas los{' '}
+            <Link to="/terminos" target="_blank" rel="noreferrer" className="text-brand-600 font-bold hover:underline">
+              Términos y Condiciones
+            </Link>{' '}
+            de Pasitos.
+          </p>
+
           <button type="submit" disabled={enviando}
             className="w-full bg-brand-600 hover:bg-brand-700 text-white font-black py-4 rounded-2xl uppercase tracking-tight shadow-lg transition-all active:scale-95 disabled:opacity-50">
             {enviando ? 'Enviando...' : 'Enviar solicitud'}
