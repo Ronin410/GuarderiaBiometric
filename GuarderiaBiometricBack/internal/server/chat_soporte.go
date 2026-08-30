@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"biometrico/internal/applog"
 	"biometrico/internal/middleware"
 )
 
@@ -155,6 +156,8 @@ func (s *Server) handleCrearConversacionProspecto(c *gin.Context) {
 		return
 	}
 
+	go s.notificarPlataformaNuevoMensajeSoporte("Prospecto nuevo: "+input.Nombre, input.Mensaje)
+
 	c.JSON(http.StatusCreated, gin.H{"token": token})
 }
 
@@ -218,6 +221,8 @@ func (s *Server) handleEnviarMensajeProspecto(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo enviar el mensaje"})
 		return
 	}
+
+	go s.notificarPlataformaNuevoMensajeSoporteDeConversacion(convID, "Prospecto", contenido)
 
 	c.JSON(http.StatusCreated, gin.H{"message": "Mensaje enviado"})
 }
@@ -340,6 +345,12 @@ func (s *Server) handleEnviarMensajeSoporte(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo enviar el mensaje"})
 		return
 	}
+
+	etiquetaRol := "Staff/Admin"
+	if fmtRol(rol) == "papa" {
+		etiquetaRol = "Papá"
+	}
+	go s.notificarPlataformaNuevoMensajeSoporteDeConversacion(convID, etiquetaRol, contenido)
 
 	c.JSON(http.StatusCreated, gin.H{"message": "Mensaje enviado"})
 }
@@ -514,6 +525,42 @@ func (s *Server) handleContarNoLeidosSoportePlataforma(c *gin.Context) {
 }
 
 // ---------- compartido ----------
+
+// notificarPlataformaNuevoMensajeSoporte -- "quiero que me avises por
+// correo... cuando entra algo nuevo para el chat de soporte". Manda el
+// correo directo (ya con el nombre de quien escribe en la mano, ej. el
+// prospecto que se acaba de dar de alta). Ver
+// notificarPlataformaNuevoMensajeSoporteDeConversacion para cuando hace
+// falta resolver el nombre primero.
+func (s *Server) notificarPlataformaNuevoMensajeSoporte(quien, contenido string) {
+	if !s.Email.Configurado() {
+		return
+	}
+	asunto := "💬 Nuevo mensaje de soporte -- " + quien
+	cuerpo := quien + " escribió:\n\n" + contenido + "\n\nResponde desde /plataforma (pestaña Soporte)."
+	if err := s.Email.Enviar(s.PlatformNotifyEmail, asunto, cuerpo); err != nil {
+		applog.Warn("No se pudo mandar el aviso por correo del chat de soporte", "error", err.Error())
+	}
+}
+
+// notificarPlataformaNuevoMensajeSoporteDeConversacion -- misma idea, pero
+// para las respuestas de una conversación YA existente (papá/staff/admin
+// autenticados, o un prospecto que sigue escribiendo): el caller solo tiene
+// el conversacion_id, así que esto resuelve el nombre guardado ahí. Pensada
+// para llamarse SIEMPRE con "go" (ver los tres call sites en este archivo)
+// -- la consulta a la base y el envío del correo quedan fuera del camino de
+// la respuesta HTTP, igual que notificarMensajeChat en chat.go. Si
+// Server.Email no está configurado, ni siquiera hace la consulta.
+func (s *Server) notificarPlataformaNuevoMensajeSoporteDeConversacion(convID any, etiquetaRol, contenido string) {
+	if !s.Email.Configurado() {
+		return
+	}
+	var nombre string
+	if err := s.DB.QueryRow(`SELECT nombre FROM conversaciones_soporte WHERE id = $1`, convID).Scan(&nombre); err != nil {
+		nombre = "alguien"
+	}
+	s.notificarPlataformaNuevoMensajeSoporte(etiquetaRol+": "+nombre, contenido)
+}
 
 // leerMensajeSoporte valida el cuerpo JSON {"contenido": "..."} que
 // comparten los cinco endpoints de "enviar mensaje" de este archivo.

@@ -84,6 +84,22 @@ services:
         sync: false
       - key: PLATFORM_ADMIN_KEY
         sync: false
+      # Aviso por correo de mensajes nuevos en el chat de soporte -- ver
+      # internal/email en el backend. Con Gmail: SMTP_HOST=smtp.gmail.com,
+      # SMTP_PORT=587, SMTP_USER tu correo, SMTP_PASS una "contraseña de
+      # aplicación" (myaccount.google.com/apppasswords, NO la contraseña
+      # normal de la cuenta). PLATFORM_NOTIFY_EMAIL es opcional -- si se
+      # deja vacío, el aviso llega al mismo SMTP_USER.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: PLATFORM_NOTIFY_EMAIL
+        sync: false
 
   - type: web
     name: pasitos-frontend
