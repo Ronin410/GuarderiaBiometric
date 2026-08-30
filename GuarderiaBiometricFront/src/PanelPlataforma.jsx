@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { KeyRound, CheckCircle2, XCircle, Building2, RefreshCw, LogOut, Users, Baby, MapPin, Clock, ClipboardList } from 'lucide-react';
+import { KeyRound, CheckCircle2, XCircle, Building2, RefreshCw, LogOut, Users, Baby, MapPin, Clock, ClipboardList, LifeBuoy } from 'lucide-react';
 import { mostrarError, mostrarExito, confirmar } from './utils/alertas';
+import PanelSoportePlataforma from './PanelSoportePlataforma';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://guarderiabiometricback.onrender.com';
 const STORAGE_KEY = 'pasitos_platform_key';
@@ -15,12 +16,13 @@ const STORAGE_KEY = 'pasitos_platform_key';
 const PanelPlataforma = () => {
   const [key, setKey] = useState(() => sessionStorage.getItem(STORAGE_KEY) || '');
   const [keyInput, setKeyInput] = useState('');
-  const [vista, setVista] = useState('solicitudes'); // solicitudes | guarderias
+  const [vista, setVista] = useState('solicitudes'); // solicitudes | guarderias | soporte
   const [solicitudes, setSolicitudes] = useState(null);
   const [guarderias, setGuarderias] = useState(null);
   const [cargando, setCargando] = useState(false);
   const [cargandoGuarderias, setCargandoGuarderias] = useState(false);
   const [errorKey, setErrorKey] = useState('');
+  const [noLeidosSoporte, setNoLeidosSoporte] = useState(0);
 
   const cabeceras = { headers: { 'X-Platform-Key': key } };
 
@@ -72,6 +74,21 @@ const PanelPlataforma = () => {
     if (key && vista === 'guarderias' && guarderias === null) cargarGuarderias(key);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vista, key]);
+
+  // Badge de "Soporte" en la pestaña -- se consulta aparte del inbox
+  // completo (PanelSoportePlataforma) para que el número se vea aunque
+  // Alejandro esté parado en "Solicitudes" o "Guarderías".
+  useEffect(() => {
+    if (!key) return undefined;
+    const consultar = () => {
+      axios.get(`${API_URL}/plataforma/soporte/no-leidos`, { headers: { 'X-Platform-Key': key } })
+        .then((res) => setNoLeidosSoporte(res.data?.no_leidos || 0))
+        .catch(() => {});
+    };
+    consultar();
+    const intervalo = setInterval(consultar, 15000);
+    return () => clearInterval(intervalo);
+  }, [key]);
 
   const formatoFecha = (iso) => {
     if (!iso) return null;
@@ -144,14 +161,16 @@ const PanelPlataforma = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="bg-forest p-2.5 rounded-xl"><Building2 size={20} className="text-white" /></div>
-            <h1 className="text-xl font-black text-slate-900">{vista === 'solicitudes' ? 'Solicitudes de guardería' : 'Guarderías registradas'}</h1>
+            <h1 className="text-xl font-black text-slate-900">
+              {vista === 'solicitudes' ? 'Solicitudes de guardería' : vista === 'guarderias' ? 'Guarderías registradas' : 'Chat de soporte'}
+            </h1>
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => (vista === 'solicitudes' ? cargar() : cargarGuarderias())}
+              onClick={() => (vista === 'solicitudes' ? cargar() : vista === 'guarderias' ? cargarGuarderias() : null)}
               className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-500 hover:text-brand-600" title="Actualizar"
             >
-              <RefreshCw size={18} className={(vista === 'solicitudes' ? cargando : cargandoGuarderias) ? 'animate-spin' : ''} />
+              <RefreshCw size={18} className={(vista === 'solicitudes' ? cargando : vista === 'guarderias' ? cargandoGuarderias : false) ? 'animate-spin' : ''} />
             </button>
             <button onClick={cerrarSesionPlataforma} className="p-2.5 bg-white border border-slate-200 rounded-xl text-rose-500 hover:bg-rose-50" title="Salir">
               <LogOut size={18} />
@@ -160,9 +179,10 @@ const PanelPlataforma = () => {
         </div>
 
         {/* PESTAÑAS -- "Solicitudes" es lo que ya existía (altas pendientes
-            de revisar); "Guarderías" es el panorama nuevo de las que ya
-            están dadas de alta y usando el sistema. */}
-        <div className="flex bg-white border border-slate-200 p-1.5 rounded-2xl w-fit">
+            de revisar); "Guarderías" es el panorama de las que ya están
+            dadas de alta; "Soporte" es el inbox del chat de soporte (papás,
+            staff/admin y prospectos, ver PanelSoportePlataforma). */}
+        <div className="flex bg-white border border-slate-200 p-1.5 rounded-2xl w-fit flex-wrap">
           <button
             onClick={() => setVista('solicitudes')}
             className={`px-4 py-2 rounded-xl flex items-center gap-2 font-black text-xs uppercase transition-all ${vista === 'solicitudes' ? 'bg-forest text-white shadow-sm' : 'text-slate-400'}`}
@@ -175,9 +195,22 @@ const PanelPlataforma = () => {
           >
             <Building2 size={15} /> Guarderías
           </button>
+          <button
+            onClick={() => setVista('soporte')}
+            className={`relative px-4 py-2 rounded-xl flex items-center gap-2 font-black text-xs uppercase transition-all ${vista === 'soporte' ? 'bg-forest text-white shadow-sm' : 'text-slate-400'}`}
+          >
+            <LifeBuoy size={15} /> Soporte
+            {noLeidosSoporte > 0 && (
+              <span className="bg-rose-500 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center">
+                {noLeidosSoporte > 9 ? '9+' : noLeidosSoporte}
+              </span>
+            )}
+          </button>
         </div>
 
-        {vista === 'guarderias' ? (
+        {vista === 'soporte' ? (
+          <PanelSoportePlataforma apiUrl={API_URL} platformKey={key} />
+        ) : vista === 'guarderias' ? (
           <div className="space-y-3">
             {cargandoGuarderias && guarderias === null ? (
               <div className="bg-white p-10 rounded-[2.5rem] border border-dashed border-slate-200 text-center text-slate-400 font-bold uppercase text-xs tracking-widest">

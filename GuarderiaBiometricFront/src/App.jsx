@@ -38,6 +38,7 @@ import ReportePublico from './ReportePublico'; // <-- Tu nueva ruta pública
 import RegistroGuarderia from './RegistroGuarderia';
 import PanelPlataforma from './PanelPlataforma';
 import LandingPage from './LandingPage';
+import SoporteChat from './SoporteChat';
 
 const videoConstraints = {
   width: { ideal: 720 },
@@ -673,7 +674,12 @@ function MainApp() {
   }
 
   if (userRole === 'papa') {
-    return <DashboardPadre padreId={userId} nombreUsuario={username} alCerrarSesion={cerrarSesion} />;
+    return (
+      <>
+        <DashboardPadre padreId={userId} nombreUsuario={username} alCerrarSesion={cerrarSesion} />
+        <SoporteChat modo="autenticado" />
+      </>
+    );
   }
 
   // Estructura del menú lateral: mismas pestañas y el mismo filtrado por
@@ -1067,6 +1073,8 @@ function MainApp() {
           </div>
         </div>
       )}
+
+      <SoporteChat modo="autenticado" />
     </div>
   );
 }

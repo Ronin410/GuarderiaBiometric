@@ -5,6 +5,7 @@ import {
   MessageCircle, Megaphone, ClipboardCheck, CalendarDays, CalendarOff,
   UtensilsCrossed, Wallet, UserCog, BarChart3, Lock, Clock3,
 } from 'lucide-react';
+import SoporteChat from './SoporteChat';
 
 // LandingPage -- "pon como main page la página de presentación, me gustó,
 // ponla como mi página principal". Antes "/" mandaba directo al login;
@@ -68,6 +69,7 @@ const LandingPage = () => {
   const funcionesActivas = FUNCIONES.find((f) => f.key === tabActiva) ?? FUNCIONES[0];
 
   return (
+    <>
     <div className="min-h-screen bg-paper text-ink">
       {/* NAV */}
       <header className="sticky top-0 z-30 bg-paper/90 backdrop-blur-sm border-b border-slate-200">
@@ -313,6 +315,10 @@ const LandingPage = () => {
         </a>
       </footer>
     </div>
+    {/* "Posibles nuevos clientes" -- para alguien interesado que todavía no
+        tiene cuenta, sin depender de que escriban al correo del footer. */}
+    <SoporteChat modo="publico" />
+    </>
   );
 };
 
