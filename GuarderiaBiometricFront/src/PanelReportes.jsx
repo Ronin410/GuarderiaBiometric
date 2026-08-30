@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import api from './axiosConfig';
 import {
   Download, Clock, User, CheckCircle, ShieldAlert,
@@ -16,7 +16,7 @@ const PanelReportes = () => {
   const [busquedaNombre, setBusquedaNombre] = useState(""); 
   const [sortConfig, setSortConfig] = useState({ key: 'fecha', direction: 'desc' });
 
-  const obtenerReportes = async () => {
+  const obtenerReportes = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get('/reportes-asistencia', {
@@ -28,7 +28,7 @@ const PanelReportes = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [fechaInicio, fechaFin]);
 
   useEffect(() => {
     if (fechaInicio > fechaFin) {
@@ -36,7 +36,7 @@ const PanelReportes = () => {
       return;
     }
     obtenerReportes();
-  }, [fechaInicio, fechaFin]);
+  }, [fechaInicio, fechaFin, obtenerReportes]);
 
   const handleSort = (key) => {
     let direction = 'asc';

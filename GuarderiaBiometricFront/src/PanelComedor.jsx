@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import api from './axiosConfig';
 import { UtensilsCrossed, Sunrise, Soup, Cookie, Baby } from 'lucide-react';
 import { mostrarError } from './utils/alertas';
@@ -14,7 +14,7 @@ const PanelComedor = () => {
   const [resumen, setResumen] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const cargar = async () => {
+  const cargar = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get('/pedidos-comedor', { params: { fecha } });
@@ -25,9 +25,9 @@ const PanelComedor = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [fecha]);
 
-  useEffect(() => { cargar(); }, [fecha]);
+  useEffect(() => { cargar(); }, [cargar]);
 
   const formatoFechaLarga = (iso) => {
     try {

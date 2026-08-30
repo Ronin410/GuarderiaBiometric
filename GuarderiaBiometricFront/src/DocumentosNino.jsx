@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import api from './axiosConfig';
 import { FileText, Upload, RefreshCw, Trash2, Loader2, ExternalLink, CheckCircle2 } from 'lucide-react';
 import { mostrarError, confirmar } from './utils/alertas';
@@ -20,7 +20,7 @@ const DocumentosNino = ({ ninoId }) => {
   const [eliminandoTipo, setEliminandoTipo] = useState(null);
   const inputsRef = useRef({});
 
-  const cargar = async () => {
+  const cargar = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get(`/hijos/${ninoId}/documentos`);
@@ -31,9 +31,9 @@ const DocumentosNino = ({ ninoId }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [ninoId]);
 
-  useEffect(() => { cargar(); }, [ninoId]);
+  useEffect(() => { cargar(); }, [cargar]);
 
   const elegirArchivo = (tipo) => {
     inputsRef.current[tipo]?.click();

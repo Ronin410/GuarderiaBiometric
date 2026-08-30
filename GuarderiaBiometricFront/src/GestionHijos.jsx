@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 // Cambiamos axios por la instancia personalizada
 import api from './axiosConfig'; 
 import {
@@ -30,26 +30,26 @@ const GestionHijos = ({ padreId, nombrePadre, onFinalizar }) => {
   const [passwordCuenta, setPasswordCuenta] = useState('');
   const [creandoCuenta, setCreandoCuenta] = useState(false);
 
-  const cargarHijosActuales = async () => {
+  const cargarHijosActuales = useCallback(async () => {
     if (!padreId) return;
     try {
       const res = await api.get(`/padre/${padreId}/hijos`);
-      const hijosMapeados = res.data.map(h => ({ 
-        id: h.id, 
-        nombre_niño: h.nombre || h.nombre_niño, 
+      const hijosMapeados = res.data.map(h => ({
+        id: h.id,
+        nombre_niño: h.nombre || h.nombre_niño,
         activo: h.activo !== undefined ? h.activo : true,
-        esNuevo: false, 
-        persistente: true 
+        esNuevo: false,
+        persistente: true
       }));
       setHijosRelacionados(hijosMapeados);
     } catch (err) {
       console.error("Error cargando hijos:", err);
     }
-  };
+  }, [padreId]);
 
   useEffect(() => {
     cargarHijosActuales();
-  }, [padreId]);
+  }, [cargarHijosActuales]);
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {

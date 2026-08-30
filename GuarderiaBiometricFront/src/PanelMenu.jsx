@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import api from './axiosConfig';
 import { UtensilsCrossed, ChevronLeft, ChevronRight, Save, Loader2, Coffee, Soup, Cookie } from 'lucide-react';
 import { mostrarError, mostrarExito } from './utils/alertas';
@@ -18,16 +18,22 @@ const PanelMenu = () => {
 
   const dias = diasHabilesDeLaSemana(lunes);
 
-  const cargarSemana = async () => {
+  // Recalcula los días DENTRO del callback (en vez de cerrar sobre la
+  // constante `dias` de arriba) para que cargarSemana solo dependa de
+  // `lunes` -- diasHabilesDeLaSemana(lunes) da un arreglo nuevo en cada
+  // render, así que si cargarSemana cerrara sobre `dias` se recrearía en
+  // cada render y el useEffect de abajo entraría en un ciclo de recargas.
+  const cargarSemana = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get('/menu-semanal', { params: { inicio: dias[0], fin: dias[4] } });
+      const diasSemana = diasHabilesDeLaSemana(lunes);
+      const res = await api.get('/menu-semanal', { params: { inicio: diasSemana[0], fin: diasSemana[4] } });
       const porFecha = {};
       (Array.isArray(res.data) ? res.data : []).forEach((d) => {
         porFecha[d.fecha] = { desayuno: d.desayuno || '', comida: d.comida || '', merienda: d.merienda || '' };
       });
       const nuevoForm = {};
-      dias.forEach((f) => { nuevoForm[f] = porFecha[f] || { ...VACIO }; });
+      diasSemana.forEach((f) => { nuevoForm[f] = porFecha[f] || { ...VACIO }; });
       setForm(nuevoForm);
     } catch (err) {
       console.error('Error al cargar el menú semanal:', err);
@@ -35,9 +41,9 @@ const PanelMenu = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [lunes]);
 
-  useEffect(() => { cargarSemana(); }, [lunes]);
+  useEffect(() => { cargarSemana(); }, [cargarSemana]);
 
   const cambiarSemana = (delta) => {
     const d = new Date(`${lunes}T00:00:00`);

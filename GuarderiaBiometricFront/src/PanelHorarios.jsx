@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import api from './axiosConfig';
 import {
   Clock, ArrowLeft, Save, Loader2, Plus, Trash2, CalendarClock, UserCog,
@@ -85,7 +85,7 @@ const DetalleHorario = ({ persona, onVolver }) => {
   const [nuevoRegistro, setNuevoRegistro] = useState({ fecha: hoyLocal(), horas_trabajadas: '', observaciones: '' });
   const [guardandoRegistro, setGuardandoRegistro] = useState(false);
 
-  const cargarTurnos = async () => {
+  const cargarTurnos = useCallback(async () => {
     setLoadingTurnos(true);
     try {
       const res = await api.get(`/admin/horarios/${persona.id}`);
@@ -105,9 +105,9 @@ const DetalleHorario = ({ persona, onVolver }) => {
     } finally {
       setLoadingTurnos(false);
     }
-  };
+  }, [persona.id]);
 
-  const cargarHoras = async () => {
+  const cargarHoras = useCallback(async () => {
     setLoadingHoras(true);
     try {
       const [anio, mesNum] = mes.split('-');
@@ -121,10 +121,10 @@ const DetalleHorario = ({ persona, onVolver }) => {
     } finally {
       setLoadingHoras(false);
     }
-  };
+  }, [mes, persona.id]);
 
-  useEffect(() => { cargarTurnos(); }, []);
-  useEffect(() => { cargarHoras(); }, [mes]);
+  useEffect(() => { cargarTurnos(); }, [cargarTurnos]);
+  useEffect(() => { cargarHoras(); }, [cargarHoras]);
 
   const actualizarTurno = (dia, campo, valor) => {
     setTurnos((prev) => prev.map((t) => (t.dia_semana === dia ? { ...t, [campo]: valor || null } : t)));

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import api from './axiosConfig';
 import {
   Wallet, Calendar, Loader2, ArrowLeft, Plus, Trash2,
@@ -37,7 +37,7 @@ const PanelPagos = () => {
   const [filtroEstado, setFiltroEstado] = useState('todos');
   const [enviandoRecordatorios, setEnviandoRecordatorios] = useState(false);
 
-  const cargarEstados = async () => {
+  const cargarEstados = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get('/pagos/estado', { params: { periodo } });
@@ -47,9 +47,9 @@ const PanelPagos = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [periodo]);
 
-  useEffect(() => { cargarEstados(); }, [periodo]);
+  useEffect(() => { cargarEstados(); }, [cargarEstados]);
 
   // Incluye tanto al que debe este periodo como al que ya está al
   // corriente en él pero arrastra deuda vieja de meses anteriores -- mismo
@@ -225,7 +225,7 @@ const DetallePago = ({ nino, periodo, onVolver }) => {
     observaciones: '',
   });
 
-  const cargarHistorial = async () => {
+  const cargarHistorial = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get('/pagos', { params: { hijo_id: nino.hijo_id } });
@@ -235,9 +235,9 @@ const DetallePago = ({ nino, periodo, onVolver }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [nino.hijo_id]);
 
-  useEffect(() => { cargarHistorial(); }, []);
+  useEffect(() => { cargarHistorial(); }, [cargarHistorial]);
 
   const registrarPago = async () => {
     if (!form.monto || Number(form.monto) <= 0) {

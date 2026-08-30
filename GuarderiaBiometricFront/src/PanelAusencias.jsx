@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import api from './axiosConfig';
 import { CalendarOff, Baby } from 'lucide-react';
 import { mostrarError } from './utils/alertas';
@@ -31,7 +31,7 @@ const PanelAusencias = () => {
   const [ausencias, setAusencias] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const cargar = async () => {
+  const cargar = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get('/ausencias', { params: { desde, hasta } });
@@ -42,9 +42,9 @@ const PanelAusencias = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [desde, hasta]);
 
-  useEffect(() => { cargar(); }, [desde, hasta]);
+  useEffect(() => { cargar(); }, [cargar]);
 
   const porFecha = ausencias.reduce((acc, a) => {
     (acc[a.fecha] = acc[a.fecha] || []).push(a);

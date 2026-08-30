@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import api from './axiosConfig';
 import { CalendarDays, Plus, X, Send, Loader2, Trash2 } from 'lucide-react';
 import { mostrarError, mostrarExito, confirmar } from './utils/alertas';
@@ -41,7 +41,7 @@ const PanelCalendario = () => {
   const [desde, setDesde] = useState(hoyLocal());
   const [hasta, setHasta] = useState(sumarDias(hoyLocal(), 90));
 
-  const cargar = async () => {
+  const cargar = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get('/calendario', { params: { desde, hasta } });
@@ -52,9 +52,9 @@ const PanelCalendario = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [desde, hasta]);
 
-  useEffect(() => { cargar(); }, [desde, hasta]);
+  useEffect(() => { cargar(); }, [cargar]);
 
   const publicar = async () => {
     if (!form.titulo.trim() || !form.fecha_inicio) {

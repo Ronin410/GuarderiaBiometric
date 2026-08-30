@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -23,7 +23,7 @@ const ReportePublico = () => {
   const fechaUrl = searchParams.get("fecha") || hoyLocal();
   const [fechaSeleccionada, setFechaSeleccionada] = useState(fechaUrl);
 
-  const fetchPublico = async (fecha) => {
+  const fetchPublico = useCallback(async (fecha) => {
     try {
       setLoading(true);
       // Nota: Usamos la ruta /publico/ que creamos en Go
@@ -37,11 +37,11 @@ const ReportePublico = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     if (token) fetchPublico(fechaSeleccionada);
-  }, [token, fechaSeleccionada]);
+  }, [token, fechaSeleccionada, fetchPublico]);
 
   const handleCambioFecha = (e) => {
     const nuevaFecha = e.target.value;

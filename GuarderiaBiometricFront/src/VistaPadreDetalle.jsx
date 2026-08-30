@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import api from './axiosConfig';
 import {
   Clock,
@@ -66,7 +66,7 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
   // ESTADO PARA LA FOTO EN GRANDE
   const [fotoSeleccionada, setFotoSeleccionada] = useState(null);
 
-  const fetchDetalle = async (fecha) => {
+  const fetchDetalle = useCallback(async (fecha) => {
     try {
       setLoading(true);
       const res = await api.get(`/seguimiento/${hijoId}?fecha=${fecha}`);
@@ -79,13 +79,13 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [hijoId]);
 
   useEffect(() => {
     if (vista === 'bitacora') fetchDetalle(fechaSeleccionada);
-  }, [hijoId, fechaSeleccionada, vista]);
+  }, [hijoId, fechaSeleccionada, vista, fetchDetalle]);
 
-  const cargarAusencias = async () => {
+  const cargarAusencias = useCallback(async () => {
     setLoadingAusencias(true);
     try {
       const res = await api.get(`/padre/hijos/${hijoId}/ausencias`);
@@ -96,13 +96,13 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
     } finally {
       setLoadingAusencias(false);
     }
-  };
+  }, [hijoId]);
 
   useEffect(() => {
     if (vista === 'ausencias') cargarAusencias();
-  }, [hijoId, vista]);
+  }, [hijoId, vista, cargarAusencias]);
 
-  const cargarDocumentos = async () => {
+  const cargarDocumentos = useCallback(async () => {
     setLoadingDocumentos(true);
     try {
       const res = await api.get(`/padre/hijos/${hijoId}/documentos`);
@@ -113,11 +113,11 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
     } finally {
       setLoadingDocumentos(false);
     }
-  };
+  }, [hijoId]);
 
   useEffect(() => {
     if (vista === 'expediente') cargarDocumentos();
-  }, [hijoId, vista]);
+  }, [hijoId, vista, cargarDocumentos]);
 
   const reportarAusencia = async () => {
     if (!formAusencia.fecha_inicio) {
@@ -153,7 +153,7 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
     }
   };
 
-  const cargarPedidosComedor = async () => {
+  const cargarPedidosComedor = useCallback(async () => {
     setLoadingComedor(true);
     try {
       const res = await api.get(`/padre/hijos/${hijoId}/pedidos-comedor`);
@@ -164,11 +164,11 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
     } finally {
       setLoadingComedor(false);
     }
-  };
+  }, [hijoId]);
 
   useEffect(() => {
     if (vista === 'comedor') cargarPedidosComedor();
-  }, [hijoId, vista]);
+  }, [hijoId, vista, cargarPedidosComedor]);
 
   const guardarPedidoComedor = async () => {
     if (!formComedor.fecha) {

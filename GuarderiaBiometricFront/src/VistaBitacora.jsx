@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import api from './axiosConfig'; 
 import { 
   Calendar, User, CheckCircle, ShieldAlert, Clock, 
@@ -15,7 +15,7 @@ const VistaBitacora = () => {
   const [busqueda, setBusqueda] = useState("");
   const [niñoSeleccionado, setNiñoSeleccionado] = useState(null);
 
-  const fetchEstatus = async () => {
+  const fetchEstatus = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get('/bitacora', { params: { fecha: fechaFiltro } });
@@ -25,9 +25,9 @@ const VistaBitacora = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [fechaFiltro]);
 
-  useEffect(() => { fetchEstatus(); }, [fechaFiltro]);
+  useEffect(() => { fetchEstatus(); }, [fetchEstatus]);
 
   const formatearHora = (fechaStr) => {
     if (!fechaStr || fechaStr === '--:--') return '--:--';

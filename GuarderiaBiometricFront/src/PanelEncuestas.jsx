@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import api from './axiosConfig';
 import {
   ClipboardCheck, Plus, X, Send, Loader2, Trash2, ArrowLeft, Lock, CheckCircle2, ListChecks,
@@ -242,7 +242,7 @@ const DetalleEncuesta = ({ id, onVolver }) => {
   const [cerrando, setCerrando] = useState(false);
   const [eliminando, setEliminando] = useState(false);
 
-  const cargar = async () => {
+  const cargar = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get(`/encuestas/${id}`);
@@ -253,9 +253,9 @@ const DetalleEncuesta = ({ id, onVolver }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  useEffect(() => { cargar(); }, [id]);
+  useEffect(() => { cargar(); }, [cargar]);
 
   const cerrarEncuesta = async () => {
     const ok = await confirmar('Los padres ya no podrán responderla.', '¿Cerrar esta encuesta?');

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import api from './axiosConfig';
 import { BarChart3, CalendarRange, TrendingDown, Clock3 } from 'lucide-react';
 import { hoyLocal } from './utils/fecha';
@@ -47,7 +47,7 @@ const PanelEstadisticas = () => {
     setHasta(hoyLocal());
   };
 
-  const cargarResumen = async () => {
+  const cargarResumen = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get('/reportes/asistencia-resumen', { params: { desde, hasta } });
@@ -57,9 +57,9 @@ const PanelEstadisticas = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [desde, hasta]);
 
-  useEffect(() => { cargarResumen(); }, [desde, hasta]);
+  useEffect(() => { cargarResumen(); }, [cargarResumen]);
 
   const totalAusencias = resumen.reduce((acc, r) => acc + (r.dias_ausente || 0), 0);
   const totalTardanzas = resumen.reduce((acc, r) => acc + (r.dias_tarde || 0), 0);
