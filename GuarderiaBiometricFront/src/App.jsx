@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Webcam from 'react-webcam';
 import api, { setCsrfToken } from './axiosConfig';
 // Importar componentes de rutas
@@ -37,6 +37,7 @@ import { suscribirseAPush, desuscribirseDePush, suscripcionActiva, pushSoportado
 import ReportePublico from './ReportePublico'; // <-- Tu nueva ruta pública
 import RegistroGuarderia from './RegistroGuarderia';
 import PanelPlataforma from './PanelPlataforma';
+import LandingPage from './LandingPage';
 
 const videoConstraints = {
   width: { ideal: 720 },
@@ -50,6 +51,30 @@ const videoConstraints = {
 // ser válido para siempre una vez tecleado y pasa a tener esta duración,
 // igual que la sesión misma (ver pinVerificadoEn más abajo).
 const DURACION_PIN_MS = 30 * 60 * 1000;
+
+// Mapea cada pestaña protegida a la clave de área que usa el backend
+// (RequireArea) -- "admin" (nombre heredado de la URL, la pestaña se ve
+// como "Familia" en el menú) es la única que no comparte literal con su
+// área, para no confundirla con el rol "admin".
+//
+// "configuracion" NO va aquí a propósito -- a diferencia del resto, esa
+// pestaña nunca es "personalizable por permisos": el staff no debe poder
+// entrar nunca, ni siquiera si un admin se lo intentara conceder (mismo
+// criterio que personal/horarios, un poco más abajo). El backend ya lo
+// exige con RequireAdmin() en vez de RequireArea (ver privacidad.go y
+// tipos_documento.go), esto solo evita ofrecerlo en la UI para empezar.
+//
+// Vive fuera del componente (no depende de props/estado) para que
+// TABS_PROTEGIDAS sea una referencia estable entre renders -- si viviera
+// adentro, sería un objeto/arreglo nuevo en cada render y cualquier
+// useEffect que lo necesitara en sus dependencias se volvería a disparar
+// en cada render sin motivo real.
+const AREA_DE_TAB = {
+  admin: 'familia', bitacora: 'bitacora', reportes: 'reportes',
+  perfiles: 'perfiles', pagos: 'pagos', estadisticas: 'estadisticas',
+  menu: 'menu', circulares: 'circulares',
+};
+const TABS_PROTEGIDAS = Object.keys(AREA_DE_TAB);
 
 // --- TODO TU CÓDIGO ACTUAL SE MANTIENE AQUÍ DENTRO ---
 function MainApp() {
@@ -92,44 +117,6 @@ function MainApp() {
   const { tab: tabDeUrl } = useParams();
   const tab = tabDeUrl || 'identificar';
   const navigate = useNavigate();
-  // Mapea cada pestaña protegida a la clave de área que usa el backend
-  // (RequireArea) -- "admin" (nombre heredado de la URL, la pestaña se ve
-  // como "Familia" en el menú) es la única que no comparte literal con su
-  // área, para no confundirla con el rol "admin".
-  //
-  // "configuracion" NO va aquí a propósito -- a diferencia del resto, esa
-  // pestaña nunca es "personalizable por permisos": el staff no debe poder
-  // entrar nunca, ni siquiera si un admin se lo intentara conceder (mismo
-  // criterio que personal/horarios, un poco más abajo). El backend ya lo
-  // exige con RequireAdmin() en vez de RequireArea (ver privacidad.go y
-  // tipos_documento.go), esto solo evita ofrecerlo en la UI para empezar.
-  const AREA_DE_TAB = {
-    admin: 'familia', bitacora: 'bitacora', reportes: 'reportes',
-    perfiles: 'perfiles', pagos: 'pagos', estadisticas: 'estadisticas',
-    menu: 'menu', circulares: 'circulares',
-  };
-  const TABS_PROTEGIDAS = Object.keys(AREA_DE_TAB);
-
-  // true si esta cuenta puede entrar a `tabProtegida` -- admin siempre;
-  // staff sin permisos personalizados (permisos === null) también siempre
-  // (el PIN es lo que decide, no esto); staff personalizado solo si el
-  // área está en su lista.
-  const tienePermiso = (tabProtegida) => {
-    if (userRole === 'admin') return true;
-    if (permisos === null) return true;
-    return permisos.includes(AREA_DE_TAB[tabProtegida]);
-  };
-
-  // Quita del menú las pestañas protegidas que esta cuenta no tiene
-  // concedidas -- solo tiene efecto en cuentas ya personalizadas
-  // (permisos !== null); las demás pestañas (no protegidas, o cuentas sin
-  // personalizar) se muestran igual que siempre.
-  const filtrarProtegidos = (items) => items.filter(({ tab: t }) => !TABS_PROTEGIDAS.includes(t) || tienePermiso(t));
-
-  // true si el PIN sigue vigente (se tecleó hace menos de DURACION_PIN_MS).
-  // Solo aplica a cuentas sin personalizar (permisos === null) -- las
-  // personalizadas nunca dependen del PIN, ver tienePermiso.
-  const pinVigente = () => pinVerificadoEn !== null && (Date.now() - pinVerificadoEn < DURACION_PIN_MS);
 
   const [loading, setLoading] = useState(false);
   const [showAdminPinModal, setShowAdminPinModal] = useState(false);
@@ -140,6 +127,38 @@ function MainApp() {
   // para siempre y pasa a tener una duración (DURACION_PIN_MS). Ver
   // pinVigente() y el useEffect que lo vigila más abajo.
   const [pinVerificadoEn, setPinVerificadoEn] = useState(null);
+
+  // true si esta cuenta puede entrar a `tabProtegida` -- admin siempre;
+  // staff sin permisos personalizados (permisos === null) también siempre
+  // (el PIN es lo que decide, no esto); staff personalizado solo si el
+  // área está en su lista. En useCallback (con sus dependencias reales:
+  // userRole y permisos) para que sea una referencia estable entre
+  // renders y se pueda declarar sin problema en las dependencias de los
+  // useEffect que la usan más abajo. Va DESPUÉS de los useState de los que
+  // depende (userRole/permisos/pinVerificadoEn ya declarados arriba) --
+  // referenciarlos antes de su declaración revienta en tiempo de
+  // ejecución ("Cannot access ... before initialization"), aunque
+  // compile sin problema.
+  const tienePermiso = useCallback((tabProtegida) => {
+    if (userRole === 'admin') return true;
+    if (permisos === null) return true;
+    return permisos.includes(AREA_DE_TAB[tabProtegida]);
+  }, [userRole, permisos]);
+
+  // Quita del menú las pestañas protegidas que esta cuenta no tiene
+  // concedidas -- solo tiene efecto en cuentas ya personalizadas
+  // (permisos !== null); las demás pestañas (no protegidas, o cuentas sin
+  // personalizar) se muestran igual que siempre.
+  const filtrarProtegidos = (items) => items.filter(({ tab: t }) => !TABS_PROTEGIDAS.includes(t) || tienePermiso(t));
+
+  // true si el PIN sigue vigente (se tecleó hace menos de DURACION_PIN_MS).
+  // Solo aplica a cuentas sin personalizar (permisos === null) -- las
+  // personalizadas nunca dependen del PIN, ver tienePermiso. Misma razón
+  // de useCallback que en tienePermiso.
+  const pinVigente = useCallback(
+    () => pinVerificadoEn !== null && (Date.now() - pinVerificadoEn < DURACION_PIN_MS),
+    [pinVerificadoEn]
+  );
 
   const avisoExpiracionMostrado = useRef(false);
   const webcamRef = useRef(null);
@@ -235,7 +254,7 @@ function MainApp() {
       setShowAdminPinModal(true);
       navigate('/panel/identificar', { replace: true });
     }
-  }, [tab, userRole, isLoggedIn, pinVerificadoEn, permisos]);
+  }, [tab, userRole, isLoggedIn, permisos, navigate, tienePermiso, pinVigente]);
 
   // Vigila el vencimiento del PIN mientras siga vigente -- "si no se lo
   // volverá a pedir cada 30 minutos". En vez de solo revisar la fecha la
@@ -1070,8 +1089,11 @@ function App() {
             a un refresh y el botón "atrás" del navegador funciona. */}
         <Route path="/panel/:tab" element={<MainApp />} />
 
-        {/* Entrada por defecto (login si no hay sesión, kiosco si ya la hay) */}
-        <Route path="/" element={<Navigate to="/panel/identificar" replace />} />
+        {/* "Ponla como mi página principal" -- la página de presentación es
+            ahora la entrada real de "/", en vez de mandar directo al login.
+            El login/kiosco se queda en /panel/identificar, alcanzable desde
+            el botón "Iniciar sesión" de la propia LandingPage. */}
+        <Route path="/" element={<LandingPage />} />
 
         {/* Redirección por defecto si algo sale mal */}
         <Route path="*" element={<Navigate to="/panel/identificar" replace />} />
