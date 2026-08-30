@@ -51,6 +51,7 @@ type Server struct {
 	loginLimiter       *middleware.RateLimiter
 	pinLimiter         *middleware.RateLimiter
 	identificarLimiter *middleware.RateLimiter
+	soporteLimiter     *middleware.RateLimiter
 }
 
 // New crea un Server con sus limitadores de tasa ya inicializados. Las
@@ -61,6 +62,11 @@ func New() *Server {
 		loginLimiter:       middleware.NewRateLimiter(10, time.Minute),
 		pinLimiter:         middleware.NewRateLimiter(5, time.Minute),
 		identificarLimiter: middleware.NewRateLimiter(30, time.Minute),
+		// Chat de soporte: incluye el formulario público de prospectos (sin
+		// cuenta), así que necesita su propio límite -- generoso para una
+		// conversación real (varios mensajes seguidos), pero suficiente para
+		// frenar un bot que intente usarlo para mandar spam.
+		soporteLimiter: middleware.NewRateLimiter(20, 5*time.Minute),
 	}
 }
 
@@ -123,4 +129,5 @@ func (s *Server) RegisterRoutes(r *gin.Engine) {
 	s.registrarRutasArco(r)
 	s.registrarRutasSolicitudes(r)
 	s.registrarRutasPlataformaGuarderias(r)
+	s.registrarRutasSoporte(r)
 }
