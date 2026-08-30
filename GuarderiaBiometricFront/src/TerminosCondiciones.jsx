@@ -435,25 +435,6 @@ const TerminosCondiciones = () => (
         </ul>
       </section>
 
-      <section className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mt-10">
-        <h2 className="text-sm font-black text-amber-800 uppercase tracking-wide mb-2">Nota de revisión jurídica</h2>
-        <p className="text-sm text-amber-900 leading-relaxed">
-          Este borrador se estructuró con base en el briefing técnico de Pasitos y en la legislación mexicana vigente consultada para esta
-          versión. La Ley Federal de Protección de Datos Personales en Posesión de los Particulares vigente fue publicada como nueva ley el
-          20 de marzo de 2025 y registra última reforma al 14 de noviembre de 2025.
-        </p>
-        <p className="text-sm text-amber-900 leading-relaxed mt-2">
-          Antes de uso comercial, un abogado mexicano deberá validar especialmente la figura Responsable/Encargado, biometría, datos de
-          niñas, niños y adolescentes, consentimiento, transferencias internacionales, subencargados, conservación y eliminación, derechos
-          ARCO, vulneraciones de seguridad, propiedad intelectual, límites de responsabilidad, jurisdicción y contratación electrónica.
-        </p>
-        <p className="text-sm text-amber-900 leading-relaxed mt-2">
-          La cláusula <strong>9 Bis</strong> y el <Link to="/aviso-privacidad-pasitos" className="underline font-bold">Aviso de Privacidad de Pasitos</Link> son
-          una adición posterior (no vienen del representante legal), hecha a partir del chat de soporte. Deben revisarse junto con el resto --
-          en particular, si la calificación de Pasitos como Responsable (en vez de Encargado) para ese dato en particular es la figura
-          correcta, y si el aviso cumple los requisitos mínimos de la LFPDPPP para el tipo de datos que efectivamente se recaban.
-        </p>
-      </section>
     </main>
 
     <footer className="max-w-3xl mx-auto px-5 sm:px-8 py-9 border-t border-slate-200 space-y-2">
