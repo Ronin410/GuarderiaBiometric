@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import api from './axiosConfig';
 import { LifeBuoy, X, Send, Loader2, ChevronDown } from 'lucide-react';
 import { mostrarError } from './utils/alertas';
@@ -193,6 +194,12 @@ const SoporteChat = ({ modo }) => {
                 {enviandoForm ? <Loader2 className="animate-spin" size={16} /> : <Send size={14} />}
                 Enviar mensaje
               </button>
+              <p className="text-[10px] text-slate-400 text-center">
+                Al enviar aceptas nuestro{' '}
+                <Link to="/aviso-privacidad-pasitos" target="_blank" rel="noreferrer" className="underline hover:text-brand-600">
+                  Aviso de Privacidad
+                </Link>.
+              </p>
             </form>
           ) : (
             <>

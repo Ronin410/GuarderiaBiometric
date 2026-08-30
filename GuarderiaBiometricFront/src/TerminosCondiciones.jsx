@@ -97,6 +97,17 @@ const SECCIONES = [
     ],
   },
   {
+    n: '9 Bis',
+    titulo: 'Comunicación directa con Pasitos (soporte y prospectos)',
+    parrafos: [
+      'Las cláusulas 7, 8 y 9 anteriores regulan los datos personales que el Cliente introduce o gestiona dentro de la Plataforma, donde Pasitos actúa como Encargado. Esta cláusula regula un supuesto distinto: cuando un Usuario o un prospecto se comunica directamente con Pasitos, fuera de esa relación, por ejemplo a través del chat de soporte de la Plataforma, el formulario público de alta de guardería, o cualquier otro canal de contacto directo (correo electrónico, teléfono).',
+      'Para los datos personales recabados por esta vía (nombre, correo electrónico cuando se proporcione, y el contenido de la comunicación), Pasitos actúa como Responsable, no como Encargado, y su tratamiento se rige por el Aviso de Privacidad de Pasitos para Prospectos y Usuarios de Soporte (distinto e independiente del Aviso de Privacidad de cada Cliente, que sigue rigiendo exclusivamente los datos que el Cliente trata dentro de la Plataforma conforme a las cláusulas 7 a 9).',
+      'Un prospecto que escribe al chat de soporte sin tener cuenta ni relación previa con ningún Cliente no está amparado por el Aviso de Privacidad de ninguna guardería -- únicamente por el de Pasitos.',
+      'Las finalidades de este tratamiento incluyen brindar soporte técnico y atención a dudas, dar seguimiento a solicitudes de alta de guardería nueva, y contactar al remitente con información sobre la Plataforma. El titular puede ejercer sus derechos ARCO directamente ante Pasitos por los medios indicados en el Aviso de Privacidad de Pasitos.',
+    ],
+    enlace: { to: '/aviso-privacidad-pasitos', texto: 'Ver el Aviso de Privacidad de Pasitos completo' },
+  },
+  {
     n: 10,
     titulo: 'Subencargados y proveedores tecnológicos',
     parrafos: [
@@ -327,6 +338,11 @@ const Seccion = ({ seccion }) => (
         {seccion.listaOrdenada.map((item, i) => <li key={i} className="text-sm text-slate-600 leading-relaxed">{item}</li>)}
       </ol>
     )}
+    {seccion.enlace && (
+      <Link to={seccion.enlace.to} className="inline-block mt-3 text-sm font-bold text-brand-600 hover:underline">
+        {seccion.enlace.texto} →
+      </Link>
+    )}
   </section>
 );
 
@@ -351,7 +367,7 @@ const TerminosCondiciones = () => (
       <h1 className="text-3xl sm:text-4xl font-black tracking-tight mb-3" style={{ fontFamily: 'Lora, serif' }}>
         Términos y Condiciones de Servicio de Pasitos
       </h1>
-      <p className="text-xs text-slate-400 font-bold mb-10">Fecha de versión: 30/08/2026 &nbsp;|&nbsp; Versión: 1.0</p>
+      <p className="text-xs text-slate-400 font-bold mb-10">Fecha de versión: 30/08/2026 &nbsp;|&nbsp; Versión: 1.1</p>
 
       {SECCIONES.map((s) => <Seccion key={s.n} seccion={s} />)}
 
@@ -430,6 +446,12 @@ const TerminosCondiciones = () => (
           Antes de uso comercial, un abogado mexicano deberá validar especialmente la figura Responsable/Encargado, biometría, datos de
           niñas, niños y adolescentes, consentimiento, transferencias internacionales, subencargados, conservación y eliminación, derechos
           ARCO, vulneraciones de seguridad, propiedad intelectual, límites de responsabilidad, jurisdicción y contratación electrónica.
+        </p>
+        <p className="text-sm text-amber-900 leading-relaxed mt-2">
+          La cláusula <strong>9 Bis</strong> y el <Link to="/aviso-privacidad-pasitos" className="underline font-bold">Aviso de Privacidad de Pasitos</Link> son
+          una adición posterior (no vienen del representante legal), hecha a partir del chat de soporte. Deben revisarse junto con el resto --
+          en particular, si la calificación de Pasitos como Responsable (en vez de Encargado) para ese dato en particular es la figura
+          correcta, y si el aviso cumple los requisitos mínimos de la LFPDPPP para el tipo de datos que efectivamente se recaban.
         </p>
       </section>
     </main>

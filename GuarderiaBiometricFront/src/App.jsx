@@ -39,6 +39,7 @@ import RegistroGuarderia from './RegistroGuarderia';
 import PanelPlataforma from './PanelPlataforma';
 import LandingPage from './LandingPage';
 import TerminosCondiciones from './TerminosCondiciones';
+import AvisoPrivacidadPasitos from './AvisoPrivacidadPasitos';
 import SoporteChat from './SoporteChat';
 
 const videoConstraints = {
@@ -1109,6 +1110,12 @@ function App() {
             leerlos. Ver TERMINOS_Y_CONDICIONES.md en la raíz del repo,
             misma redacción. */}
         <Route path="/terminos" element={<TerminosCondiciones />} />
+
+        {/* Aviso de Privacidad de Pasitos (distinto del de cada guardería)
+            -- rige el chat de soporte con prospectos y con papás/staff que
+            escriben directo a Pasitos, ver la cláusula 9 Bis de
+            TerminosCondiciones.jsx. */}
+        <Route path="/aviso-privacidad-pasitos" element={<AvisoPrivacidadPasitos />} />
 
         {/* Redirección por defecto si algo sale mal */}
         <Route path="*" element={<Navigate to="/panel/identificar" replace />} />

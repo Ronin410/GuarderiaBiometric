@@ -1,10 +1,14 @@
 # TÉRMINOS Y CONDICIONES DE SERVICIO DE PASITOS
 
-Fecha de versión: 30/08/2026 | Versión: 1.0
+Fecha de versión: 30/08/2026 | Versión: 1.1
 
-> Este documento es el borrador entregado por el representante legal de
-> Pasitos, guardado aquí tal cual para que quede versionado junto con el
-> código. La misma redacción se publica en la app en `/terminos` (ver
+> Este documento partió del borrador entregado por el representante legal
+> de Pasitos (v1.0), guardado aquí tal cual para que quede versionado junto
+> con el código. La cláusula **9 Bis** se agregó después, a partir de una
+> función nueva de la Plataforma (el chat de soporte con prospectos), y NO
+> viene del representante legal -- debe revisarse con el mismo cuidado que
+> el resto del documento antes de usarse comercialmente. La misma redacción
+> se publica en la app en `/terminos` (ver
 > `GuarderiaBiometricFront/src/TerminosCondiciones.jsx`) -- si este archivo
 > cambia, esa página debe actualizarse también. Ver la nota de revisión
 > jurídica al final.
@@ -88,6 +92,16 @@ Las solicitudes relacionadas con los datos personales tratados por cuenta del Cl
 La Plataforma cuenta con funciones para que el personal autorizado gestione solicitudes de acceso, rectificación y cancelación conforme a las instrucciones del Cliente.
 
 El Cliente será responsable de resolver jurídicamente las solicitudes ARCO y de instruir a Pasitos sobre las acciones que deban ejecutarse.
+
+## 9 Bis. Comunicación directa con Pasitos (soporte y prospectos)
+
+Las cláusulas 7, 8 y 9 anteriores regulan los datos personales que el Cliente introduce o gestiona **dentro** de la Plataforma, donde Pasitos actúa como Encargado. Esta cláusula regula un supuesto distinto: cuando un Usuario o un prospecto se comunica **directamente** con Pasitos, fuera de esa relación, por ejemplo a través del chat de soporte de la Plataforma, el formulario público de alta de guardería, o cualquier otro canal de contacto directo (correo electrónico, teléfono).
+
+Para los datos personales recabados por esta vía (nombre, correo electrónico cuando se proporcione, y el contenido de la comunicación), Pasitos actúa como **Responsable**, no como Encargado, y su tratamiento se rige por el Aviso de Privacidad de Pasitos para Prospectos y Usuarios de Soporte (distinto e independiente del Aviso de Privacidad de cada Cliente, que sigue rigiendo exclusivamente los datos que el Cliente trata dentro de la Plataforma conforme a las cláusulas 7 a 9).
+
+Un prospecto que escribe al chat de soporte sin tener cuenta ni relación previa con ningún Cliente no está amparado por el Aviso de Privacidad de ninguna guardería -- únicamente por el de Pasitos.
+
+Las finalidades de este tratamiento incluyen brindar soporte técnico y atención a dudas, dar seguimiento a solicitudes de alta de guardería nueva, y contactar al remitente con información sobre la Plataforma. El titular puede ejercer sus derechos ARCO directamente ante Pasitos por los medios indicados en el Aviso de Privacidad de Pasitos.
 
 ## 10. Subencargados y proveedores tecnológicos
 
@@ -311,3 +325,5 @@ Cuando se habilite el reconocimiento facial, se procesa una plantilla facial del
 Este borrador se estructuró con base en el briefing técnico de Pasitos y en la legislación mexicana vigente consultada para esta versión. La Ley Federal de Protección de Datos Personales en Posesión de los Particulares vigente fue publicada como nueva ley el 20 de marzo de 2025 y registra última reforma al 14 de noviembre de 2025.
 
 **Antes de uso comercial, un abogado mexicano deberá validar especialmente** la figura Responsable/Encargado, biometría, datos de niñas, niños y adolescentes, consentimiento, transferencias internacionales, subencargados, conservación y eliminación, derechos ARCO, vulneraciones de seguridad, propiedad intelectual, límites de responsabilidad, jurisdicción y contratación electrónica.
+
+La **cláusula 9 Bis** y el documento **AVISO_PRIVACIDAD_PASITOS.md** son una adición posterior (no vienen del representante legal) hecha a partir de una función nueva de la Plataforma: el chat de soporte, donde papás/staff pueden escribirle directo a Pasitos y prospectos sin cuenta pueden hacerlo también. Deben revisarse junto con el resto -- en particular, si la calificación de Pasitos como Responsable (en vez de Encargado) para ESTE dato en particular es la figura correcta, y si el Aviso de Privacidad de Pasitos cumple los requisitos mínimos de la LFPDPPP (identidad y domicilio del responsable, finalidades, transferencias, mecanismo ARCO) para el tipo de datos que efectivamente se recaban.
