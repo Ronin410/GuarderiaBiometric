@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"log"
 	"mime/multipart"
 	"strings"
 	"time"
@@ -12,6 +11,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/robfig/cron/v3"
+
+	"biometrico/internal/applog"
 )
 
 // bucketFotos es el bucket privado donde se guardan las fotos de la
@@ -66,7 +67,7 @@ func (s *Server) borrarDeS3(key string) {
 		Key:    aws.String(key),
 	})
 	if err != nil {
-		log.Printf("borrarDeS3: no se pudo borrar %q: %v", key, err)
+		s.logError(nil, "borrarDeS3: no se pudo borrar el objeto", err, "key", key)
 	}
 }
 
@@ -112,8 +113,7 @@ func (s *Server) IniciarTareasProgramadas() {
 		inicioDia := time.Date(ahora.Year(), ahora.Month(), ahora.Day(), 0, 0, 0, 0, location)
 		finDia := inicioDia.Add(24 * time.Hour)
 
-		log.Printf("Iniciando cierre automático [%s] entre %v y %v",
-			ahora.Format("15:04:05"), inicioDia.Format("2006-01-02"), finDia.Format("2006-01-02"))
+		applog.Info("Iniciando cierre automático", "hora", ahora.Format("15:04:05"), "inicio_dia", inicioDia.Format("2006-01-02"), "fin_dia", finDia.Format("2006-01-02"))
 
 		query := `
             INSERT INTO asistencia (hijo_id, padre_id, guarderia_id, tipo_movimiento, fecha_hora, observaciones)
@@ -137,18 +137,18 @@ func (s *Server) IniciarTareasProgramadas() {
 
 		result, err := s.DB.Exec(query, ahora, inicioDia, finDia)
 		if err != nil {
-			log.Printf("FALLO en el cierre: %v", err)
+			s.logError(nil, "FALLO en el cierre automático nocturno", err)
 			return
 		}
 
 		filas, _ := result.RowsAffected()
-		log.Printf("Cierre completado. Niños actualizados: %d", filas)
+		applog.Info("Cierre automático completado", "ninos_actualizados", filas)
 	})
 	if err != nil {
-		log.Printf("Error registrando la tarea de cierre automático: %v", err)
+		s.logError(nil, "Error registrando la tarea de cierre automático", err)
 		return
 	}
 
 	c.Start()
-	log.Println("Cron iniciado con rango de fechas seguro")
+	applog.Info("Cron iniciado con rango de fechas seguro")
 }

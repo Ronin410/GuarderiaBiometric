@@ -1,7 +1,6 @@
 package server
 
 import (
-	"log"
 	"net/http"
 	"strings"
 
@@ -42,7 +41,7 @@ func (s *Server) handleListarGrupos(c *gin.Context) {
 		gID,
 	)
 	if err != nil {
-		log.Printf("Error al consultar grupos: %v", err)
+		s.logError(c, "Error al consultar grupos", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar grupos"})
 		return
 	}
@@ -76,7 +75,7 @@ func (s *Server) handleCrearGrupo(c *gin.Context) {
 		gID, strings.TrimSpace(input.Nombre),
 	).Scan(&nuevoID)
 	if err != nil {
-		log.Printf("No se pudo crear el grupo: %v", err)
+		s.logError(c, "No se pudo crear el grupo", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo crear el grupo"})
 		return
 	}
@@ -100,7 +99,7 @@ func (s *Server) handleRenombrarGrupo(c *gin.Context) {
 		strings.TrimSpace(input.Nombre), grupoID, gID,
 	)
 	if err != nil {
-		log.Printf("No se pudo renombrar el grupo: %v", err)
+		s.logError(c, "No se pudo renombrar el grupo", err, "grupo_id", grupoID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo renombrar el grupo"})
 		return
 	}
@@ -125,7 +124,7 @@ func (s *Server) handleEliminarGrupo(c *gin.Context) {
 		grupoID,
 	).Scan(&conNinos)
 	if err != nil {
-		log.Printf("Error al verificar el grupo: %v", err)
+		s.logError(c, "Error al verificar el grupo", err, "grupo_id", grupoID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al verificar el grupo"})
 		return
 	}
@@ -139,7 +138,7 @@ func (s *Server) handleEliminarGrupo(c *gin.Context) {
 
 	res, err := s.DB.Exec(`DELETE FROM grupos WHERE id = $1 AND guarderia_id = $2`, grupoID, gID)
 	if err != nil {
-		log.Printf("No se pudo eliminar el grupo: %v", err)
+		s.logError(c, "No se pudo eliminar el grupo", err, "grupo_id", grupoID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo eliminar el grupo"})
 		return
 	}

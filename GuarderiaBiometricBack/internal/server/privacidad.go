@@ -3,7 +3,6 @@ package server
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -35,7 +34,7 @@ func (s *Server) handleObtenerAviso(c *gin.Context) {
 		gID,
 	).Scan(&texto, &version, &pdfKey)
 	if err != nil {
-		log.Printf("No se pudo consultar el Aviso de Privacidad: %v", err)
+		s.logError(c, "No se pudo consultar el Aviso de Privacidad", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo consultar el Aviso de Privacidad"})
 		return
 	}
@@ -52,7 +51,7 @@ func (s *Server) handleObtenerAviso(c *gin.Context) {
 		if url, err := s.firmarURLFoto(pdfKey.String); err == nil {
 			respuesta["pdf_url"] = url
 		} else {
-			log.Printf("No se pudo firmar el PDF del Aviso de Privacidad (guardería %v): %v", gID, err)
+			s.logError(c, "No se pudo firmar el PDF del Aviso de Privacidad", err)
 		}
 	}
 
@@ -84,7 +83,7 @@ func (s *Server) handleActualizarAviso(c *gin.Context) {
 		}
 		key := fmt.Sprintf("aviso-privacidad/guarderia_%v/%d_%s", gID, time.Now().UnixNano(), fileHeader.Filename)
 		if _, err := s.uploadToS3(fileHeader, key, contentType); err != nil {
-			log.Printf("No se pudo subir el PDF del Aviso de Privacidad a S3: %v", err)
+			s.logError(c, "No se pudo subir el PDF del Aviso de Privacidad a S3", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo subir el PDF"})
 			return
 		}
@@ -98,7 +97,7 @@ func (s *Server) handleActualizarAviso(c *gin.Context) {
 	var versionActual string
 	var pdfKeyAnterior sql.NullString
 	if err := s.DB.QueryRow("SELECT aviso_privacidad_version, aviso_privacidad_pdf_s3_key FROM guarderias WHERE id = $1", gID).Scan(&versionActual, &pdfKeyAnterior); err != nil {
-		log.Printf("No se pudo consultar la versión actual del Aviso de Privacidad (guardería %v): %v", gID, err)
+		s.logError(c, "No se pudo consultar la versión actual del Aviso de Privacidad", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo consultar la versión actual"})
 		return
 	}
@@ -113,7 +112,7 @@ func (s *Server) handleActualizarAviso(c *gin.Context) {
 		if pdfKeyNueva != nil {
 			go s.borrarDeS3(*pdfKeyNueva) // no se guardó, no dejamos el PDF huérfano
 		}
-		log.Printf("No se pudo guardar el Aviso de Privacidad: %v", err)
+		s.logError(c, "No se pudo guardar el Aviso de Privacidad", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo guardar el Aviso de Privacidad"})
 		return
 	}
@@ -136,7 +135,7 @@ func (s *Server) handleEstadisticasAviso(c *gin.Context) {
 		gID,
 	).Scan(&total)
 	if err != nil {
-		log.Printf("No se pudo consultar los consentimientos: %v", err)
+		s.logError(c, "No se pudo consultar los consentimientos", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo consultar los consentimientos"})
 		return
 	}

@@ -1,7 +1,6 @@
 package server
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -48,7 +47,7 @@ func (s *Server) handleListarGuarderiasPlataforma(c *gin.Context) {
         GROUP BY g.id, g.nombre, g.slug, g.direccion, g.created_at
         ORDER BY g.created_at DESC`)
 	if err != nil {
-		log.Printf("Error al consultar guarderías: %v", err)
+		s.logError(c, "Error al consultar guarderías", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar guarderías"})
 		return
 	}
@@ -65,7 +64,7 @@ func (s *Server) handleListarGuarderiasPlataforma(c *gin.Context) {
 	ninosPorGuarderia := map[int]int{}
 	rowsNinos, err := s.DB.Query(`SELECT guarderia_id, COUNT(*) FROM hijos WHERE activo = true GROUP BY guarderia_id`)
 	if err != nil {
-		log.Printf("Error al contar niños por guardería: %v", err)
+		s.logError(c, "Error al contar niños por guardería", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al contar niños por guardería"})
 		return
 	}
@@ -87,7 +86,7 @@ func (s *Server) handleListarGuarderiasPlataforma(c *gin.Context) {
         WHERE evento = 'login_exitoso' AND guarderia_id IS NOT NULL
         GROUP BY guarderia_id`)
 	if err != nil {
-		log.Printf("Error al consultar el último acceso por guardería: %v", err)
+		s.logError(c, "Error al consultar el último acceso por guardería", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar el último acceso por guardería"})
 		return
 	}

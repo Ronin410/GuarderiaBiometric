@@ -4,8 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/base64"
-	"fmt"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -80,7 +78,7 @@ func (s *Server) handleRegistrar(c *gin.Context) {
 		"SELECT COALESCE(aviso_privacidad_texto, ''), aviso_privacidad_version FROM guarderias WHERE id = $1",
 		gID,
 	).Scan(&textoAviso, &versionAviso); err != nil {
-		log.Printf("No se pudo verificar el Aviso de Privacidad (guardería %v): %v", gID, err)
+		s.logError(c, "No se pudo verificar el Aviso de Privacidad", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo verificar el Aviso de Privacidad"})
 		return
 	}
@@ -111,7 +109,7 @@ func (s *Server) handleRegistrar(c *gin.Context) {
 		}
 		hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 		if err != nil {
-			log.Printf("Error al procesar la contraseña: %v", err)
+			s.logError(c, "Error al procesar la contraseña", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al procesar la contraseña"})
 			return
 		}
@@ -136,7 +134,7 @@ func (s *Server) handleRegistrar(c *gin.Context) {
 		// otra por completo (colección en la región equivocada, permisos
 		// insuficientes de la cuenta de IAM, etc.) -- sin nada en los logs,
 		// diagnosticarlo a ciegas en producción era imposible.
-		log.Printf("SearchFacesByImage falló para guardería %v (colección %s): %v", gID, colID, err)
+		s.logError(c, "SearchFacesByImage falló", err, "coleccion", colID)
 	} else if len(searchRes.FaceMatches) > 0 {
 		c.JSON(409, gin.H{"error": "Esta persona ya está registrada en esta guardería."})
 		return
@@ -150,7 +148,7 @@ func (s *Server) handleRegistrar(c *gin.Context) {
 	})
 
 	if err != nil {
-		log.Printf("IndexFaces falló para guardería %v (colección %s): %v", gID, colID, err)
+		s.logError(c, "IndexFaces falló", err, "coleccion", colID)
 		c.JSON(500, gin.H{"error": "Error al procesar rostro"})
 		return
 	}
@@ -191,7 +189,7 @@ func (s *Server) handleRegistrar(c *gin.Context) {
                 COALESCE((SELECT MAX(id) FROM padres), 0),
                 COALESCE((SELECT MAX(id) FROM usuarios), 0)
             ) + 1`).Scan(&nuevoPadreID); err != nil {
-			log.Printf("No se pudo calcular el siguiente id compartido padres/usuarios: %v", err)
+			s.logError(c, "No se pudo calcular el siguiente id compartido padres/usuarios", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo completar el registro. Intenta de nuevo."})
 			return
 		}
@@ -199,12 +197,12 @@ func (s *Server) handleRegistrar(c *gin.Context) {
 			"INSERT INTO padres (id, nombre, face_id, guarderia_id) VALUES ($1, $2, $3, $4)",
 			nuevoPadreID, input.Nombre, faceID, gID,
 		); err != nil {
-			log.Printf("No se pudo crear el padre %d: %v", nuevoPadreID, err)
+			s.logError(c, "No se pudo crear el padre", err, "padre_id", nuevoPadreID)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo completar el registro. Intenta de nuevo."})
 			return
 		}
 		if _, err := s.DB.Exec(`SELECT setval('padres_id_seq', (SELECT MAX(id) FROM padres))`); err != nil {
-			log.Printf("No se pudo reacomodar la secuencia de padres tras crear el padre %d: %v", nuevoPadreID, err)
+			s.logError(c, "No se pudo reacomodar la secuencia de padres tras crear el padre", err, "padre_id", nuevoPadreID)
 		}
 	} else {
 		s.DB.QueryRow("INSERT INTO padres (nombre, face_id, guarderia_id) VALUES ($1, $2, $3) RETURNING id",
@@ -217,7 +215,7 @@ func (s *Server) handleRegistrar(c *gin.Context) {
 		nuevoPadreID, input.Nombre, gID, versionAviso, c.ClientIP(),
 	)
 	if err != nil {
-		log.Printf("No se pudo registrar el consentimiento del padre %d: %v", nuevoPadreID, err)
+		s.logError(c, "No se pudo registrar el consentimiento del padre", err, "padre_id", nuevoPadreID)
 	}
 
 	respuesta := gin.H{"status": "OK", "padre_id": nuevoPadreID}
@@ -235,12 +233,12 @@ func (s *Server) handleRegistrar(c *gin.Context) {
 			if esUsernameDuplicado(errCuenta) {
 				respuesta["cuenta_error"] = "El rostro se registró, pero ese nombre de usuario ya existe. Crea la cuenta del portal por separado con otro usuario."
 			} else {
-				log.Printf("No se pudo crear la cuenta de portal para el padre %d: %v", nuevoPadreID, errCuenta)
+				s.logError(c, "No se pudo crear la cuenta de portal para el padre", errCuenta, "padre_id", nuevoPadreID)
 				respuesta["cuenta_error"] = "El rostro se registró, pero no se pudo crear la cuenta del portal. Inténtalo de nuevo por separado."
 			}
 		} else {
 			if _, errSeq := s.DBAuth.Exec(`SELECT setval('usuarios_id_seq', (SELECT MAX(id) FROM usuarios))`); errSeq != nil {
-				log.Printf("No se pudo reacomodar la secuencia de usuarios tras crear la cuenta del padre %d: %v", nuevoPadreID, errSeq)
+				s.logError(c, "No se pudo reacomodar la secuencia de usuarios tras crear la cuenta del padre", errSeq, "padre_id", nuevoPadreID)
 			}
 			respuesta["cuenta_creada"] = true
 		}
@@ -307,7 +305,7 @@ func (s *Server) handleIdentificar(c *gin.Context) {
 
 	rows, err := s.DB.Query(query, faceID, gID)
 	if err != nil {
-		log.Printf("Error en base de datos: : %v", err)
+		s.logError(c, "Error en base de datos al identificar", err)
 		c.JSON(500, gin.H{"error": "Error en base de datos: " + err.Error()})
 		return
 	}
@@ -386,7 +384,7 @@ func (s *Server) handleConfirmarAsistencia(c *gin.Context) {
 
 	_, err = s.DB.Exec(query, req.PadreID, req.HijoID, req.Aseado, req.ReporteGolpe, req.Observaciones, tipoFinal, gID)
 	if err != nil {
-		log.Printf("No se pudo guardar: %v", err)
+		s.logError(c, "No se pudo guardar la asistencia", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo guardar"})
 		return
 	}
@@ -434,7 +432,7 @@ func (s *Server) handleForzarEstatus(c *gin.Context) {
 				return
 			}
 		} else {
-			log.Printf("Error al consultar historial de asistencia del hijo %d: %v", req.HijoID, err)
+			s.logError(c, "Error al consultar historial de asistencia", err, "hijo_id", req.HijoID)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar historial"})
 			return
 		}
@@ -448,8 +446,7 @@ func (s *Server) handleForzarEstatus(c *gin.Context) {
 
 	_, err = s.DB.Exec(query, req.HijoID, padreID, gID, req.Movimiento, ahora, observacion)
 	if err != nil {
-		fmt.Println("Error al forzar estatus:", err)
-		log.Printf("No se pudo registrar el movimiento: %v", err)
+		s.logError(c, "No se pudo registrar el movimiento (forzar estatus)", err, "hijo_id", req.HijoID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo registrar el movimiento"})
 		return
 	}

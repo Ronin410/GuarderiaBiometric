@@ -3,7 +3,6 @@ package server
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
@@ -64,7 +63,7 @@ func (s *Server) handleListarDocumentos(c *gin.Context) {
 
 	docs, err := s.obtenerChecklistDocumentos(gID, hijoID)
 	if err != nil {
-		log.Printf("Error al consultar documentos: %v", err)
+		s.logError(c, "Error al consultar documentos (staff)", err, "hijo_id", hijoID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar documentos"})
 		return
 	}
@@ -88,7 +87,7 @@ func (s *Server) handleListarDocumentosPadre(c *gin.Context) {
 
 	docs, err := s.obtenerChecklistDocumentos(gID, hijoID)
 	if err != nil {
-		log.Printf("Error al consultar documentos: %v", err)
+		s.logError(c, "Error al consultar documentos (padre)", err, "hijo_id", hijoID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar documentos"})
 		return
 	}
@@ -155,7 +154,7 @@ func (s *Server) handleSubirDocumento(c *gin.Context) {
 	tipo := c.PostForm("tipo")
 	var tipoValido bool
 	if err := s.DB.QueryRow(`SELECT EXISTS(SELECT 1 FROM tipos_documento WHERE guarderia_id = $1 AND clave = $2)`, gID, tipo).Scan(&tipoValido); err != nil {
-		log.Printf("Error al validar el tipo de documento: %v", err)
+		s.logError(c, "Error al validar el tipo de documento", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al validar el tipo de documento"})
 		return
 	}
@@ -188,7 +187,7 @@ func (s *Server) handleSubirDocumento(c *gin.Context) {
 	s.DB.QueryRow(`SELECT s3_key FROM documentos_nino WHERE hijo_id = $1 AND tipo = $2`, hijoID, tipo).Scan(&keyAnterior)
 
 	if _, err := s.uploadToS3(fileHeader, key, contentType); err != nil {
-		log.Printf("handleSubirDocumento: fallo al subir a S3 (hijo %s, tipo %s): %v", hijoID, tipo, err)
+		s.logError(c, "handleSubirDocumento: fallo al subir a S3", err, "hijo_id", hijoID, "tipo", tipo)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo subir el archivo"})
 		return
 	}
@@ -204,7 +203,7 @@ func (s *Server) handleSubirDocumento(c *gin.Context) {
 	)
 	if err != nil {
 		go s.borrarDeS3(key) // el registro no se guardó, no dejamos el archivo huérfano
-		log.Printf("No se pudo guardar el documento: %v", err)
+		s.logError(c, "No se pudo guardar el documento", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo guardar el documento"})
 		return
 	}
@@ -239,13 +238,13 @@ func (s *Server) handleEliminarDocumento(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Documento no encontrado"})
 		return
 	} else if err != nil {
-		log.Printf("Error al buscar el documento: %v", err)
+		s.logError(c, "Error al buscar el documento", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al buscar el documento"})
 		return
 	}
 
 	if _, err := s.DB.Exec(`DELETE FROM documentos_nino WHERE hijo_id = $1 AND tipo = $2`, hijoID, tipo); err != nil {
-		log.Printf("No se pudo eliminar el documento %s del hijo %s: %v", tipo, hijoID, err)
+		s.logError(c, "No se pudo eliminar el documento", err, "tipo", tipo, "hijo_id", hijoID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo eliminar el documento"})
 		return
 	}

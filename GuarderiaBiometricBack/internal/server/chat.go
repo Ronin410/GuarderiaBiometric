@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -107,7 +106,7 @@ func (s *Server) handleListarContactosChatPadre(c *gin.Context) {
 		gID,
 	)
 	if err != nil {
-		log.Printf("Error al consultar el staff para el chat: %v", err)
+		s.logError(c, "Error al consultar el staff para el chat", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar el staff"})
 		return
 	}
@@ -144,7 +143,7 @@ func (s *Server) handleListarConversaciones(c *gin.Context) {
 		gID, esAdmin, userID,
 	)
 	if err != nil {
-		log.Printf("Error al consultar conversaciones: %v", err)
+		s.logError(c, "Error al consultar conversaciones", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar conversaciones"})
 		return
 	}
@@ -232,7 +231,7 @@ func (s *Server) handleListarFamiliasChat(c *gin.Context) {
 
 	rows, err := s.DB.Query(`SELECT id, COALESCE(nombre, 'Familia') FROM padres WHERE guarderia_id = $1 ORDER BY nombre ASC`, gID)
 	if err != nil {
-		log.Printf("Error al consultar las familias para el chat: %v", err)
+		s.logError(c, "Error al consultar las familias para el chat", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar las familias"})
 		return
 	}
@@ -270,7 +269,7 @@ func (s *Server) handleContarNoLeidos(c *gin.Context) {
 		gID, esAdmin, userID,
 	).Scan(&noLeidos)
 	if err != nil {
-		log.Printf("Error al contar los chats sin leer: %v", err)
+		s.logError(c, "Error al contar los chats sin leer", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al contar los chats sin leer"})
 		return
 	}
@@ -303,7 +302,7 @@ func (s *Server) handleObtenerMensajesStaff(c *gin.Context) {
 
 	mensajes, err := s.obtenerHiloChat(gID, padreID, personalID)
 	if err != nil {
-		log.Printf("Error al consultar los mensajes: %v", err)
+		s.logError(c, "Error al consultar los mensajes (staff)", err, "padre_id", padreID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar los mensajes"})
 		return
 	}
@@ -349,7 +348,7 @@ func (s *Server) handleEnviarMensajeStaff(c *gin.Context) {
 		if msj.s3Key != nil {
 			go s.borrarDeS3(*msj.s3Key) // el mensaje no se guardó, no dejamos el adjunto huérfano
 		}
-		log.Printf("No se pudo enviar el mensaje de chat (guardería %v, padre %v): %v", gID, padreID, err)
+		s.logError(c, "No se pudo enviar el mensaje de chat (staff)", err, "padre_id", padreID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo enviar el mensaje"})
 		return
 	}
@@ -373,7 +372,7 @@ func (s *Server) handleObtenerMensajesPadre(c *gin.Context) {
 
 	mensajes, err := s.obtenerHiloChat(gID, userID, personalID)
 	if err != nil {
-		log.Printf("Error al consultar los mensajes: %v", err)
+		s.logError(c, "Error al consultar los mensajes (padre)", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar los mensajes"})
 		return
 	}
@@ -409,7 +408,7 @@ func (s *Server) handleEnviarMensajePadre(c *gin.Context) {
 		if msj.s3Key != nil {
 			go s.borrarDeS3(*msj.s3Key)
 		}
-		log.Printf("No se pudo enviar el mensaje de chat (guardería %v, padre %v): %v", gID, userID, err)
+		s.logError(c, "No se pudo enviar el mensaje de chat (padre)", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo enviar el mensaje"})
 		return
 	}
@@ -475,7 +474,7 @@ func (s *Server) leerMensajeConAdjunto(c *gin.Context, gID any, rutaKey string) 
 
 	key := fmt.Sprintf("chat/guarderia_%v/%s/%d_%s", gID, rutaKey, time.Now().UnixNano(), fileHeader.Filename)
 	if _, err := s.uploadToS3(fileHeader, key, contentType); err != nil {
-		log.Printf("leerMensajeConAdjunto: fallo al subir el adjunto a S3 (%s): %v", key, err)
+		s.logError(c, "leerMensajeConAdjunto: fallo al subir el adjunto a S3", err, "key", key)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo subir el archivo"})
 		return mensajeConAdjunto{}, false
 	}
@@ -514,7 +513,7 @@ func (s *Server) obtenerHiloChat(gID, padreID, personalID any) ([]MensajeChat, e
 				m.AdjuntoNombre = adjuntoNombre
 				m.AdjuntoTipo = adjuntoTipo
 			} else {
-				log.Printf("obtenerHiloChat: no se pudo firmar la URL del adjunto %q (mensaje %d): %v", *adjuntoKey, m.ID, err)
+				s.logError(nil, "obtenerHiloChat: no se pudo firmar la URL del adjunto", err, "key", *adjuntoKey, "mensaje_id", m.ID)
 			}
 		}
 		mensajes = append(mensajes, m)

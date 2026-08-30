@@ -1,7 +1,5 @@
 package server
 
-import "log"
-
 // registrarAcceso guarda en logs_acceso quién (si se conoce) hizo qué sobre
 // datos sensibles y cuándo — soporte técnico para el hallazgo de auditoría
 // de "no hay bitácora de accesos" (LFPDPPP). Es "fire and forget": si falla
@@ -25,6 +23,6 @@ func (s *Server) registrarAcceso(evento string, guarderiaID, usuarioID any, deta
 		evento, guarderiaID, usuarioID, detalle, ip,
 	)
 	if err != nil {
-		log.Printf("registrarAcceso: no se pudo guardar el evento de auditoría (%s): %v", evento, err)
+		s.logError(nil, "registrarAcceso: no se pudo guardar el evento de auditoría", err, "evento", evento)
 	}
 }

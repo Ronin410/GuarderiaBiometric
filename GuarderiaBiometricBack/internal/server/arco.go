@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
@@ -93,7 +92,7 @@ func (s *Server) handleExportarFamilia(c *gin.Context) {
         JOIN tutor_hijos th ON h.id = th.hijo_id
         WHERE th.padre_id = $1 AND th.guarderia_id = $2`, padreID, gID)
 	if err != nil {
-		log.Printf("Error al consultar hijos vinculados: %v", err)
+		s.logError(c, "Error al consultar hijos vinculados", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar hijos vinculados"})
 		return
 	}
@@ -193,7 +192,7 @@ func (s *Server) handleEliminarFamilia(c *gin.Context) {
 		FaceIds:      []string{faceID},
 	})
 	if err != nil {
-		log.Printf("handleEliminarFamilia: no se pudo borrar el rostro de Rekognition (padre %s): %v", padreID, err)
+		s.logError(c, "handleEliminarFamilia: no se pudo borrar el rostro de Rekognition", err, "padre_id", padreID)
 	} else {
 		rekognitionEliminado = true
 	}
@@ -203,18 +202,18 @@ func (s *Server) handleEliminarFamilia(c *gin.Context) {
 	// integridad referencial normal, no para este borrado de alcance
 	// acotado — sin este paso se perdería también la asistencia del niño.
 	if _, err := s.DB.Exec("UPDATE asistencia SET padre_id = NULL WHERE padre_id = $1", padreID); err != nil {
-		log.Printf("No se pudo desvincular el historial de asistencia del padre %s: %v", padreID, err)
+		s.logError(c, "No se pudo desvincular el historial de asistencia", err, "padre_id", padreID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo desvincular el historial de asistencia"})
 		return
 	}
 
 	if _, err := s.DB.Exec("DELETE FROM push_subscripciones WHERE padre_id = $1", padreID); err != nil {
-		log.Printf("handleEliminarFamilia: no se pudieron borrar las suscripciones push del padre %s: %v", padreID, err)
+		s.logError(c, "handleEliminarFamilia: no se pudieron borrar las suscripciones push", err, "padre_id", padreID)
 	}
 
 	result, err := s.DB.Exec("DELETE FROM padres WHERE id = $1 AND guarderia_id = $2", padreID, gID)
 	if err != nil {
-		log.Printf("No se pudo eliminar al tutor: %v", err)
+		s.logError(c, "No se pudo eliminar al tutor", err, "padre_id", padreID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo eliminar al tutor"})
 		return
 	}

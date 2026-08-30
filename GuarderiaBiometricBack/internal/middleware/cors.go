@@ -1,8 +1,9 @@
 package middleware
 
 import (
-	"log"
 	"strings"
+
+	"biometrico/internal/applog"
 )
 
 // ParseAllowedOrigins lee ALLOWED_ORIGINS (lista separada por comas) y, si no está
@@ -10,7 +11,7 @@ import (
 func ParseAllowedOrigins(raw string) []string {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
-		log.Println("ADVERTENCIA: ALLOWED_ORIGINS no configurada; usando orígenes de desarrollo por defecto (localhost). Configúrala en producción con los dominios reales del frontend.")
+		applog.Warn("ALLOWED_ORIGINS no configurada; usando orígenes de desarrollo por defecto (localhost). Configúrala en producción con los dominios reales del frontend")
 		return []string{"http://localhost:5173", "https://localhost:5173"}
 	}
 

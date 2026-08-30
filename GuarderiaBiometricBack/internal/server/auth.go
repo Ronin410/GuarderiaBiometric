@@ -4,8 +4,6 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
-	"fmt"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -15,6 +13,7 @@ import (
 	"github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 
+	"biometrico/internal/applog"
 	"biometrico/internal/middleware"
 )
 
@@ -103,11 +102,11 @@ func (s *Server) handleLogin(c *gin.Context) {
 	err := s.DBAuth.QueryRow(query, creds.Username).Scan(&id, &gID, &passHash, &rol, &pinAdmin, &gNombre, &gSlug, &activo, pq.Array(&permisos))
 	if err != nil {
 		if err == sql.ErrNoRows {
-			fmt.Printf("Usuario no encontrado: %s\n", creds.Username)
+			applog.Warn("Login: usuario no encontrado", "username", creds.Username)
 			s.registrarAcceso("login_fallido", nil, nil, "usuario no encontrado: "+creds.Username, c.ClientIP())
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Usuario no existe"})
 		} else {
-			log.Printf("Error de BD: %v", err)
+			s.logError(c, "Error de BD al hacer login", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error de BD"})
 		}
 		return
@@ -115,7 +114,7 @@ func (s *Server) handleLogin(c *gin.Context) {
 
 	err = bcrypt.CompareHashAndPassword([]byte(passHash), []byte(creds.Password))
 	if err != nil {
-		log.Printf("Intento de login inválido para usuario %s", creds.Username)
+		applog.Warn("Intento de login con contraseña incorrecta", "username", creds.Username)
 		s.registrarAcceso("login_fallido", gID, id, "contraseña incorrecta", c.ClientIP())
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Contraseña incorrecta"})
 		return
@@ -128,13 +127,13 @@ func (s *Server) handleLogin(c *gin.Context) {
 	// "Staff/Admin" -- sin esto, cualquier credencial válida entraba sin
 	// importar qué pestaña estuviera seleccionada.
 	if creds.Tipo == "papa" && rol != "papa" {
-		log.Printf("Login rechazado (tipo de acceso incorrecto): %s intentó entrar como papá siendo %s", creds.Username, rol)
+		applog.Warn("Login rechazado: tipo de acceso incorrecto", "username", creds.Username, "rol_real", rol, "tipo_pedido", "papa")
 		s.registrarAcceso("login_fallido", gID, id, "tipo de acceso incorrecto: "+creds.Username, c.ClientIP())
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Esta cuenta no es de una familia. Entra desde \"Staff / Admin\"."})
 		return
 	}
 	if creds.Tipo == "staff" && rol == "papa" {
-		log.Printf("Login rechazado (tipo de acceso incorrecto): %s intentó entrar como staff siendo papá", creds.Username)
+		applog.Warn("Login rechazado: tipo de acceso incorrecto", "username", creds.Username, "rol_real", rol, "tipo_pedido", "staff")
 		s.registrarAcceso("login_fallido", gID, id, "tipo de acceso incorrecto: "+creds.Username, c.ClientIP())
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Esta cuenta es de una familia. Entra desde \"Soy Papá\"."})
 		return
@@ -151,7 +150,7 @@ func (s *Server) handleLogin(c *gin.Context) {
 	// real hoy); si se necesita corte inmediato, hay que revisar "activo" en
 	// Auth() con el costo de una consulta extra por request.
 	if !activo {
-		log.Printf("Login rechazado (cuenta desactivada): %s", creds.Username)
+		applog.Warn("Login rechazado: cuenta desactivada", "username", creds.Username)
 		s.registrarAcceso("login_fallido", gID, id, "cuenta desactivada: "+creds.Username, c.ClientIP())
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Esta cuenta está desactivada"})
 		return
@@ -176,14 +175,14 @@ func (s *Server) handleLogin(c *gin.Context) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenStr, err := token.SignedString(s.JWTKey)
 	if err != nil {
-		log.Printf("Error al generar token: %v", err)
+		s.logError(c, "Error al firmar el JWT", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al generar token"})
 		return
 	}
 
 	csrfToken, err := generarCSRFToken()
 	if err != nil {
-		log.Printf("Error al generar token: %v", err)
+		s.logError(c, "Error al generar el token CSRF", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al generar token"})
 		return
 	}
@@ -197,7 +196,7 @@ func (s *Server) handleLogin(c *gin.Context) {
 	c.SetCookie(middleware.CookieToken, tokenStr, duracion, "/", "", true, true)
 	c.SetCookie(middleware.CookieCSRF, csrfToken, duracion, "/", "", true, false)
 
-	log.Printf("Login exitoso: %s", creds.Username)
+	applog.Info("Login exitoso", "username", creds.Username)
 	s.registrarAcceso("login_exitoso", gID, id, creds.Username, c.ClientIP())
 	c.JSON(http.StatusOK, gin.H{
 		"user_id":          id,
@@ -239,7 +238,7 @@ func (s *Server) handleMe(c *gin.Context) {
 		uid,
 	).Scan(&username, &gNombre, &gSlug)
 	if err != nil {
-		log.Printf("No se pudo cargar la sesión: %v", err)
+		s.logError(c, "No se pudo cargar la sesión", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo cargar la sesión"})
 		return
 	}
@@ -290,7 +289,7 @@ func (s *Server) handleMe(c *gin.Context) {
 			}
 			token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 			if tokenStr, err := token.SignedString(s.JWTKey); err != nil {
-				log.Printf("No se pudo renovar la sesión del padre %v: %v", uid, err)
+				s.logError(c, "No se pudo renovar la sesión del padre", err, "padre_id", uid)
 			} else {
 				c.SetSameSite(http.SameSiteNoneMode)
 				c.SetCookie(middleware.CookieToken, tokenStr, duracion, "/", "", true, true)
@@ -335,7 +334,7 @@ func (s *Server) handleVerificarPin(c *gin.Context) {
 	var pinDB string
 	err := s.DBAuth.QueryRow("SELECT pin_admin FROM usuarios WHERE id = $1", userID).Scan(&pinDB)
 	if err != nil {
-		log.Printf("Error al verificar PIN: %v", err)
+		s.logError(c, "Error al verificar PIN", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al verificar PIN"})
 		return
 	}

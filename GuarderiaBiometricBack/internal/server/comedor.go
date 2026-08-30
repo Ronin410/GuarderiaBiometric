@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -90,7 +89,7 @@ func (s *Server) handleListarPedidosComedorHijo(c *gin.Context) {
 		hijoID, desde, hasta,
 	)
 	if err != nil {
-		log.Printf("Error al consultar los pedidos de comedor: %v", err)
+		s.logError(c, "Error al consultar los pedidos de comedor", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar los pedidos de comedor"})
 		return
 	}
@@ -143,7 +142,7 @@ func (s *Server) handleGuardarPedidoComedor(c *gin.Context) {
 	// previo de ese día para volver al comedor por defecto.
 	if input.Desayuno && input.Comida && input.Merienda && notas == "" {
 		if _, err := s.DB.Exec(`DELETE FROM pedidos_comedor WHERE hijo_id = $1 AND fecha = $2`, hijoID, fecha); err != nil {
-			log.Printf("No se pudo restablecer el pedido de comedor del hijo %v el %s: %v", hijoID, fecha, err)
+			s.logError(c, "No se pudo restablecer el pedido de comedor", err, "hijo_id", hijoID, "fecha", fecha)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo actualizar el pedido"})
 			return
 		}
@@ -162,7 +161,7 @@ func (s *Server) handleGuardarPedidoComedor(c *gin.Context) {
              actualizado_en = CURRENT_TIMESTAMP`,
 		hijoID, gID, fecha, input.Desayuno, input.Comida, input.Merienda, notas, userID,
 	); err != nil {
-		log.Printf("No se pudo guardar el pedido de comedor del hijo %v el %s: %v", hijoID, fecha, err)
+		s.logError(c, "No se pudo guardar el pedido de comedor", err, "hijo_id", hijoID, "fecha", fecha)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo guardar el pedido"})
 		return
 	}
@@ -194,7 +193,7 @@ func (s *Server) handleResumenComedor(c *gin.Context) {
 
 	var totalNinos int
 	if err := s.DB.QueryRow(`SELECT COUNT(*) FROM hijos WHERE guarderia_id = $1 AND activo = true`, gID).Scan(&totalNinos); err != nil {
-		log.Printf("Error al consultar el resumen del comedor (guardería %v, fecha %s): %v", gID, fecha, err)
+		s.logError(c, "Error al consultar el resumen del comedor", err, "fecha", fecha)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar el resumen del comedor"})
 		return
 	}
@@ -208,7 +207,7 @@ func (s *Server) handleResumenComedor(c *gin.Context) {
 		gID, fecha,
 	)
 	if err != nil {
-		log.Printf("Error al consultar el resumen del comedor: %v", err)
+		s.logError(c, "Error al consultar el resumen del comedor (excepciones)", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar el resumen del comedor"})
 		return
 	}

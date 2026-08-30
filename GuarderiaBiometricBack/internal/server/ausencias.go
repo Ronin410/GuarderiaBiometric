@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -67,7 +66,7 @@ func (s *Server) handleListarAusenciasHijo(c *gin.Context) {
 		hijoID,
 	)
 	if err != nil {
-		log.Printf("Error al consultar las ausencias: %v", err)
+		s.logError(c, "Error al consultar las ausencias", err, "hijo_id", hijoID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar las ausencias"})
 		return
 	}
@@ -152,7 +151,7 @@ func (s *Server) handleCrearAusencia(c *gin.Context) {
              ON CONFLICT (hijo_id, fecha) DO UPDATE SET motivo = EXCLUDED.motivo`,
 			hijoID, gID, d.Format("2006-01-02"), motivo, userID,
 		); err != nil {
-			log.Printf("No se pudo guardar la ausencia del hijo %v el día %s: %v", hijoID, d.Format("2006-01-02"), err)
+			s.logError(c, "No se pudo guardar la ausencia", err, "hijo_id", hijoID, "fecha", d.Format("2006-01-02"))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudieron guardar las ausencias"})
 			return
 		}
@@ -183,7 +182,7 @@ func (s *Server) handleCancelarAusencia(c *gin.Context) {
 		id, userID,
 	)
 	if err != nil {
-		log.Printf("No se pudo cancelar la ausencia: %v", err)
+		s.logError(c, "No se pudo cancelar la ausencia", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo cancelar la ausencia"})
 		return
 	}
@@ -218,7 +217,7 @@ func (s *Server) handleListarAusenciasStaff(c *gin.Context) {
 		gID, desde, hasta,
 	)
 	if err != nil {
-		log.Printf("Error al consultar las ausencias: %v", err)
+		s.logError(c, "Error al consultar las ausencias", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar las ausencias"})
 		return
 	}

@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 
@@ -107,7 +106,7 @@ func (s *Server) handleListarEncuestasStaff(c *gin.Context) {
 		gID,
 	)
 	if err != nil {
-		log.Printf("Error al consultar las encuestas: %v", err)
+		s.logError(c, "Error al consultar las encuestas (staff)", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar las encuestas"})
 		return
 	}
@@ -171,7 +170,7 @@ func (s *Server) handleCrearEncuesta(c *gin.Context) {
 		`INSERT INTO encuestas (guarderia_id, titulo, descripcion, creado_por) VALUES ($1, $2, $3, $4) RETURNING id`,
 		gID, titulo, strings.TrimSpace(input.Descripcion), userID,
 	).Scan(&encuestaID); err != nil {
-		log.Printf("No se pudo crear la encuesta (guardería %v): %v", gID, err)
+		s.logError(c, "No se pudo crear la encuesta", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo crear la encuesta"})
 		return
 	}
@@ -181,7 +180,7 @@ func (s *Server) handleCrearEncuesta(c *gin.Context) {
 		if p.Tipo == "opcion_multiple" {
 			b, err := json.Marshal(p.Opciones)
 			if err != nil {
-				log.Printf("No se pudieron guardar las opciones de una pregunta: %v", err)
+				s.logError(c, "No se pudieron guardar las opciones de una pregunta", err)
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudieron guardar las opciones de una pregunta"})
 				return
 			}
@@ -192,7 +191,7 @@ func (s *Server) handleCrearEncuesta(c *gin.Context) {
 			`INSERT INTO encuesta_preguntas (encuesta_id, texto, tipo, opciones, orden) VALUES ($1, $2, $3, $4, $5)`,
 			encuestaID, strings.TrimSpace(p.Texto), p.Tipo, opcionesJSON, i,
 		); err != nil {
-			log.Printf("No se pudo guardar la pregunta %d de la encuesta %d: %v", i+1, encuestaID, err)
+			s.logError(c, "No se pudo guardar una pregunta de la encuesta", err, "pregunta_num", i+1, "encuesta_id", encuestaID)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo guardar una de las preguntas"})
 			return
 		}
@@ -212,14 +211,14 @@ func (s *Server) handleDetalleEncuesta(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Encuesta no encontrada"})
 		return
 	} else if err != nil {
-		log.Printf("Error al consultar la encuesta: %v", err)
+		s.logError(c, "Error al consultar la encuesta", err, "encuesta_id", encuestaID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar la encuesta"})
 		return
 	}
 
 	preguntas, err := s.obtenerPreguntas(encuestaID)
 	if err != nil {
-		log.Printf("Error al consultar las preguntas: %v", err)
+		s.logError(c, "Error al consultar las preguntas", err, "encuesta_id", encuestaID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar las preguntas"})
 		return
 	}
@@ -266,7 +265,7 @@ func (s *Server) handleCerrarEncuesta(c *gin.Context) {
 
 	res, err := s.DB.Exec(`UPDATE encuestas SET activa = false WHERE id = $1 AND guarderia_id = $2`, encuestaID, gID)
 	if err != nil {
-		log.Printf("No se pudo cerrar la encuesta: %v", err)
+		s.logError(c, "No se pudo cerrar la encuesta", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo cerrar la encuesta"})
 		return
 	}
@@ -283,7 +282,7 @@ func (s *Server) handleEliminarEncuesta(c *gin.Context) {
 
 	res, err := s.DB.Exec(`DELETE FROM encuestas WHERE id = $1 AND guarderia_id = $2`, encuestaID, gID)
 	if err != nil {
-		log.Printf("No se pudo eliminar la encuesta: %v", err)
+		s.logError(c, "No se pudo eliminar la encuesta", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo eliminar la encuesta"})
 		return
 	}
@@ -307,7 +306,7 @@ func (s *Server) handleListarEncuestasPadre(c *gin.Context) {
 		gID,
 	)
 	if err != nil {
-		log.Printf("Error al consultar las encuestas: %v", err)
+		s.logError(c, "Error al consultar las encuestas (padre)", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar las encuestas"})
 		return
 	}
@@ -353,7 +352,7 @@ func (s *Server) handleResponderEncuesta(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Encuesta no encontrada"})
 		return
 	} else if err != nil {
-		log.Printf("Error al consultar la encuesta: %v", err)
+		s.logError(c, "Error al consultar la encuesta (responder)", err, "encuesta_id", encuestaID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar la encuesta"})
 		return
 	}

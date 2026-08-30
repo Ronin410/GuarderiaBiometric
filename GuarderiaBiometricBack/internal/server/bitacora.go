@@ -3,13 +3,13 @@ package server
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
+	"biometrico/internal/applog"
 	"biometrico/internal/middleware"
 )
 
@@ -68,7 +68,7 @@ func (s *Server) handleBitacora(c *gin.Context) {
 
 	rows, err := s.DB.Query(query, gID, inicioDia, finDia)
 	if err != nil {
-		log.Printf("Error SQL Bitacora: %v", err)
+		s.logError(c, "Error SQL en bitácora", err)
 		c.JSON(500, gin.H{"error": "Error de base de datos"})
 		return
 	}
@@ -135,7 +135,7 @@ func (s *Server) handleReportesAsistencia(c *gin.Context) {
 
 	rows, err := s.DB.Query(query, inicio, fin, gID)
 	if err != nil {
-		log.Printf("Error en reporte detallado: %v", err)
+		s.logError(c, "Error en reporte detallado", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar reportes"})
 		return
 	}
@@ -151,7 +151,7 @@ func (s *Server) handleReportesAsistencia(c *gin.Context) {
 			&desayuno, &comida, &merienda, &esfinter, &durmio, &obsPed,
 		)
 		if err != nil {
-			log.Printf("Error escaneando fila: %v", err)
+			s.logError(c, "Error escaneando fila de reporte", err)
 			continue
 		}
 
@@ -208,7 +208,7 @@ func (s *Server) handleGuardarSeguimiento(c *gin.Context) {
 
 	err := s.DB.QueryRow(query, hijoID, gID, fechaHoy, desayuno, comida, merienda, esfinter, observaciones, durmio).Scan(&seguimientoID)
 	if err != nil {
-		log.Printf("No se pudo actualizar la bitácora: %v", err)
+		s.logError(c, "No se pudo actualizar la bitácora", err, "hijo_id", hijoID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo actualizar la bitácora"})
 		return
 	}
@@ -231,7 +231,7 @@ func (s *Server) handleGuardarSeguimiento(c *gin.Context) {
 
 	err = s.DB.QueryRow(queryPadre, hijoID).Scan(&padreID, &telefonoPadre)
 	if err != nil {
-		fmt.Println("Aviso: No se encontró tutor con WhatsApp activo:", err)
+		applog.Info("No se encontró tutor con WhatsApp activo", "hijo_id", hijoID)
 	}
 
 	// Manejo de MÚLTIPLES FOTOS
@@ -245,19 +245,19 @@ func (s *Server) handleGuardarSeguimiento(c *gin.Context) {
 
 		key, errS3 := s.uploadToS3(file, nombreArchivo, "image/jpeg")
 		if errS3 != nil {
-			log.Printf("No se pudo subir la foto %q a S3 (seguimiento %d): %v", file.Filename, seguimientoID, errS3)
+			s.logError(c, "No se pudo subir la foto a S3", errS3, "archivo", file.Filename, "seguimiento_id", seguimientoID)
 			continue
 		}
 
 		_, errDBFoto := s.DB.Exec("INSERT INTO fotos_seguimiento (seguimiento_id, url) VALUES ($1, $2)", seguimientoID, key)
 		if errDBFoto != nil {
-			log.Printf("Se subió la foto %q a S3 pero no se pudo guardar en la base de datos (seguimiento %d): %v", key, seguimientoID, errDBFoto)
+			s.logError(c, "Se subió la foto a S3 pero no se pudo guardar en la base de datos", errDBFoto, "key", key, "seguimiento_id", seguimientoID)
 			continue
 		}
 		if urlFirmada, errFirma := s.firmarURLFoto(key); errFirma == nil {
 			urlsSubidas = append(urlsSubidas, urlFirmada)
 		} else {
-			log.Printf("Foto %q guardada pero no se pudo firmar su URL: %v", key, errFirma)
+			s.logError(c, "Foto guardada pero no se pudo firmar su URL", errFirma, "key", key)
 		}
 	}
 
@@ -306,7 +306,7 @@ func (s *Server) horasAsistenciaDelDia(hijoID any, fecha string) (entrada, salid
 		hijoID, fecha,
 	).Scan(&entradaNull, &salidaNull)
 	if err != nil {
-		log.Printf("horasAsistenciaDelDia: error consultando asistencia del hijo %v: %v", hijoID, err)
+		s.logError(nil, "horasAsistenciaDelDia: error consultando asistencia", err, "hijo_id", hijoID)
 		return nil, nil
 	}
 	loc := zonaMazatlan()

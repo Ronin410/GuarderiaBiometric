@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 
 	webpush "github.com/SherClockHolmes/webpush-go"
@@ -66,7 +65,7 @@ func (s *Server) registrarRutasPush(r *gin.Engine) {
             auth = EXCLUDED.auth`
 
 		if _, err := s.DB.Exec(query, padreID, personalID, gID, input.Endpoint, input.Keys.P256dh, input.Keys.Auth); err != nil {
-			log.Printf("No se pudo guardar la suscripción push (usuario %v, guardería %v): %v", userID, gID, err)
+			s.logError(c, "No se pudo guardar la suscripción push", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo guardar la suscripción"})
 			return
 		}
@@ -99,7 +98,7 @@ func (s *Server) notificarEvento(hijoID int, evento string, detalle string) {
 
 	var nombre string
 	if err := s.DB.QueryRow("SELECT nombre_niño FROM hijos WHERE id = $1", hijoID).Scan(&nombre); err != nil {
-		log.Printf("notificarEvento: no se pudo obtener el nombre del niño %d: %v", hijoID, err)
+		s.logError(nil, "notificarEvento: no se pudo obtener el nombre del niño", err, "hijo_id", hijoID)
 		return
 	}
 
@@ -128,7 +127,7 @@ func (s *Server) notificarEvento(hijoID int, evento string, detalle string) {
         INNER JOIN tutor_hijos th ON th.padre_id = ps.padre_id
         WHERE th.hijo_id = $1`, hijoID)
 	if err != nil {
-		log.Printf("notificarEvento: error consultando suscripciones: %v", err)
+		s.logError(nil, "notificarEvento: error consultando suscripciones", err, "hijo_id", hijoID)
 		return
 	}
 
@@ -144,7 +143,7 @@ func (s *Server) notificarEvento(hijoID int, evento string, detalle string) {
 
 	payload, err := json.Marshal(pushPayload{Titulo: titulo, Cuerpo: cuerpo, URL: "/"})
 	if err != nil {
-		log.Printf("notificarEvento: error serializando payload: %v", err)
+		s.logError(nil, "notificarEvento: error serializando payload", err, "hijo_id", hijoID)
 		return
 	}
 
@@ -162,7 +161,7 @@ func (s *Server) notificarCircular(guarderiaID any, titulo, contenido string) {
 
 	rows, err := s.DB.Query(`SELECT id, endpoint, p256dh, auth FROM push_subscripciones WHERE guarderia_id = $1`, guarderiaID)
 	if err != nil {
-		log.Printf("notificarCircular: error consultando suscripciones: %v", err)
+		s.logError(nil, "notificarCircular: error consultando suscripciones", err, "guarderia_id", guarderiaID)
 		return
 	}
 	var destinos []destinoPush
@@ -186,7 +185,7 @@ func (s *Server) notificarCircular(guarderiaID any, titulo, contenido string) {
 
 	payload, err := json.Marshal(pushPayload{Titulo: "📢 " + titulo, Cuerpo: cuerpo, URL: "/"})
 	if err != nil {
-		log.Printf("notificarCircular: error serializando payload: %v", err)
+		s.logError(nil, "notificarCircular: error serializando payload", err, "guarderia_id", guarderiaID)
 		return
 	}
 
@@ -205,7 +204,7 @@ func (s *Server) notificarMensajeChat(padreID int) {
 
 	rows, err := s.DB.Query(`SELECT id, endpoint, p256dh, auth FROM push_subscripciones WHERE padre_id = $1`, padreID)
 	if err != nil {
-		log.Printf("notificarMensajeChat: error consultando suscripciones: %v", err)
+		s.logError(nil, "notificarMensajeChat: error consultando suscripciones", err, "padre_id", padreID)
 		return
 	}
 	var destinos []destinoPush
@@ -220,7 +219,7 @@ func (s *Server) notificarMensajeChat(padreID int) {
 
 	payload, err := json.Marshal(pushPayload{Titulo: "💬 Nuevo mensaje", Cuerpo: "La guardería te envió un mensaje.", URL: "/"})
 	if err != nil {
-		log.Printf("notificarMensajeChat: error serializando payload: %v", err)
+		s.logError(nil, "notificarMensajeChat: error serializando payload", err, "padre_id", padreID)
 		return
 	}
 
@@ -238,7 +237,7 @@ func (s *Server) notificarStaffDeGuarderia(guarderiaID any, titulo, cuerpo strin
 
 	rows, err := s.DB.Query(`SELECT id, endpoint, p256dh, auth FROM push_subscripciones WHERE guarderia_id = $1 AND personal_id IS NOT NULL`, guarderiaID)
 	if err != nil {
-		log.Printf("notificarStaffDeGuarderia: error consultando suscripciones: %v", err)
+		s.logError(nil, "notificarStaffDeGuarderia: error consultando suscripciones", err, "guarderia_id", guarderiaID)
 		return
 	}
 	var destinos []destinoPush
@@ -253,7 +252,7 @@ func (s *Server) notificarStaffDeGuarderia(guarderiaID any, titulo, cuerpo strin
 
 	payload, err := json.Marshal(pushPayload{Titulo: titulo, Cuerpo: cuerpo, URL: "/"})
 	if err != nil {
-		log.Printf("notificarStaffDeGuarderia: error serializando payload: %v", err)
+		s.logError(nil, "notificarStaffDeGuarderia: error serializando payload", err, "guarderia_id", guarderiaID)
 		return
 	}
 
@@ -271,7 +270,7 @@ func (s *Server) notificarStaffEspecifico(personalID any, titulo, cuerpo string)
 
 	rows, err := s.DB.Query(`SELECT id, endpoint, p256dh, auth FROM push_subscripciones WHERE personal_id = $1`, personalID)
 	if err != nil {
-		log.Printf("notificarStaffEspecifico: error consultando suscripciones: %v", err)
+		s.logError(nil, "notificarStaffEspecifico: error consultando suscripciones", err, "personal_id", personalID)
 		return
 	}
 	var destinos []destinoPush
@@ -286,7 +285,7 @@ func (s *Server) notificarStaffEspecifico(personalID any, titulo, cuerpo string)
 
 	payload, err := json.Marshal(pushPayload{Titulo: titulo, Cuerpo: cuerpo, URL: "/"})
 	if err != nil {
-		log.Printf("notificarStaffEspecifico: error serializando payload: %v", err)
+		s.logError(nil, "notificarStaffEspecifico: error serializando payload", err, "personal_id", personalID)
 		return
 	}
 
@@ -314,7 +313,7 @@ func (s *Server) enviarPushATodos(destinos []destinoPush, payload []byte) {
 			TTL:             30,
 		})
 		if err != nil {
-			log.Printf("enviarPushATodos: error enviando a suscripción %d: %v", d.id, err)
+			s.logError(nil, "enviarPushATodos: error enviando a suscripción", err, "suscripcion_id", d.id)
 			continue
 		}
 		resp.Body.Close()

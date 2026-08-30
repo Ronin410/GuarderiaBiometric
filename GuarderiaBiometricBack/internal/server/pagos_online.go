@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/stripe/stripe-go/v82/checkout/session"
 	"github.com/stripe/stripe-go/v82/webhook"
 
+	"biometrico/internal/applog"
 	"biometrico/internal/middleware"
 )
 
@@ -172,7 +172,7 @@ func (s *Server) handleCrearCheckoutColegiatura(c *gin.Context) {
 
 	sesion, err := session.New(params)
 	if err != nil {
-		log.Printf("Error al crear Checkout Session de Stripe: %v", err)
+		s.logError(c, "Error al crear Checkout Session de Stripe", err)
 		c.JSON(http.StatusBadGateway, gin.H{"error": "No se pudo iniciar el pago en línea. Intenta de nuevo más tarde."})
 		return
 	}
@@ -209,7 +209,7 @@ func (s *Server) handleWebhookStripe(c *gin.Context) {
 		webhook.ConstructEventOptions{IgnoreAPIVersionMismatch: true},
 	)
 	if err != nil {
-		log.Printf("Webhook de Stripe con firma inválida: %v", err)
+		s.logError(c, "Webhook de Stripe con firma inválida", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Firma inválida"})
 		return
 	}
@@ -224,7 +224,7 @@ func (s *Server) handleWebhookStripe(c *gin.Context) {
 
 	var sesion stripe.CheckoutSession
 	if err := json.Unmarshal(event.Data.Raw, &sesion); err != nil {
-		log.Printf("No se pudo interpretar el checkout.session.completed de Stripe: %v", err)
+		s.logError(c, "No se pudo interpretar el checkout.session.completed de Stripe", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Evento inválido"})
 		return
 	}
@@ -241,7 +241,7 @@ func (s *Server) handleWebhookStripe(c *gin.Context) {
 	periodo := sesion.Metadata["periodo"]
 	concepto := sesion.Metadata["concepto"]
 	if gID == "" || hijoID == "" || periodo == "" || concepto == "" {
-		log.Printf("checkout.session.completed sin metadata esperada (session %s)", sesion.ID)
+		applog.Warn("checkout.session.completed sin metadata esperada", "stripe_session_id", sesion.ID)
 		c.JSON(http.StatusOK, gin.H{"recibido": true})
 		return
 	}
@@ -259,11 +259,11 @@ func (s *Server) handleWebhookStripe(c *gin.Context) {
 		time.Now().In(zonaMazatlan()), sesion.ID, paymentIntentID,
 	)
 	if err != nil {
-		log.Printf("No se pudo registrar el pago de Stripe (session %s): %v", sesion.ID, err)
+		s.logError(c, "No se pudo registrar el pago de Stripe", err, "stripe_session_id", sesion.ID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo registrar el pago"})
 		return
 	}
 
-	log.Printf("Pago en línea registrado vía Stripe: guardería %s, hijo %s, periodo %s, session %s", gID, hijoID, periodo, sesion.ID)
+	applog.Info("Pago en línea registrado vía Stripe", "guarderia_id", gID, "hijo_id", hijoID, "periodo", periodo, "stripe_session_id", sesion.ID)
 	c.JSON(http.StatusOK, gin.H{"recibido": true})
 }

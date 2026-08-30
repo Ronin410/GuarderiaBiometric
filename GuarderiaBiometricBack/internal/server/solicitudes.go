@@ -3,7 +3,6 @@ package server
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -95,7 +94,7 @@ func (s *Server) handleCrearSolicitud(c *gin.Context) {
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
-		log.Printf("Error al procesar la contraseña: %v", err)
+		s.logError(c, "Error al procesar la contraseña", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al procesar la contraseña"})
 		return
 	}
@@ -115,7 +114,7 @@ func (s *Server) handleCrearSolicitud(c *gin.Context) {
 		input.NombreGuarderia, direccion, input.NombreContacto, input.EmailContacto, telefono, input.UsernameDeseado, string(hash),
 	)
 	if err != nil {
-		log.Printf("No se pudo guardar la solicitud de guardería de %s: %v", input.EmailContacto, err)
+		s.logError(c, "No se pudo guardar la solicitud de guardería", err, "email_contacto", input.EmailContacto)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo registrar tu solicitud, intenta de nuevo"})
 		return
 	}
@@ -135,7 +134,7 @@ func (s *Server) handleListarSolicitudes(c *gin.Context) {
 		estado,
 	)
 	if err != nil {
-		log.Printf("Error al consultar solicitudes: %v", err)
+		s.logError(c, "Error al consultar solicitudes", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar solicitudes"})
 		return
 	}
@@ -172,7 +171,7 @@ func (s *Server) handleAprobarSolicitud(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Solicitud no encontrada"})
 		return
 	} else if err != nil {
-		log.Printf("Error al consultar la solicitud: %v", err)
+		s.logError(c, "Error al consultar la solicitud", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar la solicitud"})
 		return
 	}
@@ -183,7 +182,7 @@ func (s *Server) handleAprobarSolicitud(c *gin.Context) {
 
 	tx, err := s.DBAuth.Begin()
 	if err != nil {
-		log.Printf("No se pudo iniciar la operación: %v", err)
+		s.logError(c, "No se pudo iniciar la operación", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo iniciar la operación"})
 		return
 	}
@@ -191,7 +190,7 @@ func (s *Server) handleAprobarSolicitud(c *gin.Context) {
 
 	slug, err := s.slugGuarderiaDisponible(tx, nombreGuarderia)
 	if err != nil {
-		log.Printf("No se pudo generar el identificador de la guardería: %v", err)
+		s.logError(c, "No se pudo generar el identificador de la guardería", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo generar el identificador de la guardería"})
 		return
 	}
@@ -206,7 +205,7 @@ func (s *Server) handleAprobarSolicitud(c *gin.Context) {
 		`INSERT INTO guarderias (nombre, slug, direccion) VALUES ($1, $2, $3) RETURNING id`,
 		nombreGuarderia, slug, direccionParam,
 	).Scan(&nuevaGuarderiaID); err != nil {
-		log.Printf("No se pudo crear la guardería '%s' (solicitud #%s): %v", nombreGuarderia, id, err)
+		s.logError(c, "No se pudo crear la guardería", err, "nombre_guarderia", nombreGuarderia, "solicitud_id", id)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo crear la guardería"})
 		return
 	}
@@ -220,7 +219,7 @@ func (s *Server) handleAprobarSolicitud(c *gin.Context) {
 			c.JSON(http.StatusConflict, gin.H{"error": "Ese nombre de usuario ya lo usa otra cuenta -- pide al solicitante uno distinto y créala a mano, o recházala."})
 			return
 		}
-		log.Printf("No se pudo crear la cuenta administrador de la guardería %d (solicitud #%s): %v", nuevaGuarderiaID, id, err)
+		s.logError(c, "No se pudo crear la cuenta administrador de la guardería", err, "guarderia_id", nuevaGuarderiaID, "solicitud_id", id)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo crear la cuenta administrador"})
 		return
 	}
@@ -229,13 +228,13 @@ func (s *Server) handleAprobarSolicitud(c *gin.Context) {
 		`UPDATE solicitudes_guarderia SET estado = 'aprobada', guarderia_id = $1, revisado_en = now() WHERE id = $2`,
 		nuevaGuarderiaID, id,
 	); err != nil {
-		log.Printf("No se pudo marcar la solicitud #%s como aprobada (guardería %d ya creada): %v", id, nuevaGuarderiaID, err)
+		s.logError(c, "No se pudo marcar la solicitud como aprobada (guardería ya creada)", err, "solicitud_id", id, "guarderia_id", nuevaGuarderiaID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo marcar la solicitud como aprobada"})
 		return
 	}
 
 	if err := tx.Commit(); err != nil {
-		log.Printf("No se pudo completar la aprobación de la solicitud #%s (guardería %d): %v", id, nuevaGuarderiaID, err)
+		s.logError(c, "No se pudo completar la aprobación de la solicitud", err, "solicitud_id", id, "guarderia_id", nuevaGuarderiaID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo completar la aprobación"})
 		return
 	}
@@ -268,7 +267,7 @@ func (s *Server) handleRechazarSolicitud(c *gin.Context) {
 		nota, id,
 	)
 	if err != nil {
-		log.Printf("No se pudo rechazar la solicitud: %v", err)
+		s.logError(c, "No se pudo rechazar la solicitud", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo rechazar la solicitud"})
 		return
 	}

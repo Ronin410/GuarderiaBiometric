@@ -3,7 +3,6 @@ package server
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -86,7 +85,7 @@ func (s *Server) handleListarPersonal(c *gin.Context) {
 		gID,
 	)
 	if err != nil {
-		log.Printf("Error al consultar personal: %v", err)
+		s.logError(c, "Error al consultar personal", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar personal"})
 		return
 	}
@@ -145,7 +144,7 @@ func (s *Server) handleCrearPersonal(c *gin.Context) {
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
-		log.Printf("Error al procesar la contraseña: %v", err)
+		s.logError(c, "Error al procesar la contraseña (crear cuenta de personal)", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al procesar la contraseña"})
 		return
 	}
@@ -166,7 +165,7 @@ func (s *Server) handleCrearPersonal(c *gin.Context) {
 			c.JSON(http.StatusConflict, gin.H{"error": "Ese nombre de usuario ya existe"})
 			return
 		}
-		log.Printf("No se pudo crear la cuenta: %v", err)
+		s.logError(c, "No se pudo crear la cuenta de personal", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo crear la cuenta"})
 		return
 	}
@@ -219,7 +218,7 @@ func (s *Server) handleActualizarPersonal(c *gin.Context) {
 		nombre, input.Rol, input.Activo, targetID, gID,
 	)
 	if err != nil {
-		log.Printf("No se pudo actualizar la cuenta: %v", err)
+		s.logError(c, "No se pudo actualizar la cuenta de personal", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo actualizar la cuenta"})
 		return
 	}
@@ -257,7 +256,7 @@ func (s *Server) handleActualizarPinPersonal(c *gin.Context) {
 		input.Pin, targetID, gID,
 	)
 	if err != nil {
-		log.Printf("No se pudo cambiar el PIN: %v", err)
+		s.logError(c, "No se pudo cambiar el PIN", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo cambiar el PIN"})
 		return
 	}
@@ -287,7 +286,7 @@ func (s *Server) handleResetPasswordPersonal(c *gin.Context) {
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
-		log.Printf("Error al procesar la contraseña: %v", err)
+		s.logError(c, "Error al procesar la contraseña (cambiar contraseña)", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al procesar la contraseña"})
 		return
 	}
@@ -298,7 +297,7 @@ func (s *Server) handleResetPasswordPersonal(c *gin.Context) {
 		string(hash), targetID, gID,
 	)
 	if err != nil {
-		log.Printf("No se pudo cambiar la contraseña: %v", err)
+		s.logError(c, "No se pudo cambiar la contraseña", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo cambiar la contraseña"})
 		return
 	}
@@ -356,7 +355,7 @@ func (s *Server) handleActualizarPermisosPersonal(c *gin.Context) {
 		)
 	}
 	if err != nil {
-		log.Printf("No se pudo actualizar los permisos: %v", err)
+		s.logError(c, "No se pudo actualizar los permisos", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo actualizar los permisos"})
 		return
 	}

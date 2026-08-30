@@ -3,7 +3,6 @@ package server
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -11,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 
+	"biometrico/internal/applog"
 	"biometrico/internal/middleware"
 )
 
@@ -68,7 +68,7 @@ func (s *Server) handleRegistrarHijo(c *gin.Context) {
 		// No debería pasar nunca si Auth() corrió antes -- lo pone siempre
 		// en el contexto. Se loguea igual porque, si algún día SÍ pasa, es
 		// justo el tipo de cosa que sin rastro es imposible de diagnosticar.
-		log.Println("handleRegistrarHijo: guarderia_id no estaba en el contexto (¿Auth() no corrió antes?)")
+		applog.Warn("handleRegistrarHijo: guarderia_id no estaba en el contexto (¿Auth() no corrió antes?)")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo identificar la guardería"})
 		return
 	}
@@ -91,8 +91,7 @@ func (s *Server) handleRegistrarHijo(c *gin.Context) {
 
 	err := s.DB.QueryRow(query, input.Nombre, gID).Scan(&hijoID, &urlToken)
 	if err != nil {
-		fmt.Printf("Error al insertar hijo: %v\n", err)
-		log.Printf("Error al crear niño en la base de datos: %v", err)
+		s.logError(c, "Error al crear niño en la base de datos", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al crear niño en la base de datos"})
 		return
 	}
@@ -137,7 +136,7 @@ func (s *Server) handleHijosDePadre(c *gin.Context) {
 
 	rows, err := s.DB.Query(query, padreID, gID)
 	if err != nil {
-		log.Printf("Error al consultar hijos: %v", err)
+		s.logError(c, "Error al consultar hijos", err, "padre_id", padreID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar hijos"})
 		return
 	}
@@ -176,7 +175,7 @@ func (s *Server) handleVincularTutor(c *gin.Context) {
 
 	_, err := s.DB.Exec(query, req.PadreID, req.HijoID, gID)
 	if err != nil {
-		log.Printf("Error en vinculación: %v", err)
+		s.logError(c, "Error en vinculación tutor-hijo", err, "padre_id", req.PadreID, "hijo_id", req.HijoID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo realizar la vinculación"})
 		return
 	}
@@ -204,8 +203,7 @@ func (s *Server) handleBuscarHijos(c *gin.Context) {
 	lista := []gin.H{}
 
 	if err != nil {
-		fmt.Printf("Error en buscar-hijos: %v\n", err)
-		log.Printf("Error al consultar la base de datos: %v", err)
+		s.logError(c, "Error al buscar hijos", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar la base de datos"})
 		return
 	}
@@ -255,7 +253,7 @@ func (s *Server) handleBuscarPadres(c *gin.Context) {
 	}
 
 	if err != nil {
-		log.Printf("Error al consultar la base de datos: %v", err)
+		s.logError(c, "Error al buscar padres", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar la base de datos"})
 		return
 	}
@@ -322,7 +320,7 @@ func (s *Server) handleDesvincularHijo(c *gin.Context) {
 
 	result, err := s.DB.Exec(query, input.PadreID, input.HijoID, gID)
 	if err != nil {
-		log.Printf("No se pudo realizar la desvinculación: %v", err)
+		s.logError(c, "No se pudo realizar la desvinculación", err, "padre_id", input.PadreID, "hijo_id", input.HijoID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo realizar la desvinculación"})
 		return
 	}
@@ -354,7 +352,7 @@ func (s *Server) handleActualizarPadre(c *gin.Context) {
 
 	result, err := s.DB.Exec(query, req.Nombre, req.ID, gID)
 	if err != nil {
-		log.Printf("Error interno al actualizar: %v", err)
+		s.logError(c, "No se pudo actualizar el padre", err, "padre_id", req.ID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error interno al actualizar"})
 		return
 	}
@@ -402,7 +400,7 @@ func (s *Server) handleCrearCuentaPadre(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Tutor no encontrado"})
 		return
 	} else if err != nil {
-		log.Printf("Error al consultar el padre %s para crear su cuenta: %v", padreID, err)
+		s.logError(c, "Error al consultar el padre para crear su cuenta", err, "padre_id", padreID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo consultar al tutor"})
 		return
 	}
@@ -422,7 +420,7 @@ func (s *Server) handleCrearCuentaPadre(c *gin.Context) {
 	var usernameExistente, rolExistente string
 	err = s.DBAuth.QueryRow("SELECT username, rol FROM usuarios WHERE id = $1", padreID).Scan(&usernameExistente, &rolExistente)
 	if err != nil && err != sql.ErrNoRows {
-		log.Printf("Error al verificar si el padre %s ya tiene cuenta: %v", padreID, err)
+		s.logError(c, "Error al verificar si el padre ya tiene cuenta", err, "padre_id", padreID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo verificar la cuenta"})
 		return
 	}
@@ -445,7 +443,7 @@ func (s *Server) handleCrearCuentaPadre(c *gin.Context) {
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
-		log.Printf("Error al procesar la contraseña: %v", err)
+		s.logError(c, "Error al procesar la contraseña", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al procesar la contraseña"})
 		return
 	}
@@ -460,12 +458,12 @@ func (s *Server) handleCrearCuentaPadre(c *gin.Context) {
 			c.JSON(http.StatusConflict, gin.H{"error": "Ese nombre de usuario ya existe"})
 			return
 		}
-		log.Printf("No se pudo crear la cuenta de portal para el padre %s: %v", padreID, err)
+		s.logError(c, "No se pudo crear la cuenta de portal para el padre", err, "padre_id", padreID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo crear la cuenta"})
 		return
 	}
 	if _, err := s.DBAuth.Exec(`SELECT setval('usuarios_id_seq', (SELECT MAX(id) FROM usuarios))`); err != nil {
-		log.Printf("No se pudo reacomodar la secuencia de usuarios tras vincular la cuenta del padre %s: %v", padreID, err)
+		s.logError(c, "No se pudo reacomodar la secuencia de usuarios tras vincular la cuenta del padre", err, "padre_id", padreID)
 	}
 
 	c.JSON(http.StatusCreated, gin.H{"message": "Cuenta creada"})
@@ -507,7 +505,7 @@ func (s *Server) handleResolverChoqueID(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Este id no choca con ninguna cuenta -- no hay nada que reparar"})
 		return
 	} else if err != nil {
-		log.Printf("Error al verificar el choque de id del padre %s: %v", padreID, err)
+		s.logError(c, "Error al verificar el choque de id del padre", err, "padre_id", padreID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo verificar el choque"})
 		return
 	}
@@ -528,7 +526,7 @@ func (s *Server) handleResolverChoqueID(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Tutor no encontrado"})
 		return
 	} else if err != nil {
-		log.Printf("Error al consultar el padre %s para reasignar su id: %v", padreID, err)
+		s.logError(c, "Error al consultar el padre para reasignar su id", err, "padre_id", padreID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo consultar al tutor"})
 		return
 	}
@@ -538,13 +536,13 @@ func (s *Server) handleResolverChoqueID(c *gin.Context) {
 	// usuarios -- que pueden vivir en bases físicas distintas -- más uno.
 	var maxPadres int
 	if err := s.DB.QueryRow("SELECT COALESCE(MAX(id), 0) FROM padres").Scan(&maxPadres); err != nil {
-		log.Printf("Error al calcular el siguiente id libre (padres) para el padre %s: %v", padreID, err)
+		s.logError(c, "Error al calcular el siguiente id libre (padres)", err, "padre_id", padreID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo calcular un id libre"})
 		return
 	}
 	var maxUsuarios int
 	if err := s.DBAuth.QueryRow("SELECT COALESCE(MAX(id), 0) FROM usuarios").Scan(&maxUsuarios); err != nil {
-		log.Printf("Error al calcular el siguiente id libre (usuarios) para el padre %s: %v", padreID, err)
+		s.logError(c, "Error al calcular el siguiente id libre (usuarios)", err, "padre_id", padreID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo calcular un id libre"})
 		return
 	}
@@ -555,7 +553,7 @@ func (s *Server) handleResolverChoqueID(c *gin.Context) {
 
 	tx, err := s.DB.Begin()
 	if err != nil {
-		log.Printf("No se pudo iniciar la transacción para reasignar el id del padre %s: %v", padreID, err)
+		s.logError(c, "No se pudo iniciar la transacción para reasignar el id del padre", err, "padre_id", padreID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo mover al tutor"})
 		return
 	}
@@ -568,7 +566,7 @@ func (s *Server) handleResolverChoqueID(c *gin.Context) {
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		nuevoID, nombre, faceIDTemporal, gID, celular, recibeWhatsapp, creadoEn,
 	); err != nil {
-		log.Printf("No se pudo crear la fila nueva (id %d) al reasignar al padre %s: %v", nuevoID, padreID, err)
+		s.logError(c, "No se pudo crear la fila nueva al reasignar al padre", err, "padre_id", padreID, "nuevo_id", nuevoID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo mover al tutor"})
 		return
 	}
@@ -576,7 +574,7 @@ func (s *Server) handleResolverChoqueID(c *gin.Context) {
 	tablasARepuntar := []string{"tutor_hijos", "asistencia", "consentimientos", "push_subscripciones", "circulares_lecturas", "encuesta_respuestas"}
 	for _, tabla := range tablasARepuntar {
 		if _, err := tx.Exec(fmt.Sprintf("UPDATE %s SET padre_id = $1 WHERE padre_id = $2", tabla), nuevoID, padreID); err != nil {
-			log.Printf("No se pudo repuntar %s del id viejo %s al nuevo %d: %v", tabla, padreID, nuevoID, err)
+			s.logError(c, "No se pudo repuntar tabla del id viejo al nuevo", err, "tabla", tabla, "padre_id", padreID, "nuevo_id", nuevoID)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo mover al tutor"})
 			return
 		}
@@ -587,34 +585,34 @@ func (s *Server) handleResolverChoqueID(c *gin.Context) {
 	// staff/admin con ese mismo autor_id por coincidencia, así que el
 	// UPDATE de autor_id va condicionado a autor_rol = 'papa').
 	if _, err := tx.Exec("UPDATE mensajes_chat SET padre_id = $1 WHERE padre_id = $2", nuevoID, padreID); err != nil {
-		log.Printf("No se pudo repuntar mensajes_chat.padre_id del id viejo %s al nuevo %d: %v", padreID, nuevoID, err)
+		s.logError(c, "No se pudo repuntar mensajes_chat.padre_id del id viejo al nuevo", err, "padre_id", padreID, "nuevo_id", nuevoID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo mover al tutor"})
 		return
 	}
 	if _, err := tx.Exec("UPDATE mensajes_chat SET autor_id = $1 WHERE autor_id = $2 AND autor_rol = 'papa'", nuevoID, padreID); err != nil {
-		log.Printf("No se pudo repuntar mensajes_chat.autor_id del id viejo %s al nuevo %d: %v", padreID, nuevoID, err)
+		s.logError(c, "No se pudo repuntar mensajes_chat.autor_id del id viejo al nuevo", err, "padre_id", padreID, "nuevo_id", nuevoID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo mover al tutor"})
 		return
 	}
 
 	if _, err := tx.Exec("DELETE FROM padres WHERE id = $1", padreID); err != nil {
-		log.Printf("No se pudo borrar la fila vieja (id %s) al reasignar: %v", padreID, err)
+		s.logError(c, "No se pudo borrar la fila vieja al reasignar", err, "padre_id", padreID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo mover al tutor"})
 		return
 	}
 	if _, err := tx.Exec("UPDATE padres SET face_id = $1 WHERE id = $2", faceID, nuevoID); err != nil {
-		log.Printf("No se pudo restaurar el face_id real en la fila nueva (id %d): %v", nuevoID, err)
+		s.logError(c, "No se pudo restaurar el face_id real en la fila nueva", err, "nuevo_id", nuevoID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo mover al tutor"})
 		return
 	}
 	if _, err := tx.Exec(`SELECT setval('padres_id_seq', (SELECT MAX(id) FROM padres))`); err != nil {
-		log.Printf("No se pudo reacomodar la secuencia de padres tras reasignar al padre %s -> %d: %v", padreID, nuevoID, err)
+		s.logError(c, "No se pudo reacomodar la secuencia de padres tras reasignar", err, "padre_id", padreID, "nuevo_id", nuevoID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo mover al tutor"})
 		return
 	}
 
 	if err := tx.Commit(); err != nil {
-		log.Printf("No se pudo confirmar la reasignación del padre %s -> %d: %v", padreID, nuevoID, err)
+		s.logError(c, "No se pudo confirmar la reasignación del padre", err, "padre_id", padreID, "nuevo_id", nuevoID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo mover al tutor"})
 		return
 	}
@@ -631,7 +629,7 @@ func (s *Server) handleDesactivarHijo(c *gin.Context) {
 
 	result, err := s.DB.Exec(query, hijoID, gID)
 	if err != nil {
-		log.Printf("Error al dar de baja: %v", err)
+		s.logError(c, "Error al dar de baja al niño", err, "hijo_id", hijoID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al dar de baja"})
 		return
 	}
@@ -660,7 +658,7 @@ func (s *Server) handleEditarNombreHijo(c *gin.Context) {
 	query := "UPDATE hijos SET nombre_niño = $1 WHERE id = $2 AND guarderia_id = $3"
 	_, err := s.DB.Exec(query, input.Nombre, hijoID, gID)
 	if err != nil {
-		log.Printf("Error al actualizar: %v", err)
+		s.logError(c, "Error al actualizar el nombre del niño", err, "hijo_id", hijoID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al actualizar"})
 		return
 	}
@@ -676,7 +674,7 @@ func (s *Server) handleActivarHijo(c *gin.Context) {
 
 	_, err := s.DB.Exec(query, hijoID, gID)
 	if err != nil {
-		log.Printf("Error al reactivar: %v", err)
+		s.logError(c, "Error al reactivar al niño", err, "hijo_id", hijoID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al reactivar"})
 		return
 	}
@@ -725,7 +723,7 @@ func (s *Server) handleRestablecerPasswordPadre(c *gin.Context) {
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
-		log.Printf("Error al procesar la contraseña: %v", err)
+		s.logError(c, "Error al procesar la contraseña", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al procesar la contraseña"})
 		return
 	}
@@ -736,7 +734,7 @@ func (s *Server) handleRestablecerPasswordPadre(c *gin.Context) {
 		string(hash), padreID, gID,
 	)
 	if err != nil {
-		log.Printf("No se pudo restablecer la contraseña del padre %s: %v", padreID, err)
+		s.logError(c, "No se pudo restablecer la contraseña del padre", err, "padre_id", padreID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo restablecer la contraseña"})
 		return
 	}

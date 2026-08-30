@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
@@ -119,7 +118,7 @@ func (s *Server) registrarRutasPagos(r *gin.Engine) {
 		).Scan(&nuevoID)
 
 		if err != nil {
-			log.Printf("No se pudo registrar el pago: %v", err)
+			s.logError(c, "No se pudo registrar el pago", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo registrar el pago"})
 			return
 		}
@@ -143,7 +142,7 @@ func (s *Server) registrarRutasPagos(r *gin.Engine) {
 
 		rows, err := s.DB.Query(query, gID, hijoID, periodo)
 		if err != nil {
-			log.Printf("Error al consultar pagos: %v", err)
+			s.logError(c, "Error al consultar pagos", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar pagos"})
 			return
 		}
@@ -187,7 +186,7 @@ func (s *Server) registrarRutasPagos(r *gin.Engine) {
 
 		rows, err := s.DB.Query(query, gID, periodo)
 		if err != nil {
-			log.Printf("Error al consultar el estado de pagos: %v", err)
+			s.logError(c, "Error al consultar el estado de pagos", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar el estado de pagos"})
 			return
 		}
@@ -215,7 +214,7 @@ func (s *Server) registrarRutasPagos(r *gin.Engine) {
 
 		result, err := s.DB.Exec("DELETE FROM pagos WHERE id = $1 AND guarderia_id = $2", pagoID, gID)
 		if err != nil {
-			log.Printf("No se pudo eliminar el pago: %v", err)
+			s.logError(c, "No se pudo eliminar el pago", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo eliminar el pago"})
 			return
 		}
@@ -259,7 +258,7 @@ func (s *Server) registrarRutasPagos(r *gin.Engine) {
 
 		rows, err := s.DB.Query(query, tokenUsuarioID, gID, periodo)
 		if err != nil {
-			log.Printf("Error al consultar tus pagos: %v", err)
+			s.logError(c, "Error al consultar tus pagos", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar tus pagos"})
 			return
 		}
@@ -308,7 +307,7 @@ func (s *Server) registrarRutasPagos(r *gin.Engine) {
 
 		rows, err := s.DB.Query(query, gID, hijoID)
 		if err != nil {
-			log.Printf("Error al consultar el historial: %v", err)
+			s.logError(c, "Error al consultar el historial de pagos", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar el historial"})
 			return
 		}

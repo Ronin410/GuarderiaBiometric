@@ -1,7 +1,6 @@
 package server
 
 import (
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -79,7 +78,7 @@ func (s *Server) handleListarCalendario(c *gin.Context) {
 		gID, desde, hasta,
 	)
 	if err != nil {
-		log.Printf("Error al consultar el calendario: %v", err)
+		s.logError(c, "Error al consultar el calendario", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar el calendario"})
 		return
 	}
@@ -163,7 +162,7 @@ func (s *Server) handleCrearEventoCalendario(c *gin.Context) {
 		gID, titulo, strings.TrimSpace(input.Descripcion), input.FechaInicio, finPtr, tipo, userID,
 	).Scan(&nuevoID)
 	if err != nil {
-		log.Printf("No se pudo crear el evento: %v", err)
+		s.logError(c, "No se pudo crear el evento", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo crear el evento"})
 		return
 	}
@@ -177,7 +176,7 @@ func (s *Server) handleEliminarEventoCalendario(c *gin.Context) {
 
 	res, err := s.DB.Exec(`DELETE FROM eventos_calendario WHERE id = $1 AND guarderia_id = $2`, eventoID, gID)
 	if err != nil {
-		log.Printf("No se pudo eliminar el evento: %v", err)
+		s.logError(c, "No se pudo eliminar el evento", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo eliminar el evento"})
 		return
 	}

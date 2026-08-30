@@ -1,7 +1,6 @@
 package server
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -49,7 +48,7 @@ func (s *Server) registrarRutasPerfiles(r *gin.Engine) {
 
 		rows, err := s.DB.Query(query, gID)
 		if err != nil {
-			log.Printf("Error al consultar niños: %v", err)
+			s.logError(c, "Error al consultar niños", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar niños"})
 			return
 		}
@@ -115,7 +114,7 @@ func (s *Server) registrarRutasPerfiles(r *gin.Engine) {
 			hijoID, gID,
 		)
 		if err != nil {
-			log.Printf("No se pudo actualizar el perfil: %v", err)
+			s.logError(c, "No se pudo actualizar el perfil", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo actualizar el perfil"})
 			return
 		}

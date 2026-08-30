@@ -1,7 +1,6 @@
 package server
 
 import (
-	"log"
 	"net/http"
 	"strings"
 	"unicode"
@@ -55,7 +54,7 @@ func (s *Server) handleListarTiposDocumento(c *gin.Context) {
 		gID,
 	)
 	if err != nil {
-		log.Printf("Error al consultar tipos de documento: %v", err)
+		s.logError(c, "Error al consultar tipos de documento", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar tipos de documento"})
 		return
 	}
@@ -106,7 +105,7 @@ func (s *Server) handleCrearTipoDocumento(c *gin.Context) {
 			c.JSON(http.StatusConflict, gin.H{"error": "Ya existe un tipo de documento con ese nombre"})
 			return
 		}
-		log.Printf("No se pudo crear el tipo de documento: %v", err)
+		s.logError(c, "No se pudo crear el tipo de documento", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo crear el tipo de documento"})
 		return
 	}
@@ -135,7 +134,7 @@ func (s *Server) handleRenombrarTipoDocumento(c *gin.Context) {
 		strings.TrimSpace(input.Nombre), tipoID, gID,
 	)
 	if err != nil {
-		log.Printf("No se pudo renombrar el tipo de documento: %v", err)
+		s.logError(c, "No se pudo renombrar el tipo de documento", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo renombrar el tipo de documento"})
 		return
 	}
@@ -166,7 +165,7 @@ func (s *Server) handleEliminarTipoDocumento(c *gin.Context) {
 		`SELECT COUNT(*) FROM documentos_nino WHERE guarderia_id = $1 AND tipo = $2`,
 		gID, clave,
 	).Scan(&enUso); err != nil {
-		log.Printf("Error al verificar el tipo de documento: %v", err)
+		s.logError(c, "Error al verificar el tipo de documento", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al verificar el tipo de documento"})
 		return
 	}
@@ -180,7 +179,7 @@ func (s *Server) handleEliminarTipoDocumento(c *gin.Context) {
 
 	res, err := s.DB.Exec(`DELETE FROM tipos_documento WHERE id = $1 AND guarderia_id = $2`, tipoID, gID)
 	if err != nil {
-		log.Printf("No se pudo eliminar el tipo de documento: %v", err)
+		s.logError(c, "No se pudo eliminar el tipo de documento", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo eliminar el tipo de documento"})
 		return
 	}

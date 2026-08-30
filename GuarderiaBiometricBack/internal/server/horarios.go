@@ -1,7 +1,6 @@
 package server
 
 import (
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -73,7 +72,7 @@ func (s *Server) handleObtenerTurnos(c *gin.Context) {
 		usuarioID,
 	)
 	if err != nil {
-		log.Printf("Error al consultar el horario: %v", err)
+		s.logError(c, "Error al consultar el horario", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar el horario"})
 		return
 	}
@@ -133,7 +132,7 @@ func (s *Server) handleGuardarTurno(c *gin.Context) {
 		usuarioID, gID, dia, input.HoraEntrada, input.HoraSalida,
 	)
 	if err != nil {
-		log.Printf("No se pudo guardar el turno: %v", err)
+		s.logError(c, "No se pudo guardar el turno", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo guardar el turno"})
 		return
 	}
@@ -166,7 +165,7 @@ func (s *Server) handleListarHoras(c *gin.Context) {
 		usuarioID, inicio, fin,
 	)
 	if err != nil {
-		log.Printf("Error al consultar el registro de horas: %v", err)
+		s.logError(c, "Error al consultar el registro de horas", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al consultar el registro de horas"})
 		return
 	}
@@ -223,7 +222,7 @@ func (s *Server) handleGuardarHoras(c *gin.Context) {
 		usuarioID, gID, fecha, input.HorasTrabajadas, input.Observaciones,
 	)
 	if err != nil {
-		log.Printf("No se pudo guardar el registro: %v", err)
+		s.logError(c, "No se pudo guardar el registro de horas", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo guardar el registro"})
 		return
 	}
@@ -242,7 +241,7 @@ func (s *Server) handleEliminarHoras(c *gin.Context) {
 
 	res, err := s.DBAuth.Exec(`DELETE FROM registro_horas WHERE usuario_id = $1 AND fecha = $2::date`, usuarioID, fecha)
 	if err != nil {
-		log.Printf("No se pudo eliminar el registro: %v", err)
+		s.logError(c, "No se pudo eliminar el registro de horas", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo eliminar el registro"})
 		return
 	}
