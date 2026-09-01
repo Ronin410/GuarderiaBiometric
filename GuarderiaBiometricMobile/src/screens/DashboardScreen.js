@@ -9,10 +9,12 @@ import { color, radius, sombra } from '../theme';
 
 // Equivalente a la parte de arriba de DashboardPadre.jsx en la web: saludo,
 // aviso de "las bitácoras se actualizan en tiempo real", entradas fijas
-// (Chat/Encuestas/Eventos/Menú -- por ahora "Próximamente", ver
-// API_MOVIL.md) y el listado de niños para entrar a su bitácora de hoy.
+// (Chat/Encuestas/Eventos/Menú) y el listado de niños para entrar a su
+// bitácora de hoy. `pantalla` es la ruta real ya portada -- si falta, la
+// tarjeta manda a "Proximamente" (ver API_MOVIL.md para el orden en que
+// se van agregando).
 const ENTRADAS = [
-  { key: 'encuestas', icon: 'clipboard', titulo: 'Encuestas', subtitulo: 'Comparte tu opinión con la guardería' },
+  { key: 'encuestas', icon: 'clipboard', titulo: 'Encuestas', subtitulo: 'Comparte tu opinión con la guardería', pantalla: 'Encuestas' },
   { key: 'eventos', icon: 'calendar', titulo: 'Eventos', subtitulo: 'Calendario escolar de la guardería' },
   { key: 'menu', icon: 'restaurant', titulo: 'Menú semanal', subtitulo: 'Días anteriores y posteriores' },
 ];
@@ -83,7 +85,9 @@ export default function DashboardScreen({ navigation }) {
           key={entrada.key}
           style={styles.tarjetaFila}
           activeOpacity={0.7}
-          onPress={() => navigation.navigate('Proximamente', { titulo: entrada.titulo })}
+          onPress={() => (entrada.pantalla
+            ? navigation.navigate(entrada.pantalla)
+            : navigation.navigate('Proximamente', { titulo: entrada.titulo }))}
         >
           <View style={styles.iconoRedondo}><Ionicons name={entrada.icon} size={20} color={color.brand600} /></View>
           <View style={styles.filaTexto}>

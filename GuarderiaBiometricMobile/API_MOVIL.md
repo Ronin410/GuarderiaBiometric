@@ -30,6 +30,11 @@ Personal/admin sigue usándose por navegador, como hasta ahora.
   vista ampliada de fotos), separadores "Hoy"/"Ayer"/fecha, y
   actualización cada 5 segundos (mismo polling que ya usa la web -- no hay
   push en tiempo real todavía, ver "Lo que sigue").
+- **Encuestas** (`src/screens/EncuestasScreen.js`) -- opción múltiple y
+  texto libre, igual que `EncuestasPadre.jsx` de la web: el backend solo
+  deja responder una vez (rechaza un segundo envío con 400), y ya
+  respondida se ve el mismo formulario pero deshabilitado con lo que el
+  papá puso, en vez de ocultarlo.
 - **Sesión**: igual que en la web, la cookie con el JWT es httpOnly y la
   guarda automáticamente el cliente HTTP nativo (no hay que leerla ni
   gestionarla a mano). El token CSRF viaja en memoria, igual que en
@@ -89,8 +94,8 @@ ajustando la app.
 
 ## Lo que sigue (orden sugerido)
 
-1. **Encuestas** y **Circulares/Eventos** -- formularios y listas de solo
-   lectura, más sencillas que el chat.
+1. **Circulares/Eventos** -- listas de solo lectura, las más sencillas que
+   quedan.
 2. **Menú semanal** -- ya existe el endpoint (`/padre/menu-semanal`), solo
    falta la pantalla.
 3. El resto de pestañas de `VistaPadreDetalle.jsx` (Expediente, Pagos,
@@ -119,5 +124,6 @@ GuarderiaBiometricMobile/
       BitacoraScreen.js
       ChatContactosScreen.js      -- selector de con quién hablar
       ChatHiloScreen.js           -- hilo de mensajes con un contacto
+      EncuestasScreen.js          -- responder encuestas (una sola vez)
       ProximamenteScreen.js      -- placeholder para lo que falta portar
 ```
