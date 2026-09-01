@@ -7,7 +7,7 @@ import {
 import { hoyLocal } from './utils/fecha';
 import { mostrarAviso } from './utils/alertas';
 
-const PanelReportes = () => {
+const PanelReportes = ({ guarderiaInfo }) => {
   const [reportes, setReportes] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -83,6 +83,16 @@ const PanelReportes = () => {
           overflow: hidden;
         }
       `}</style>
+
+      {/* CABECERA DE IMPRESIÓN -- "quiero que aparezca el nombre y el slug de
+          la guardería, no en medio, en las esquinas": una franja aparte,
+          solo para impresión, con el nombre en la esquina izquierda y el
+          slug en la derecha -- las dos puntas de la hoja, no mezclados con
+          el resto del encabezado (que se queda como está). */}
+      <div className="hidden print:flex print-container w-full max-w-[1400px] justify-between items-start px-4 mb-3">
+        <span className="text-xs font-black text-slate-900 uppercase tracking-tight">{guarderiaInfo?.nombre || ''}</span>
+        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{guarderiaInfo?.slug || ''}</span>
+      </div>
 
       {/* CABECERA */}
       <div className="print-container w-full max-w-[1400px] mb-6 flex flex-col md:flex-row justify-between items-center px-4">

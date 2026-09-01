@@ -830,7 +830,7 @@ function MainApp() {
         </div>
 
         <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6 lg:pb-8 pt-8 sm:pt-10 lg:pt-12">
-        {tab === 'reportes' && <PanelReportes />}
+        {tab === 'reportes' && <PanelReportes guarderiaInfo={guarderiaInfo} />}
         {tab === 'bitacora' && <VistaBitacora />}
         {tab === 'perfiles' && <PanelPerfiles />}
         {tab === 'pagos' && <PanelPagos />}
