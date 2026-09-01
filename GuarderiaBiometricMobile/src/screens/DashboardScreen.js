@@ -12,7 +12,6 @@ import { color, radius, sombra } from '../theme';
 // (Chat/Encuestas/Eventos/Menú -- por ahora "Próximamente", ver
 // API_MOVIL.md) y el listado de niños para entrar a su bitácora de hoy.
 const ENTRADAS = [
-  { key: 'chat', icon: 'chatbubble-ellipses', titulo: 'Chat con la guardería', subtitulo: 'Mensajes directos, sin WhatsApp' },
   { key: 'encuestas', icon: 'clipboard', titulo: 'Encuestas', subtitulo: 'Comparte tu opinión con la guardería' },
   { key: 'eventos', icon: 'calendar', titulo: 'Eventos', subtitulo: 'Calendario escolar de la guardería' },
   { key: 'menu', icon: 'restaurant', titulo: 'Menú semanal', subtitulo: 'Días anteriores y posteriores' },
@@ -65,6 +64,19 @@ export default function DashboardScreen({ navigation }) {
         <View style={styles.avisoIcono}><Ionicons name="notifications" size={18} color={color.brand600} /></View>
         <Text style={styles.avisoTexto}>Las bitácoras se actualizan en tiempo real por las maestras.</Text>
       </View>
+
+      <TouchableOpacity
+        style={styles.tarjetaFila}
+        activeOpacity={0.7}
+        onPress={() => navigation.navigate('ChatContactos')}
+      >
+        <View style={styles.iconoRedondo}><Ionicons name="chatbubble-ellipses" size={20} color={color.brand600} /></View>
+        <View style={styles.filaTexto}>
+          <Text style={styles.filaTitulo}>Chat con la guardería</Text>
+          <Text style={styles.filaSubtitulo}>Mensajes directos, sin WhatsApp</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={color.slate300} />
+      </TouchableOpacity>
 
       {ENTRADAS.map((entrada) => (
         <TouchableOpacity

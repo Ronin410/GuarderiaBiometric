@@ -24,6 +24,12 @@ Personal/admin sigue usándose por navegador, como hasta ahora.
   nota de la maestra, navegable día por día (igual que la pestaña "Hoy" de
   `VistaPadreDetalle.jsx` en la web). Es la función más importante de la
   app, así que fue la primera en portarse completa.
+- **Chat con la guardería** (`src/screens/ChatContactosScreen.js` +
+  `ChatHiloScreen.js`) -- selector de con quién hablar (personal/admin) y
+  el hilo de mensajes: texto, adjuntos (imagen o PDF, hasta 10 MB, con
+  vista ampliada de fotos), separadores "Hoy"/"Ayer"/fecha, y
+  actualización cada 5 segundos (mismo polling que ya usa la web -- no hay
+  push en tiempo real todavía, ver "Lo que sigue").
 - **Sesión**: igual que en la web, la cookie con el JWT es httpOnly y la
   guarda automáticamente el cliente HTTP nativo (no hay que leerla ni
   gestionarla a mano). El token CSRF viaja en memoria, igual que en
@@ -83,20 +89,19 @@ ajustando la app.
 
 ## Lo que sigue (orden sugerido)
 
-1. **Chat con la guardería** -- ya existe completo en `ChatPadre.jsx` de la
-   web (con push, fechas separadas por día, etc.), es lo más pedido por los
-   papás junto con la bitácora.
-2. **Encuestas** y **Circulares/Eventos** -- más sencillas, formularios y
-   listas de solo lectura.
-3. **Menú semanal** -- ya existe el endpoint (`/padre/menu-semanal`), solo
+1. **Encuestas** y **Circulares/Eventos** -- formularios y listas de solo
+   lectura, más sencillas que el chat.
+2. **Menú semanal** -- ya existe el endpoint (`/padre/menu-semanal`), solo
    falta la pantalla.
-4. El resto de pestañas de `VistaPadreDetalle.jsx` (Expediente, Pagos,
+3. El resto de pestañas de `VistaPadreDetalle.jsx` (Expediente, Pagos,
    Ausencias, Comedor, Galería) dentro de la pantalla de bitácora de cada
    niño.
-5. **Notificaciones push nativas** (Expo Notifications, que por debajo usa
+4. **Notificaciones push nativas** (Expo Notifications, que por debajo usa
    FCM/APNs) -- las que ya existen hoy son Web Push, pensadas para la PWA
    del navegador; para esta app hace falta el equivalente nativo, que
-   Expo también simplifica bastante frente a hacerlo a mano.
+   Expo también simplifica bastante frente a hacerlo a mano. Esto además
+   reemplazaría el polling cada 5 segundos del chat por avisos reales al
+   instante.
 
 ## Estructura del proyecto
 
@@ -112,5 +117,7 @@ GuarderiaBiometricMobile/
       LoginScreen.js
       DashboardScreen.js
       BitacoraScreen.js
+      ChatContactosScreen.js      -- selector de con quién hablar
+      ChatHiloScreen.js           -- hilo de mensajes con un contacto
       ProximamenteScreen.js      -- placeholder para lo que falta portar
 ```

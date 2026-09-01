@@ -21,3 +21,32 @@ export function formatoLargo(fechaISO) {
     weekday: 'long', day: 'numeric', month: 'long',
   });
 }
+
+// fechaLocal/separadorFecha: mismo par que utils/fecha.js de la web -- el
+// separador ("Hoy"/"Ayer"/fecha completa) que se pone entre mensajes de
+// chat de días distintos.
+export function fechaLocal(isoConHora) {
+  return new Date(isoConHora).toLocaleDateString('en-CA', { timeZone: ZONA_HORARIA });
+}
+
+export function separadorFecha(isoConHora) {
+  const fecha = fechaLocal(isoConHora);
+  const hoy = hoyLocal();
+  if (fecha === hoy) return 'Hoy';
+
+  const d = new Date(`${hoy}T00:00:00`);
+  d.setDate(d.getDate() - 1);
+  if (fecha === d.toLocaleDateString('en-CA', { timeZone: 'UTC' })) return 'Ayer';
+
+  return new Date(isoConHora).toLocaleDateString('es-MX', {
+    day: 'numeric', month: 'long', year: 'numeric', timeZone: ZONA_HORARIA,
+  });
+}
+
+export function formatoHora(isoConHora) {
+  try {
+    return new Date(isoConHora).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', timeZone: ZONA_HORARIA });
+  } catch {
+    return '';
+  }
+}

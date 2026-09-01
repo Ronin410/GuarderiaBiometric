@@ -9,6 +9,8 @@ import { AuthProvider, useAuth } from './src/context/AuthContext';
 import LoginScreen from './src/screens/LoginScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import BitacoraScreen from './src/screens/BitacoraScreen';
+import ChatContactosScreen from './src/screens/ChatContactosScreen';
+import ChatHiloScreen from './src/screens/ChatHiloScreen';
 import ProximamenteScreen from './src/screens/ProximamenteScreen';
 import { color } from './src/theme';
 
@@ -47,6 +49,8 @@ function Root() {
     >
       <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Bitacora" component={BitacoraScreen} options={{ title: '' }} />
+      <Stack.Screen name="ChatContactos" component={ChatContactosScreen} options={{ title: 'Chat' }} />
+      <Stack.Screen name="ChatHilo" component={ChatHiloScreen} options={{ title: '' }} />
       <Stack.Screen name="Proximamente" component={ProximamenteScreen} options={{ title: '' }} />
     </Stack.Navigator>
   );
