@@ -26,6 +26,7 @@ import ChatPadre from './ChatPadre';
 import EncuestasPadre from './EncuestasPadre';
 import CircularesPadre from './CircularesPadre';
 import EventosPadre from './EventosPadre';
+import MenuPadre from './MenuPadre';
 import { suscribirseAPush, desuscribirseDePush, suscripcionActiva, pushSoportado } from './utils/push';
 import { hoyLocal } from './utils/fecha';
 import InstalarApp from './components/InstalarApp';
@@ -54,6 +55,7 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
   const [mostrarEncuestas, setMostrarEncuestas] = useState(false);
   const [mostrarCirculares, setMostrarCirculares] = useState(false);
   const [mostrarEventos, setMostrarEventos] = useState(false);
+  const [mostrarMenu, setMostrarMenu] = useState(false);
   const [loading, setLoading] = useState(true);
   const usuarioNombre = nombreUsuario || 'Familia';
   const [pagos, setPagos] = useState([]);
@@ -225,6 +227,10 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
     return <EventosPadre onVolver={() => setMostrarEventos(false)} />;
   }
 
+  if (mostrarMenu) {
+    return <MenuPadre onVolver={() => setMostrarMenu(false)} />;
+  }
+
   if (hijoSeleccionado) {
     return (
       <VistaPadreDetalle
@@ -322,6 +328,23 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
           <div className="flex-1 text-left">
             <p className="text-[11px] font-black text-slate-900 uppercase leading-tight">Eventos</p>
             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Calendario escolar de la guardería</p>
+          </div>
+          <ChevronRight size={20} className="text-slate-300 shrink-0" />
+        </button>
+
+        {/* MENÚ SEMANAL -- "quiero que puedan ver también qué comieron en
+            días anteriores o posteriores": entrada fija, igual que Chat/
+            Encuestas/Eventos, para llegar a la semana completa aunque hoy
+            todavía no tenga menú capturado (el teaser "Menú de hoy" de
+            abajo solo aparece cuando SÍ hay algo hoy). */}
+        <button
+          onClick={() => setMostrarMenu(true)}
+          className="w-full bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-all active:scale-[0.98]"
+        >
+          <div className="bg-brand-100 p-3 rounded-2xl text-brand-600 shrink-0"><UtensilsCrossed size={20} /></div>
+          <div className="flex-1 text-left">
+            <p className="text-[11px] font-black text-slate-900 uppercase leading-tight">Menú semanal</p>
+            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Días anteriores y posteriores</p>
           </div>
           <ChevronRight size={20} className="text-slate-300 shrink-0" />
         </button>
@@ -428,16 +451,24 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
           </div>
         )}
 
-        {/* MENÚ DE HOY */}
+        {/* MENÚ DE HOY -- clickeable hacia la misma semana completa que el
+            botón fijo de arriba, para quien lo toca esperando ver otros
+            días directo desde aquí. */}
         {menuHoy && (
-          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm space-y-2">
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-              <UtensilsCrossed size={14} className="text-brand-500" /> Menú de hoy
-            </h3>
+          <button
+            onClick={() => setMostrarMenu(true)}
+            className="w-full bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm space-y-2 text-left hover:shadow-md transition-all active:scale-[0.98]"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <UtensilsCrossed size={14} className="text-brand-500" /> Menú de hoy
+              </h3>
+              <ChevronRight size={16} className="text-slate-300 shrink-0" />
+            </div>
             {menuHoy.desayuno && <p className="text-xs font-bold text-slate-700"><span className="text-brand-500">Desayuno:</span> {menuHoy.desayuno}</p>}
             {menuHoy.comida && <p className="text-xs font-bold text-slate-700"><span className="text-brand-500">Comida:</span> {menuHoy.comida}</p>}
             {menuHoy.merienda && <p className="text-xs font-bold text-slate-700"><span className="text-brand-500">Merienda:</span> {menuHoy.merienda}</p>}
-          </div>
+          </button>
         )}
 
         {/* LISTADO DE NIÑOS */}
