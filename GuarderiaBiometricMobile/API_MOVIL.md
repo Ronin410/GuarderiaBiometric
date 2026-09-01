@@ -19,11 +19,28 @@ Personal/admin sigue usándose por navegador, como hasta ahora.
   bitácoras se actualizan en tiempo real", accesos a Chat/Encuestas/
   Eventos/Menú semanal, el aviso más reciente y el menú de hoy (si ya
   están capturados) y el listado de niños.
-- **Bitácora de hoy** (`src/screens/BitacoraScreen.js`) -- entrada/salida,
-  alimentación, siesta, esfínter, fotos del día (con vista ampliada) y la
-  nota de la maestra, navegable día por día (igual que la pestaña "Hoy" de
-  `VistaPadreDetalle.jsx` en la web). Es la función más importante de la
-  app, así que fue la primera en portarse completa.
+- **Detalle de cada niño** (`src/screens/BitacoraScreen.js` + carpeta
+  `src/screens/hijo/`) -- las 6 pestañas de `VistaPadreDetalle.jsx` en la
+  web, completas:
+  - **Hoy** (`TabHoy.js`): entrada/salida, alimentación, siesta, esfínter,
+    fotos del día (con vista ampliada) y la nota de la maestra, navegable
+    día por día. Es la función más importante de la app, la primera que
+    se portó.
+  - **Expediente** (`TabExpediente.js`): fecha de nacimiento, dirección,
+    contacto de emergencia, y qué documentos de inscripción ya entregó
+    (solo lectura -- quien los sube sigue siendo staff).
+  - **Pagos** (`TabPagos.js`): historial de pagos, pago en línea con
+    tarjeta cuando la guardería lo tenga configurado (abre el checkout de
+    Stripe en el navegador del celular), y el recibo de cada pago en un
+    modal con botón "Compartir" (en vez de "Imprimir" -- generar un PDF de
+    verdad con `expo-print` queda para cuando haga falta).
+  - **Ausencias** (`TabAusencias.js`): avisar que el niño no asistirá uno
+    o varios días (con selector de fecha nativo), ver y cancelar avisos ya
+    hechos.
+  - **Comedor** (`TabComedor.js`): avisar excepciones a las tres comidas
+    normales (no desayuna, alergias, etc.), con botón para restablecer.
+  - **Galería** (`TabGaleria.js`): todas las fotos de la bitácora,
+    agrupadas por fecha, con vista ampliada.
 - **Chat con la guardería** (`src/screens/ChatContactosScreen.js` +
   `ChatHiloScreen.js`) -- selector de con quién hablar (personal/admin) y
   el hilo de mensajes: texto, adjuntos (imagen o PDF, hasta 10 MB, con
@@ -104,22 +121,23 @@ Android Studio ni una Mac física. Lo dejamos para cuando ya estés
 conforme con las pantallas, para no gastar builds de más mientras se sigue
 ajustando la app.
 
-Con esto ya están todas las entradas fijas del inicio (Chat, Encuestas,
-Eventos, Menú semanal) portadas -- ya no queda ninguna en
-"Próximamente" (`ProximamenteScreen.js` se deja en el código por si hace
-falta un placeholder para algo nuevo más adelante).
+Con esto ya están portadas todas las entradas fijas del inicio (Chat,
+Encuestas, Eventos, Menú semanal) y las 6 pestañas del detalle de cada
+niño -- ya no queda ninguna pantalla en "Próximamente"
+(`ProximamenteScreen.js` se deja en el código por si hace falta un
+placeholder para algo nuevo más adelante). Con esto la app ya cubre
+prácticamente todo lo que un papá usa día a día en la web.
 
-## Lo que sigue (orden sugerido)
+## Lo que sigue
 
-1. El resto de pestañas de `VistaPadreDetalle.jsx` (Expediente, Pagos,
-   Ausencias, Comedor, Galería) dentro de la pantalla de bitácora de cada
-   niño -- por ahora esa pantalla solo trae "Hoy".
-2. **Notificaciones push nativas** (Expo Notifications, que por debajo usa
-   FCM/APNs) -- las que ya existen hoy son Web Push, pensadas para la PWA
-   del navegador; para esta app hace falta el equivalente nativo, que
-   Expo también simplifica bastante frente a hacerlo a mano. Esto además
-   reemplazaría el polling cada 5 segundos del chat por avisos reales al
-   instante.
+- **Notificaciones push nativas** (Expo Notifications, que por debajo usa
+  FCM/APNs) -- las que ya existen hoy son Web Push, pensadas para la PWA
+  del navegador; para esta app hace falta el equivalente nativo, que Expo
+  también simplifica bastante frente a hacerlo a mano. Esto además
+  reemplazaría el polling cada 5 segundos del chat por avisos reales al
+  instante.
+- **Recibo de pago como PDF de verdad** (`expo-print`) en vez del botón
+  "Compartir" con el resumen en texto que tiene ahora `TabPagos.js`.
 
 ## Estructura del proyecto
 
@@ -134,7 +152,14 @@ GuarderiaBiometricMobile/
     screens/
       LoginScreen.js
       DashboardScreen.js
-      BitacoraScreen.js
+      BitacoraScreen.js            -- contenedor de pestañas de un niño
+      hijo/
+        TabHoy.js
+        TabExpediente.js
+        TabPagos.js
+        TabAusencias.js
+        TabComedor.js
+        TabGaleria.js
       ChatContactosScreen.js      -- selector de con quién hablar
       ChatHiloScreen.js           -- hilo de mensajes con un contacto
       EncuestasScreen.js          -- responder encuestas (una sola vez)

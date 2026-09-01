@@ -49,6 +49,15 @@ export default function DashboardScreen({ navigation }) {
       const lista = (resHijos.data || []).map((h) => ({
         id: h.id,
         nombre: h.nombre_niño || h.nombre || 'Sin nombre',
+        // Expediente extendido -- ya viene en /padre/0/hijos, se manda tal
+        // cual a BitacoraScreen para su pestaña "Expediente" (ver
+        // TabExpediente.js), mismo criterio que DashboardPadre.jsx web.
+        expediente: {
+          fechaNacimiento: h.fecha_nacimiento,
+          direccion: h.direccion,
+          contactoEmergenciaNombre: h.contacto_emergencia_nombre,
+          contactoEmergenciaTelefono: h.contacto_emergencia_telefono,
+        },
       }));
       setHijos(lista);
       setCirculares(Array.isArray(resCirculares.data) ? resCirculares.data : []);
@@ -184,7 +193,7 @@ export default function DashboardScreen({ navigation }) {
             key={hijo.id}
             style={styles.tarjetaHijo}
             activeOpacity={0.8}
-            onPress={() => navigation.navigate('Bitacora', { hijoId: hijo.id, nombreHijo: hijo.nombre })}
+            onPress={() => navigation.navigate('Bitacora', { hijoId: hijo.id, nombreHijo: hijo.nombre, expediente: hijo.expediente })}
           >
             <View style={styles.avatarHijo}><Ionicons name="person" size={28} color={color.slate400} /></View>
             <View style={styles.filaTexto}>
