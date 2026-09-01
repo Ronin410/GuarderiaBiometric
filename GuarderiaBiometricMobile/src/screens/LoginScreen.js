@@ -28,7 +28,13 @@ export default function LoginScreen() {
     try {
       await login(correo.trim(), contrasena);
     } catch (err) {
-      setError(err.response?.data?.error || 'No se pudo iniciar sesión');
+      // err.response.data.error es lo que el backend dice cuando SÍ
+      // respondió (usuario no existe, contraseña incorrecta, etc.). Si no
+      // hay err.response, la petición ni siquiera llegó a tener respuesta
+      // (sin internet, DNS, tiempo agotado...) -- se muestra err.message
+      // en vez del aviso genérico de siempre, para no tener que adivinar
+      // qué pasó si vuelve a fallar.
+      setError(err.response?.data?.error || err.message || 'No se pudo iniciar sesión');
     } finally {
       setCargando(false);
     }

@@ -7,9 +7,17 @@ import axios from 'axios';
 // gin-contrib/cors ni siquiera evalúa la petición como "cross-origin".
 export const API_URL = 'https://guarderiabiometricback.onrender.com';
 
+// withCredentials NO se pone aquí a propósito -- es una instrucción para
+// que un NAVEGADOR mande cookies en una petición cross-origin (por eso sí
+// se usa en axiosConfig.js de la web); en React Native no significa nada
+// para el cliente HTTP nativo (que ya manda cookies solo, sin pedírselo,
+// ver el comentario de abajo) y en algunas versiones del adaptador XHR de
+// React Native poner withCredentials:true en Android hace TRONAR la
+// petición entera en vez de ser un no-op inofensivo como en un navegador
+// -- si el login nunca llega a responder (error genérico sin
+// err.response), esta es la causa más probable.
 const api = axios.create({
   baseURL: API_URL,
-  withCredentials: true,
 });
 
 // El JWT vive en una cookie httpOnly que el backend pone en el login --
