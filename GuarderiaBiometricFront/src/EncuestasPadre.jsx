@@ -91,50 +91,64 @@ const EncuestasPadre = ({ onVolver }) => {
                 {enc.descripcion && <p className="text-xs text-slate-500 font-medium mt-1">{enc.descripcion}</p>}
               </div>
 
-              {enc.ya_respondida ? (
+              {enc.ya_respondida && (
                 <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 border border-emerald-100 p-3 rounded-xl">
                   <CheckCircle2 size={16} /> <span className="text-xs font-black uppercase">Ya respondiste, ¡gracias!</span>
                 </div>
-              ) : (
-                <>
-                  <div className="space-y-4">
-                    {enc.preguntas.map((p) => (
-                      <div key={p.id}>
-                        <p className="text-xs font-bold text-slate-700 mb-2">{p.texto}</p>
-                        {p.tipo === 'opcion_multiple' ? (
-                          <div className="space-y-1.5">
-                            {(p.opciones || []).map((opcion) => (
-                              <label key={opcion} className="flex items-center gap-2 text-xs font-medium text-slate-600 bg-slate-50 border border-slate-100 p-2.5 rounded-xl cursor-pointer">
-                                <input
-                                  type="radio" name={`pregunta-${p.id}`} value={opcion}
-                                  checked={(respuestas[enc.id] || {})[p.id] === opcion}
-                                  onChange={() => setRespuesta(enc.id, p.id, opcion)}
-                                  className="w-4 h-4 accent-brand-600"
-                                />
-                                {opcion}
-                              </label>
-                            ))}
-                          </div>
-                        ) : (
-                          <textarea
-                            rows={2}
-                            value={(respuestas[enc.id] || {})[p.id] || ''}
-                            onChange={(e) => setRespuesta(enc.id, p.id, e.target.value)}
-                            placeholder="Tu respuesta..."
-                            className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-brand-500 text-xs font-medium resize-y"
-                          />
-                        )}
+              )}
+
+              {/* Una vez respondida se deja el mismo formulario pero
+                  deshabilitado y con lo que el papá puso (respuesta_padre
+                  del backend), en vez de ocultarlo -- así puede ver qué
+                  contestó sin poder cambiarlo. */}
+              <div className="space-y-4">
+                {enc.preguntas.map((p) => (
+                  <div key={p.id}>
+                    <p className="text-xs font-bold text-slate-700 mb-2">{p.texto}</p>
+                    {p.tipo === 'opcion_multiple' ? (
+                      <div className="space-y-1.5">
+                        {(p.opciones || []).map((opcion) => (
+                          <label
+                            key={opcion}
+                            className={`flex items-center gap-2 text-xs font-medium border p-2.5 rounded-xl ${
+                              enc.ya_respondida
+                                ? 'bg-slate-100 border-slate-100 text-slate-400 cursor-not-allowed'
+                                : 'bg-slate-50 border-slate-100 text-slate-600 cursor-pointer'
+                            }`}
+                          >
+                            <input
+                              type="radio" name={`pregunta-${p.id}`} value={opcion}
+                              checked={enc.ya_respondida ? p.respuesta_padre === opcion : (respuestas[enc.id] || {})[p.id] === opcion}
+                              disabled={enc.ya_respondida}
+                              onChange={() => setRespuesta(enc.id, p.id, opcion)}
+                              className="w-4 h-4 accent-brand-600 disabled:opacity-50"
+                            />
+                            {opcion}
+                          </label>
+                        ))}
                       </div>
-                    ))}
+                    ) : (
+                      <textarea
+                        rows={2}
+                        value={enc.ya_respondida ? (p.respuesta_padre || '') : (respuestas[enc.id] || {})[p.id] || ''}
+                        disabled={enc.ya_respondida}
+                        onChange={(e) => setRespuesta(enc.id, p.id, e.target.value)}
+                        placeholder="Tu respuesta..."
+                        className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-brand-500 text-xs font-medium resize-y disabled:opacity-60 disabled:cursor-not-allowed"
+                      />
+                    )}
                   </div>
-                  <button
-                    onClick={() => enviar(enc)}
-                    disabled={enviando === enc.id}
-                    className="w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-black uppercase text-xs px-6 py-3 rounded-xl shadow-md transition-all active:scale-95"
-                  >
-                    {enviando === enc.id ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />} Enviar respuestas
-                  </button>
-                </>
+                ))}
+              </div>
+
+              {!enc.ya_respondida && (
+                <button
+                  onClick={() => enviar(enc)}
+                  disabled={enviando === enc.id}
+                  className="w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-black uppercase text-xs px-6 py-3 rounded-xl shadow-md transition-all active:scale-95"
+                >
+                  {enviando === enc.id ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />} Enviar respuestas
+                </button>
               )}
             </div>
           ))

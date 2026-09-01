@@ -41,6 +41,14 @@ const formatoFechaEvento = (iso) => {
   }
 };
 
+const formatoFechaCircular = (iso) => {
+  try {
+    return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return iso;
+  }
+};
+
 const ESTADO_PAGO_INFO = {
   pagado: { label: 'Pagado', color: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: CheckCircle2 },
   parcial: { label: 'Parcial', color: 'bg-amber-100 text-amber-700 border-amber-200', icon: Clock },
@@ -412,21 +420,40 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
           </div>
         )}
 
-        {/* CIRCULARES -- solo un aviso ("hay una nueva") que manda al
-            listado completo en CircularesPadre.jsx, no el contenido
-            entero aquí. */}
+        {/* CIRCULARES -- el inicio muestra el contenido completo del aviso
+            más reciente (antes solo mostraba el título como "hay una
+            circular nueva"); las anteriores se ven tocando "Ver avisos
+            anteriores", que manda al listado completo de
+            CircularesPadre.jsx. */}
         {circulares.length > 0 && (
-          <button
-            onClick={() => setMostrarCirculares(true)}
-            className="w-full bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-all active:scale-[0.98]"
-          >
-            <div className="bg-brand-100 p-3 rounded-2xl text-brand-600 shrink-0"><Megaphone size={20} /></div>
-            <div className="flex-1 text-left min-w-0">
-              <p className="text-[11px] font-black text-slate-900 uppercase leading-tight">Nueva circular</p>
-              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide truncate">{circulares[0].titulo}</p>
-            </div>
-            <ChevronRight size={20} className="text-slate-300 shrink-0" />
-          </button>
+          <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+            <button
+              onClick={() => setMostrarCirculares(true)}
+              className="w-full text-left p-5 space-y-2 hover:bg-slate-50 transition-all active:scale-[0.99]"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-brand-600">
+                  <Megaphone size={16} />
+                  <span className="text-[9px] font-black uppercase tracking-widest">Último aviso</span>
+                </div>
+                <ChevronRight size={18} className="text-slate-300 shrink-0" />
+              </div>
+              <p className="font-black text-slate-900 uppercase text-sm leading-tight">{circulares[0].titulo}</p>
+              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">{formatoFechaCircular(circulares[0].creado_en)}</p>
+              <p className="text-xs text-slate-600 font-medium whitespace-pre-wrap line-clamp-3">{circulares[0].contenido}</p>
+              {circulares[0].imagen_url && (
+                <img src={circulares[0].imagen_url} alt={circulares[0].titulo} className="mt-2 w-full max-h-48 rounded-2xl border border-slate-100 object-cover" />
+              )}
+            </button>
+            {circulares.length > 1 && (
+              <button
+                onClick={() => setMostrarCirculares(true)}
+                className="w-full text-center py-2.5 text-[9px] font-black uppercase tracking-widest text-brand-500 border-t border-slate-100 hover:bg-slate-50 transition-colors"
+              >
+                Ver avisos anteriores
+              </button>
+            )}
+          </div>
         )}
 
         {/* PRÓXIMOS EVENTOS DEL CALENDARIO -- adelanto de lo que hay en el

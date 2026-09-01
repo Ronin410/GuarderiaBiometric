@@ -45,6 +45,12 @@ type PreguntaEncuesta struct {
 	Texto    string   `json:"texto"`
 	Tipo     string   `json:"tipo"`
 	Opciones []string `json:"opciones,omitempty"`
+	// RespuestaPadre solo se llena en el listado del padre cuando ya
+	// respondió esa encuesta -- así el frontend puede mostrar el
+	// formulario deshabilitado con lo que él mismo puso, en vez de solo
+	// un aviso de "ya respondiste". Va vacío (y se omite) en el detalle
+	// de staff, que no llama a esa parte del código.
+	RespuestaPadre string `json:"respuesta_padre,omitempty"`
 }
 
 // PreguntaConResultados es lo que ve staff en el detalle: la pregunta más
@@ -336,6 +342,33 @@ func (s *Server) handleListarEncuestasPadre(c *gin.Context) {
 			encuestas[i].ID, userID,
 		).Scan(&respondidas)
 		encuestas[i].YaRespondida = totalPreguntas > 0 && respondidas >= totalPreguntas
+
+		// Si ya la respondió, se le manda de vuelta lo que él mismo puso
+		// en cada pregunta, para que el frontend pinte el formulario
+		// deshabilitado con esa información cargada (en vez de un
+		// formulario vacío o solo un aviso).
+		if encuestas[i].YaRespondida {
+			filas, err := s.DB.Query(
+				`SELECT er.pregunta_id, er.respuesta FROM encuesta_respuestas er
+                 JOIN encuesta_preguntas ep ON ep.id = er.pregunta_id
+                 WHERE ep.encuesta_id = $1 AND er.padre_id = $2`,
+				encuestas[i].ID, userID,
+			)
+			if err == nil {
+				propias := map[int]string{}
+				for filas.Next() {
+					var preguntaID int
+					var respuesta string
+					if err := filas.Scan(&preguntaID, &respuesta); err == nil {
+						propias[preguntaID] = respuesta
+					}
+				}
+				filas.Close()
+				for j := range encuestas[i].Preguntas {
+					encuestas[i].Preguntas[j].RespuestaPadre = propias[encuestas[i].Preguntas[j].ID]
+				}
+			}
+		}
 	}
 
 	c.JSON(http.StatusOK, encuestas)
@@ -358,6 +391,23 @@ func (s *Server) handleResponderEncuesta(c *gin.Context) {
 	}
 	if !activa {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Esta encuesta ya está cerrada"})
+		return
+	}
+
+	// Solo se puede responder una vez: si ya contestó todas las preguntas
+	// de esta encuesta, se rechaza el reenvío en vez de sobrescribir sus
+	// respuestas (el ON CONFLICT de abajo actualizaría en silencio si no
+	// se frenara aquí).
+	var totalPreguntas, respondidas int
+	s.DB.QueryRow(`SELECT COUNT(*) FROM encuesta_preguntas WHERE encuesta_id = $1`, encuestaID).Scan(&totalPreguntas)
+	s.DB.QueryRow(
+		`SELECT COUNT(DISTINCT er.pregunta_id) FROM encuesta_respuestas er
+         JOIN encuesta_preguntas ep ON ep.id = er.pregunta_id
+         WHERE ep.encuesta_id = $1 AND er.padre_id = $2`,
+		encuestaID, userID,
+	).Scan(&respondidas)
+	if totalPreguntas > 0 && respondidas >= totalPreguntas {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Ya respondiste esta encuesta, no se puede modificar"})
 		return
 	}
 
