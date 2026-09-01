@@ -91,11 +91,13 @@ func (s *Server) registrarRutasPush(r *gin.Engine) {
 // notificarEvento avisa a TODOS los tutores vinculados a un niño (no solo a
 // quien disparó el movimiento). Debe llamarse siempre como "go s.notificarEvento(...)"
 // desde el handler: nunca debe frenar la respuesta al kiosco/staff.
+//
+// Manda tanto por Web Push (push_subscripciones, PWA del navegador) como
+// por Expo (push_tokens_expo, app nativa de papás) -- son mecanismos
+// independientes, cada uno con su propia tabla de destinos y su propio
+// "si no hay nada que mandar, no truena", así que un papá puede tener
+// activado uno, el otro, los dos, o ninguno.
 func (s *Server) notificarEvento(hijoID int, evento string, detalle string) {
-	if !s.PushConfigurado() {
-		return
-	}
-
 	var nombre string
 	if err := s.DB.QueryRow("SELECT nombre_niño FROM hijos WHERE id = $1", hijoID).Scan(&nombre); err != nil {
 		s.logError(nil, "notificarEvento: no se pudo obtener el nombre del niño", err, "hijo_id", hijoID)
@@ -121,33 +123,13 @@ func (s *Server) notificarEvento(hijoID int, evento string, detalle string) {
 		cuerpo = nombre + ": " + detalle
 	}
 
-	rows, err := s.DB.Query(`
-        SELECT DISTINCT ps.id, ps.endpoint, ps.p256dh, ps.auth
-        FROM push_subscripciones ps
-        INNER JOIN tutor_hijos th ON th.padre_id = ps.padre_id
-        WHERE th.hijo_id = $1`, hijoID)
-	if err != nil {
-		s.logError(nil, "notificarEvento: error consultando suscripciones", err, "hijo_id", hijoID)
-		return
-	}
-
-	var destinos []destinoPush
-	for rows.Next() {
-		var d destinoPush
-		if err := rows.Scan(&d.id, &d.sub.Endpoint, &d.sub.Keys.P256dh, &d.sub.Keys.Auth); err != nil {
-			continue
-		}
-		destinos = append(destinos, d)
-	}
-	rows.Close()
-
-	payload, err := json.Marshal(pushPayload{Titulo: titulo, Cuerpo: cuerpo, URL: "/"})
-	if err != nil {
-		s.logError(nil, "notificarEvento: error serializando payload", err, "hijo_id", hijoID)
-		return
-	}
-
-	s.enviarPushATodos(destinos, payload, "push_subscripciones")
+	s.enviarWebPushYExpo(
+		`SELECT DISTINCT ps.id, ps.endpoint, ps.p256dh, ps.auth FROM push_subscripciones ps
+         INNER JOIN tutor_hijos th ON th.padre_id = ps.padre_id WHERE th.hijo_id = $1`,
+		`SELECT DISTINCT pte.id, pte.token FROM push_tokens_expo pte
+         INNER JOIN tutor_hijos th ON th.padre_id = pte.padre_id WHERE th.hijo_id = $1`,
+		titulo, cuerpo, "notificarEvento", hijoID,
+	)
 }
 
 // notificarCircular avisa a TODOS los tutores de la guardería (no solo a los
@@ -155,25 +137,6 @@ func (s *Server) notificarEvento(hijoID int, evento string, detalle string) {
 // publica una circular nueva. Igual que notificarEvento, debe llamarse como
 // "go s.notificarCircular(...)" -- nunca debe frenar la respuesta al panel.
 func (s *Server) notificarCircular(guarderiaID any, titulo, contenido string) {
-	if !s.PushConfigurado() {
-		return
-	}
-
-	rows, err := s.DB.Query(`SELECT id, endpoint, p256dh, auth FROM push_subscripciones WHERE guarderia_id = $1`, guarderiaID)
-	if err != nil {
-		s.logError(nil, "notificarCircular: error consultando suscripciones", err, "guarderia_id", guarderiaID)
-		return
-	}
-	var destinos []destinoPush
-	for rows.Next() {
-		var d destinoPush
-		if err := rows.Scan(&d.id, &d.sub.Endpoint, &d.sub.Keys.P256dh, &d.sub.Keys.Auth); err != nil {
-			continue
-		}
-		destinos = append(destinos, d)
-	}
-	rows.Close()
-
 	// Recorte por runas, no por bytes: el contenido es texto en español con
 	// acentos/ñ (multi-byte en UTF-8) -- cortar por índice de byte podría
 	// partir un carácter a la mitad y mandar texto corrupto en la notificación.
@@ -183,13 +146,11 @@ func (s *Server) notificarCircular(guarderiaID any, titulo, contenido string) {
 		cuerpo = string(runas[:120]) + "…"
 	}
 
-	payload, err := json.Marshal(pushPayload{Titulo: "📢 " + titulo, Cuerpo: cuerpo, URL: "/"})
-	if err != nil {
-		s.logError(nil, "notificarCircular: error serializando payload", err, "guarderia_id", guarderiaID)
-		return
-	}
-
-	s.enviarPushATodos(destinos, payload, "push_subscripciones")
+	s.enviarWebPushYExpo(
+		`SELECT id, endpoint, p256dh, auth FROM push_subscripciones WHERE guarderia_id = $1`,
+		`SELECT id, token FROM push_tokens_expo WHERE guarderia_id = $1`,
+		"📢 "+titulo, cuerpo, "notificarCircular", guarderiaID,
+	)
 }
 
 // notificarMensajeChat avisa a UN tutor (no a toda la guardería, a
@@ -198,32 +159,11 @@ func (s *Server) notificarCircular(guarderiaID any, titulo, contenido string) {
 // -- push va sobre HTTPS pero el payload queda en el log del navegador/SO,
 // y son datos de una conversación privada.
 func (s *Server) notificarMensajeChat(padreID int) {
-	if !s.PushConfigurado() {
-		return
-	}
-
-	rows, err := s.DB.Query(`SELECT id, endpoint, p256dh, auth FROM push_subscripciones WHERE padre_id = $1`, padreID)
-	if err != nil {
-		s.logError(nil, "notificarMensajeChat: error consultando suscripciones", err, "padre_id", padreID)
-		return
-	}
-	var destinos []destinoPush
-	for rows.Next() {
-		var d destinoPush
-		if err := rows.Scan(&d.id, &d.sub.Endpoint, &d.sub.Keys.P256dh, &d.sub.Keys.Auth); err != nil {
-			continue
-		}
-		destinos = append(destinos, d)
-	}
-	rows.Close()
-
-	payload, err := json.Marshal(pushPayload{Titulo: "💬 Nuevo mensaje", Cuerpo: "La guardería te envió un mensaje.", URL: "/"})
-	if err != nil {
-		s.logError(nil, "notificarMensajeChat: error serializando payload", err, "padre_id", padreID)
-		return
-	}
-
-	s.enviarPushATodos(destinos, payload, "push_subscripciones")
+	s.enviarWebPushYExpo(
+		`SELECT id, endpoint, p256dh, auth FROM push_subscripciones WHERE padre_id = $1`,
+		`SELECT id, token FROM push_tokens_expo WHERE padre_id = $1`,
+		"💬 Nuevo mensaje", "La guardería te envió un mensaje.", "notificarMensajeChat", padreID,
+	)
 }
 
 // notificarStaffDeGuarderia avisa a TODO el staff/admin de una guardería
@@ -231,32 +171,11 @@ func (s *Server) notificarMensajeChat(padreID int) {
 // de pedidos de comedor y otras cosas". Igual que notificarCircular, debe
 // llamarse como "go s.notificarStaffDeGuarderia(...)".
 func (s *Server) notificarStaffDeGuarderia(guarderiaID any, titulo, cuerpo string) {
-	if !s.PushConfigurado() {
-		return
-	}
-
-	rows, err := s.DB.Query(`SELECT id, endpoint, p256dh, auth FROM push_subscripciones WHERE guarderia_id = $1 AND personal_id IS NOT NULL`, guarderiaID)
-	if err != nil {
-		s.logError(nil, "notificarStaffDeGuarderia: error consultando suscripciones", err, "guarderia_id", guarderiaID)
-		return
-	}
-	var destinos []destinoPush
-	for rows.Next() {
-		var d destinoPush
-		if err := rows.Scan(&d.id, &d.sub.Endpoint, &d.sub.Keys.P256dh, &d.sub.Keys.Auth); err != nil {
-			continue
-		}
-		destinos = append(destinos, d)
-	}
-	rows.Close()
-
-	payload, err := json.Marshal(pushPayload{Titulo: titulo, Cuerpo: cuerpo, URL: "/"})
-	if err != nil {
-		s.logError(nil, "notificarStaffDeGuarderia: error serializando payload", err, "guarderia_id", guarderiaID)
-		return
-	}
-
-	s.enviarPushATodos(destinos, payload, "push_subscripciones")
+	s.enviarWebPushYExpo(
+		`SELECT id, endpoint, p256dh, auth FROM push_subscripciones WHERE guarderia_id = $1 AND personal_id IS NOT NULL`,
+		`SELECT id, token FROM push_tokens_expo WHERE guarderia_id = $1 AND personal_id IS NOT NULL`,
+		titulo, cuerpo, "notificarStaffDeGuarderia", guarderiaID,
+	)
 }
 
 // notificarStaffEspecifico avisa a UN miembro del staff (no a toda la
@@ -264,32 +183,70 @@ func (s *Server) notificarStaffDeGuarderia(guarderiaID any, titulo, cuerpo strin
 // papá le escribe a alguien en concreto en el chat. No se manda el
 // contenido del mensaje, mismo criterio que notificarMensajeChat.
 func (s *Server) notificarStaffEspecifico(personalID any, titulo, cuerpo string) {
-	if !s.PushConfigurado() {
-		return
+	s.enviarWebPushYExpo(
+		`SELECT id, endpoint, p256dh, auth FROM push_subscripciones WHERE personal_id = $1`,
+		`SELECT id, token FROM push_tokens_expo WHERE personal_id = $1`,
+		titulo, cuerpo, "notificarStaffEspecifico", personalID,
+	)
+}
+
+// enviarWebPushYExpo es el punto único que usan las 5 funciones
+// notificar* de arriba: junta Web Push (push_subscripciones, PWA del
+// navegador) y Expo (push_tokens_expo, app nativa de papás en
+// GuarderiaBiometricMobile) para no repetir en cada una el mismo
+// Query+Scan+Close dos veces. queryWebPush y queryExpo deben regresar,
+// en ese orden, (id, endpoint, p256dh, auth) e (id, token)
+// respectivamente, y aceptar los mismos args -- en los 5 casos de arriba
+// el filtro es siempre uno solo (hijo_id/guarderia_id/padre_id/
+// personal_id), así que esto no pierde flexibilidad real.
+//
+// Web Push se salta por completo si el servidor no tiene llaves VAPID
+// (PushConfigurado()); Expo no necesita configuración del lado del
+// servidor, así que ese envío nunca se salta -- un papá puede tener
+// activado un canal, el otro, los dos, o ninguno (si no hay suscripción/
+// token en la tabla correspondiente, simplemente no hay destinos y no
+// pasa nada).
+func (s *Server) enviarWebPushYExpo(queryWebPush, queryExpo, titulo, cuerpo, origen string, args ...any) {
+	if s.PushConfigurado() {
+		rows, err := s.DB.Query(queryWebPush, args...)
+		if err != nil {
+			s.logError(nil, origen+": error consultando suscripciones", err)
+		} else {
+			var destinos []destinoPush
+			for rows.Next() {
+				var d destinoPush
+				if err := rows.Scan(&d.id, &d.sub.Endpoint, &d.sub.Keys.P256dh, &d.sub.Keys.Auth); err != nil {
+					continue
+				}
+				destinos = append(destinos, d)
+			}
+			rows.Close()
+
+			if len(destinos) > 0 {
+				if payload, err := json.Marshal(pushPayload{Titulo: titulo, Cuerpo: cuerpo, URL: "/"}); err != nil {
+					s.logError(nil, origen+": error serializando payload", err)
+				} else {
+					s.enviarPushATodos(destinos, payload, "push_subscripciones")
+				}
+			}
+		}
 	}
 
-	rows, err := s.DB.Query(`SELECT id, endpoint, p256dh, auth FROM push_subscripciones WHERE personal_id = $1`, personalID)
+	rowsExpo, err := s.DB.Query(queryExpo, args...)
 	if err != nil {
-		s.logError(nil, "notificarStaffEspecifico: error consultando suscripciones", err, "personal_id", personalID)
+		s.logError(nil, origen+": error consultando tokens Expo", err)
 		return
 	}
-	var destinos []destinoPush
-	for rows.Next() {
-		var d destinoPush
-		if err := rows.Scan(&d.id, &d.sub.Endpoint, &d.sub.Keys.P256dh, &d.sub.Keys.Auth); err != nil {
+	var destinosExpo []destinoExpo
+	for rowsExpo.Next() {
+		var d destinoExpo
+		if err := rowsExpo.Scan(&d.id, &d.token); err != nil {
 			continue
 		}
-		destinos = append(destinos, d)
+		destinosExpo = append(destinosExpo, d)
 	}
-	rows.Close()
-
-	payload, err := json.Marshal(pushPayload{Titulo: titulo, Cuerpo: cuerpo, URL: "/"})
-	if err != nil {
-		s.logError(nil, "notificarStaffEspecifico: error serializando payload", err, "personal_id", personalID)
-		return
-	}
-
-	s.enviarPushATodos(destinos, payload, "push_subscripciones")
+	rowsExpo.Close()
+	s.enviarPushExpoATodos(destinosExpo, titulo, cuerpo)
 }
 
 // destinoPush es una suscripción push resuelta, lista para mandarle una

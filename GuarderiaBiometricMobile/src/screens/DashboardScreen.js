@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { hoyLocal } from '../utils/fecha';
+import { activarPushNativo, desactivarPushNativo, notificacionesActivas } from '../utils/push';
 import { color, radius, sombra } from '../theme';
 
 // Equivalente a la parte de arriba de DashboardPadre.jsx en la web: saludo,
@@ -35,6 +36,34 @@ export default function DashboardScreen({ navigation }) {
   const [menuHoy, setMenuHoy] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [refrescando, setRefrescando] = useState(false);
+  // 'default' | 'activando' | 'granted' | 'desactivando' -- mismo criterio
+  // que notifEstado en DashboardPadre.jsx (web), aquí contra el permiso
+  // del sistema operativo en vez de la Push API del navegador.
+  const [notifEstado, setNotifEstado] = useState('default');
+
+  useEffect(() => {
+    notificacionesActivas().then((activas) => { if (activas) setNotifEstado('granted'); });
+  }, []);
+
+  const activarNotificaciones = async () => {
+    setNotifEstado('activando');
+    const token = await activarPushNativo();
+    if (token) {
+      setNotifEstado('granted');
+    } else {
+      setNotifEstado('default');
+      Alert.alert(
+        'No se pudo activar',
+        'Revisa que le hayas dado permiso de notificaciones a Pasitos en los Ajustes del celular.',
+      );
+    }
+  };
+
+  const desactivarNotificaciones = async () => {
+    setNotifEstado('desactivando');
+    await desactivarPushNativo();
+    setNotifEstado('default');
+  };
 
   const cargar = useCallback(async () => {
     try {
@@ -125,6 +154,32 @@ export default function DashboardScreen({ navigation }) {
           <Ionicons name="chevron-forward" size={20} color={color.slate300} />
         </TouchableOpacity>
       ))}
+
+      {/* NOTIFICACIONES PUSH -- mismo criterio que DashboardPadre.jsx en la
+          web, contra el permiso del sistema operativo y el token de Expo
+          en vez de la Push API del navegador (ver src/utils/push.js). */}
+      <View style={styles.tarjetaNotif}>
+        <View style={[styles.iconoNotif, notifEstado === 'granted' && styles.iconoNotifActivo]}>
+          <Ionicons name="notifications" size={20} color={notifEstado === 'granted' ? color.emerald600 : color.slate400} />
+        </View>
+        <View style={styles.filaTexto}>
+          <Text style={styles.filaTitulo}>{notifEstado === 'granted' ? 'Notificaciones activas' : 'Activar notificaciones'}</Text>
+          <Text style={styles.filaSubtitulo}>Entradas, salidas y bitácora al instante</Text>
+        </View>
+        <TouchableOpacity
+          style={[styles.botonNotif, notifEstado === 'granted' && styles.botonNotifActivo]}
+          onPress={notifEstado === 'granted' ? desactivarNotificaciones : activarNotificaciones}
+          disabled={notifEstado === 'activando' || notifEstado === 'desactivando'}
+        >
+          {notifEstado === 'activando' || notifEstado === 'desactivando' ? (
+            <ActivityIndicator size="small" color={notifEstado === 'desactivando' ? color.slate500 : color.white} />
+          ) : (
+            <Text style={[styles.botonNotifTexto, notifEstado === 'granted' && styles.botonNotifTextoActivo]}>
+              {notifEstado === 'granted' ? 'Desactivar' : 'Activar'}
+            </Text>
+          )}
+        </TouchableOpacity>
+      </View>
 
       {/* ÚLTIMO AVISO -- mismo criterio que DashboardPadre.jsx en la web:
           se muestra el aviso más reciente completo, no solo un teaser con
@@ -237,6 +292,16 @@ const styles = StyleSheet.create({
   filaTexto: { flex: 1 },
   filaTitulo: { fontSize: 12, fontWeight: '900', color: color.slate900, textTransform: 'uppercase' },
   filaSubtitulo: { fontSize: 9, fontWeight: '700', color: color.slate400, textTransform: 'uppercase', marginTop: 2 },
+  tarjetaNotif: {
+    flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: color.white,
+    borderWidth: 1, borderColor: color.slate100, borderRadius: radius.lg, padding: 16, ...sombra.sm,
+  },
+  iconoNotif: { backgroundColor: color.slate50, padding: 10, borderRadius: radius.sm },
+  iconoNotifActivo: { backgroundColor: color.emerald50 },
+  botonNotif: { backgroundColor: color.brand600, borderRadius: radius.sm, paddingHorizontal: 16, paddingVertical: 10, minWidth: 76, alignItems: 'center' },
+  botonNotifActivo: { backgroundColor: color.slate100 },
+  botonNotifTexto: { color: color.white, fontWeight: '900', fontSize: 10, textTransform: 'uppercase' },
+  botonNotifTextoActivo: { color: color.slate500 },
   tarjetaAviso: { backgroundColor: color.white, borderWidth: 1, borderColor: color.slate100, borderRadius: radius.lg, overflow: 'hidden', ...sombra.sm },
   avisoContenido: { padding: 18, gap: 6 },
   avisoEncabezado: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

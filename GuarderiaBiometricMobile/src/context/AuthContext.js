@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import api, { setCsrfToken } from '../api/client';
+import { desactivarPushNativo } from '../utils/push';
 
 const AuthContext = createContext(null);
 
@@ -63,6 +64,13 @@ export function AuthProvider({ children }) {
   }, []);
 
   const cerrarSesion = useCallback(async () => {
+    // Se da de baja el token de push ANTES de /logout -- después ya no
+    // habría sesión para autenticar la petición DELETE.
+    try {
+      await desactivarPushNativo();
+    } catch {
+      // No debe impedir el logout si esto falla.
+    }
     try {
       await api.post('/logout');
     } catch {

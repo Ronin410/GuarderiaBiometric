@@ -45,8 +45,10 @@ Personal/admin sigue usándose por navegador, como hasta ahora.
   `ChatHiloScreen.js`) -- selector de con quién hablar (personal/admin) y
   el hilo de mensajes: texto, adjuntos (imagen o PDF, hasta 10 MB, con
   vista ampliada de fotos), separadores "Hoy"/"Ayer"/fecha, y
-  actualización cada 5 segundos (mismo polling que ya usa la web -- no hay
-  push en tiempo real todavía, ver "Lo que sigue").
+  actualización cada 5 segundos (mismo polling que ya usa la web -- llega
+  una notificación push cuando hay un mensaje nuevo, pero el hilo en sí
+  todavía se refresca por polling y no reacciona a la notificación en el
+  momento, ver "Lo que sigue").
 - **Encuestas** (`src/screens/EncuestasScreen.js`) -- opción múltiple y
   texto libre, igual que `EncuestasPadre.jsx` de la web: el backend solo
   deja responder una vez (rechaza un segundo envío con 400), y ya
@@ -64,6 +66,15 @@ Personal/admin sigue usándose por navegador, como hasta ahora.
   navegable atrás/adelante contra `/padre/menu-semanal`, igual que
   `MenuPadre.jsx`. El inicio además muestra "Menú de hoy" cuando la
   guardería ya lo capturó (mismo criterio que `DashboardPadre.jsx`).
+- **Notificaciones push nativas** (`src/utils/push.js`) -- interruptor
+  "Activar notificaciones" en el inicio, igual que en la web, pero contra
+  el servicio de push de Expo en vez de Web Push/VAPID: un solo token de
+  cadena por dispositivo (no endpoint+llaves), sin necesitar configuración
+  nueva en el servidor. El backend (`push_expo.go`) lo manda junto con el
+  Web Push existente cada vez que ya se avisaba algo (entrada/salida,
+  bitácora, circular nueva, mensaje de chat) -- ver "Cómo probar las
+  notificaciones" más abajo, importante: **no funcionan completas dentro
+  de Expo Go**, hace falta un development build.
 - **Sesión**: igual que en la web, la cookie con el JWT es httpOnly y la
   guarda automáticamente el cliente HTTP nativo (no hay que leerla ni
   gestionarla a mano). El token CSRF viaja en memoria, igual que en
@@ -103,6 +114,32 @@ Te va a salir un código QR en la terminal:
 La app carga directo en tu celular, con hot-reload -- cualquier cambio que
 haga al código se refleja ahí casi al instante, sin recompilar nada nativo.
 
+## Cómo probar las notificaciones push
+
+**No van a llegar de verdad dentro de Expo Go** -- Expo dejó de dar soporte
+a push remoto ahí (sobre todo en Android). Para probarlas de verdad hace
+falta un *development build* (un instalable propio, pero que se sigue
+actualizando en vivo igual que Expo Go):
+
+```bash
+npm install -g eas-cli
+eas login                              # cuenta gratuita de Expo
+eas build --profile development --platform android
+```
+
+Ese primer `eas build` también resuelve el `projectId` que pide
+`Notifications.getExpoPushTokenAsync()` (se guarda solo en `app.json` /
+`eas.json`) -- sin haber corrido `eas build` o `eas init` al menos una vez,
+el botón "Activar notificaciones" no va a poder pedir el token todavía
+(lo avisa por consola, no truena la app).
+
+Con el development build instalado, corre `npx expo start` y ábrelo desde
+esa app en vez de Expo Go. Ya con el token registrado
+(`POST /push/expo/registrar`), cualquier cosa que ya mandaba push en la
+web -- entrada/salida, bitácora actualizada, circular nueva, mensaje de
+chat -- le llega también a la app nativa (`push_expo.go` en el backend,
+mandado junto con el Web Push existente, ver el código para el detalle).
+
 ## Cómo generar el instalable real más adelante (APK / IPA), sin Mac
 
 Cuando ya quieras un instalable de verdad para el piloto (no solo Expo Go):
@@ -130,12 +167,11 @@ prácticamente todo lo que un papá usa día a día en la web.
 
 ## Lo que sigue
 
-- **Notificaciones push nativas** (Expo Notifications, que por debajo usa
-  FCM/APNs) -- las que ya existen hoy son Web Push, pensadas para la PWA
-  del navegador; para esta app hace falta el equivalente nativo, que Expo
-  también simplifica bastante frente a hacerlo a mano. Esto además
-  reemplazaría el polling cada 5 segundos del chat por avisos reales al
-  instante.
+- **Reemplazar el polling del chat por push real** -- ahora que ya hay
+  notificaciones nativas, `ChatHiloScreen.js` podría dejar de refrescarse
+  solo cada 5 segundos y en vez de eso reaccionar a la notificación (o,
+  más adelante, un WebSocket) para que un mensaje nuevo aparezca al
+  instante sin esperar el siguiente ciclo del polling.
 - **Recibo de pago como PDF de verdad** (`expo-print`) en vez del botón
   "Compartir" con el resumen en texto que tiene ahora `TabPagos.js`.
 
@@ -149,6 +185,7 @@ GuarderiaBiometricMobile/
     api/client.js                -- axios + manejo de CSRF (igual que axiosConfig.js)
     context/AuthContext.js       -- sesión: /me, /login, /logout
     utils/fecha.js                -- helpers de fecha (America/Mazatlan)
+    utils/push.js                 -- permiso, token de Expo, activar/desactivar
     screens/
       LoginScreen.js
       DashboardScreen.js
