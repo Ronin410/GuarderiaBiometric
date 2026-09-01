@@ -35,6 +35,14 @@ Personal/admin sigue usándose por navegador, como hasta ahora.
   deja responder una vez (rechaza un segundo envío con 400), y ya
   respondida se ve el mismo formulario pero deshabilitado con lo que el
   papá puso, en vez de ocultarlo.
+- **Avisos/Circulares** (`src/screens/CircularesScreen.js`) -- listado
+  completo, se marcan como leídos al mostrarse (igual que
+  `CircularesPadre.jsx`). El inicio además muestra el aviso más reciente
+  completo (no solo el título), con "Ver avisos anteriores" si hay más de
+  uno -- mismo criterio que ya tiene `DashboardPadre.jsx` en la web.
+- **Eventos** (`src/screens/EventosScreen.js`) -- calendario escolar
+  completo con el mismo catálogo de colores por tipo (evento/suspensión/
+  vacaciones/junta) que usa staff en `PanelCalendario.jsx`.
 - **Sesión**: igual que en la web, la cookie con el JWT es httpOnly y la
   guarda automáticamente el cliente HTTP nativo (no hay que leerla ni
   gestionarla a mano). El token CSRF viaja en memoria, igual que en
@@ -94,14 +102,12 @@ ajustando la app.
 
 ## Lo que sigue (orden sugerido)
 
-1. **Circulares/Eventos** -- listas de solo lectura, las más sencillas que
-   quedan.
-2. **Menú semanal** -- ya existe el endpoint (`/padre/menu-semanal`), solo
+1. **Menú semanal** -- ya existe el endpoint (`/padre/menu-semanal`), solo
    falta la pantalla.
-3. El resto de pestañas de `VistaPadreDetalle.jsx` (Expediente, Pagos,
+2. El resto de pestañas de `VistaPadreDetalle.jsx` (Expediente, Pagos,
    Ausencias, Comedor, Galería) dentro de la pantalla de bitácora de cada
    niño.
-4. **Notificaciones push nativas** (Expo Notifications, que por debajo usa
+3. **Notificaciones push nativas** (Expo Notifications, que por debajo usa
    FCM/APNs) -- las que ya existen hoy son Web Push, pensadas para la PWA
    del navegador; para esta app hace falta el equivalente nativo, que
    Expo también simplifica bastante frente a hacerlo a mano. Esto además
@@ -125,5 +131,7 @@ GuarderiaBiometricMobile/
       ChatContactosScreen.js      -- selector de con quién hablar
       ChatHiloScreen.js           -- hilo de mensajes con un contacto
       EncuestasScreen.js          -- responder encuestas (una sola vez)
+      CircularesScreen.js         -- listado completo de avisos
+      EventosScreen.js            -- calendario escolar completo
       ProximamenteScreen.js      -- placeholder para lo que falta portar
 ```

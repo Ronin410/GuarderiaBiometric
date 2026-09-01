@@ -15,39 +15,52 @@ import { color, radius, sombra } from '../theme';
 // se van agregando).
 const ENTRADAS = [
   { key: 'encuestas', icon: 'clipboard', titulo: 'Encuestas', subtitulo: 'Comparte tu opinión con la guardería', pantalla: 'Encuestas' },
-  { key: 'eventos', icon: 'calendar', titulo: 'Eventos', subtitulo: 'Calendario escolar de la guardería' },
+  { key: 'eventos', icon: 'calendar', titulo: 'Eventos', subtitulo: 'Calendario escolar de la guardería', pantalla: 'Eventos' },
   { key: 'menu', icon: 'restaurant', titulo: 'Menú semanal', subtitulo: 'Días anteriores y posteriores' },
 ];
+
+const formatoFechaCircular = (iso) => {
+  try {
+    return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return iso;
+  }
+};
 
 export default function DashboardScreen({ navigation }) {
   const { usuario, cerrarSesion } = useAuth();
   const [hijos, setHijos] = useState([]);
+  const [circulares, setCirculares] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [refrescando, setRefrescando] = useState(false);
 
-  const cargarHijos = useCallback(async () => {
+  const cargar = useCallback(async () => {
     try {
       // "0" == el backend lo resuelve con el user_id del propio token (ver
       // el mismo comentario en DashboardPadre.jsx de la web).
-      const res = await api.get('/padre/0/hijos');
-      const lista = (res.data || []).map((h) => ({
+      const [resHijos, resCirculares] = await Promise.all([
+        api.get('/padre/0/hijos'),
+        api.get('/padre/circulares').catch(() => ({ data: [] })),
+      ]);
+      const lista = (resHijos.data || []).map((h) => ({
         id: h.id,
         nombre: h.nombre_niño || h.nombre || 'Sin nombre',
       }));
       setHijos(lista);
+      setCirculares(Array.isArray(resCirculares.data) ? resCirculares.data : []);
     } catch (err) {
-      console.error('Error al cargar los hijos:', err);
+      console.error('Error al cargar el inicio:', err);
     } finally {
       setCargando(false);
       setRefrescando(false);
     }
   }, []);
 
-  useEffect(() => { cargarHijos(); }, [cargarHijos]);
+  useEffect(() => { cargar(); }, [cargar]);
 
   const refrescar = () => {
     setRefrescando(true);
-    cargarHijos();
+    cargar();
   };
 
   return (
@@ -97,6 +110,36 @@ export default function DashboardScreen({ navigation }) {
           <Ionicons name="chevron-forward" size={20} color={color.slate300} />
         </TouchableOpacity>
       ))}
+
+      {/* ÚLTIMO AVISO -- mismo criterio que DashboardPadre.jsx en la web:
+          se muestra el aviso más reciente completo, no solo un teaser con
+          el título; si hay más de uno, "Ver avisos anteriores" manda al
+          listado completo. */}
+      {circulares.length > 0 && (
+        <View style={styles.tarjetaAviso}>
+          <TouchableOpacity
+            style={styles.avisoContenido}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('Circulares')}
+          >
+            <View style={styles.avisoEncabezado}>
+              <View style={styles.avisoEtiqueta}>
+                <Ionicons name="megaphone" size={14} color={color.brand600} />
+                <Text style={styles.avisoEtiquetaTexto}>Último aviso</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={color.slate300} />
+            </View>
+            <Text style={styles.avisoTitulo}>{circulares[0].titulo}</Text>
+            <Text style={styles.avisoFecha}>{formatoFechaCircular(circulares[0].creado_en)}</Text>
+            <Text style={styles.avisoCuerpo} numberOfLines={3}>{circulares[0].contenido}</Text>
+          </TouchableOpacity>
+          {circulares.length > 1 && (
+            <TouchableOpacity style={styles.verAnteriores} onPress={() => navigation.navigate('Circulares')}>
+              <Text style={styles.verAnterioresTexto}>Ver avisos anteriores</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
 
       <Text style={styles.seccionLabel}>Niños</Text>
 
@@ -157,6 +200,16 @@ const styles = StyleSheet.create({
   filaTexto: { flex: 1 },
   filaTitulo: { fontSize: 12, fontWeight: '900', color: color.slate900, textTransform: 'uppercase' },
   filaSubtitulo: { fontSize: 9, fontWeight: '700', color: color.slate400, textTransform: 'uppercase', marginTop: 2 },
+  tarjetaAviso: { backgroundColor: color.white, borderWidth: 1, borderColor: color.slate100, borderRadius: radius.lg, overflow: 'hidden', ...sombra.sm },
+  avisoContenido: { padding: 18, gap: 6 },
+  avisoEncabezado: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  avisoEtiqueta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  avisoEtiquetaTexto: { fontSize: 9, fontWeight: '900', color: color.brand600, textTransform: 'uppercase', letterSpacing: 0.5 },
+  avisoTitulo: { fontSize: 14, fontWeight: '900', color: color.slate900, textTransform: 'uppercase' },
+  avisoFecha: { fontSize: 9, color: color.slate400, fontWeight: '700', textTransform: 'uppercase' },
+  avisoCuerpo: { fontSize: 12, color: color.slate600, fontWeight: '600', lineHeight: 18, marginTop: 2 },
+  verAnteriores: { borderTopWidth: 1, borderTopColor: color.slate100, paddingVertical: 12, alignItems: 'center' },
+  verAnterioresTexto: { fontSize: 9, fontWeight: '900', color: color.brand500, textTransform: 'uppercase', letterSpacing: 0.5 },
   seccionLabel: { fontSize: 11, fontWeight: '900', color: color.slate400, textTransform: 'uppercase', letterSpacing: 1, marginTop: 8, marginLeft: 4 },
   vacio: { backgroundColor: color.white, borderWidth: 2, borderStyle: 'dashed', borderColor: color.slate200, borderRadius: radius.lg, padding: 32, alignItems: 'center', gap: 12 },
   vacioTexto: { color: color.slate400, fontWeight: '700', fontSize: 11, textTransform: 'uppercase' },

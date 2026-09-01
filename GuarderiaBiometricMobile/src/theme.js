@@ -34,18 +34,22 @@ export const color = {
 
   emerald50: '#ecfdf5',
   emerald100: '#d1fae5',
+  emerald200: '#a7f3d0',
   emerald500: '#10b981',
   emerald600: '#059669',
   emerald700: '#047857',
 
   amber50: '#fffbeb',
+  amber100: '#fef3c7',
   amber500: '#f59e0b',
   amber600: '#d97706',
   amber700: '#b45309',
 
   rose50: '#fff1f2',
+  rose100: '#ffe4e6',
   rose500: '#f43f5e',
   rose600: '#e11d48',
+  rose700: '#be123c',
 
   white: '#ffffff',
 };

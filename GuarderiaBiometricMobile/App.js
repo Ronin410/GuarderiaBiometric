@@ -12,6 +12,8 @@ import BitacoraScreen from './src/screens/BitacoraScreen';
 import ChatContactosScreen from './src/screens/ChatContactosScreen';
 import ChatHiloScreen from './src/screens/ChatHiloScreen';
 import EncuestasScreen from './src/screens/EncuestasScreen';
+import CircularesScreen from './src/screens/CircularesScreen';
+import EventosScreen from './src/screens/EventosScreen';
 import ProximamenteScreen from './src/screens/ProximamenteScreen';
 import { color } from './src/theme';
 
@@ -53,6 +55,8 @@ function Root() {
       <Stack.Screen name="ChatContactos" component={ChatContactosScreen} options={{ title: 'Chat' }} />
       <Stack.Screen name="ChatHilo" component={ChatHiloScreen} options={{ title: '' }} />
       <Stack.Screen name="Encuestas" component={EncuestasScreen} options={{ title: 'Encuestas' }} />
+      <Stack.Screen name="Circulares" component={CircularesScreen} options={{ title: 'Avisos' }} />
+      <Stack.Screen name="Eventos" component={EventosScreen} options={{ title: 'Eventos' }} />
       <Stack.Screen name="Proximamente" component={ProximamenteScreen} options={{ title: '' }} />
     </Stack.Navigator>
   );
