@@ -84,28 +84,28 @@ const PanelReportes = ({ guarderiaInfo }) => {
         }
       `}</style>
 
-      {/* CABECERA DE IMPRESIÓN -- "quiero que aparezca el nombre y el slug de
-          la guardería, no en medio, en las esquinas": una franja aparte,
-          solo para impresión, con el nombre en la esquina izquierda y el
-          slug en la derecha -- las dos puntas de la hoja, no mezclados con
-          el resto del encabezado (que se queda como está). */}
-      <div className="hidden print:flex print-container w-full max-w-[1400px] justify-between items-start px-4 mb-3">
-        <span className="text-xs font-black text-slate-900 uppercase tracking-tight">{guarderiaInfo?.nombre || ''}</span>
-        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{guarderiaInfo?.slug || ''}</span>
-      </div>
-
-      {/* CABECERA */}
-      <div className="print-container w-full max-w-[1400px] mb-6 flex flex-col md:flex-row justify-between items-center px-4">
+      {/* CABECERA -- "el logo de pasitos en la izquierda junto con el nombre
+          de la guardería, y a la derecha la fecha del reporte": una sola
+          fila, sin la franja aparte que se probó antes (no le gustó tener
+          nombre/slug separados arriba del logo). El nombre de LA GUARDERÍA
+          es el título principal junto al logo -- Pasitos queda como
+          etiqueta secundaria abajo, "con permiso de" en vez de protagonista.
+          print:flex-row en vez de depender de md:flex-row -- ese breakpoint
+          por ancho de pantalla no se aplica de forma confiable al imprimir
+          (algunos motores de impresión de Chrome no recalculan el ancho de
+          página contra los breakpoints), así que aquí se fuerza la fila
+          también para impresión sin importar el viewport. */}
+      <div className="print-container w-full max-w-[1400px] mb-6 flex flex-col md:flex-row print:flex-row justify-between items-center px-4">
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-brand-600 rounded-2xl text-white shadow-lg">
+          <div className="p-3 bg-brand-600 rounded-2xl text-white shadow-lg shrink-0">
             <ShieldCheck size={32} />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tighter uppercase leading-none">PASITOS</h1>
-            <p className="text-[10px] font-bold text-brand-600 uppercase tracking-[0.2em] mt-1">SISTEMA DE CONTROL DIARIO</p>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tighter uppercase leading-none">{guarderiaInfo?.nombre || 'PASITOS'}</h1>
+            <p className="text-[10px] font-bold text-brand-600 uppercase tracking-[0.2em] mt-1">Pasitos · Sistema de Control Diario</p>
           </div>
         </div>
-        <div className="bg-white px-6 py-3 rounded-2xl border border-slate-200 shadow-sm text-right mt-4 md:mt-0">
+        <div className="bg-white px-6 py-3 rounded-2xl border border-slate-200 shadow-sm text-right mt-4 md:mt-0 print:mt-0">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Reporte de Asistencia</p>
           <div className="text-sm font-black text-slate-800">{fechaInicio} <span className="text-brand-400">/</span> {fechaFin}</div>
         </div>
