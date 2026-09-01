@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Pasitos",
+    "slug": "pasitos-familia",
+    "scheme": "pasitos",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#fbf8f3",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.pasitos.familia",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Pasitos podría pedir la cámara más adelante para el reconocimiento facial."
+      }
+    },
+    "android": {
+      "package": "com.pasitos.familia",
+      "adaptiveIcon": {
+        "backgroundColor": "#22332b",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#fbf8f3"
+        }
+      ]
+    ]
+  }
+}
