@@ -14,65 +14,77 @@ import api from '../api/client';
 // del todo (Expo dejó de dar soporte a push remoto dentro de Expo Go en
 // Android; iOS tiene sus propias limitaciones ahí también) -- funciona
 // completo en un development build o en el build final de la tienda
-// (`eas build`), ver API_MOVIL.md. Por eso todo aquí está escrito para
-// fallar en silencio (con aviso en consola) en vez de tronar la app si el
-// token no se puede obtener.
+// (`eas build`), ver API_MOVIL.md. Por eso TODO lo de aquí está envuelto
+// en try/catch, incluida la configuración que corre apenas se abre la app
+// (más abajo): mejor que la app se quede sin notificaciones a que truene
+// completa por una librería nativa que Expo Go no trae completa.
 
 // Controla cómo se ve una notificación mientras la app está ABIERTA en
-// primer plano -- sin esto, por defecto no se muestra nada visible.
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+// primer plano -- sin esto, por defecto no se muestra nada visible. Corre
+// apenas se importa este archivo (main.js -> App.js -> AuthContext.js), o
+// sea en CADA arranque de la app, incluso antes de iniciar sesión -- de
+// ahí el try/catch: si truena aquí, tronaba la app entera de entrada.
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+} catch (err) {
+  console.log('Push: no se pudo configurar el manejador de notificaciones:', err?.message);
+}
 
 // configurarCanalAndroid -- Android 8+ exige un "canal" antes de poder
 // mostrar notificaciones; sin esto llegan sin sonido en algunos equipos.
 export async function configurarCanalAndroid() {
   if (Platform.OS !== 'android') return;
-  await Notifications.setNotificationChannelAsync('default', {
-    name: 'Pasitos',
-    importance: Notifications.AndroidImportance.DEFAULT,
-    vibrationPattern: [0, 200, 200, 200],
-  });
+  try {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'Pasitos',
+      importance: Notifications.AndroidImportance.DEFAULT,
+      vibrationPattern: [0, 200, 200, 200],
+    });
+  } catch (err) {
+    console.log('Push: no se pudo configurar el canal de Android:', err?.message);
+  }
 }
 
 // obtenerTokenExpo -- pide permiso (si hace falta) y regresa el token de
 // push de este dispositivo, o null si no se pudo (simulador/emulador sin
-// Google Play, permiso negado, o falta el projectId de EAS -- ver el
-// comentario de arriba).
+// Google Play, permiso negado, falta el projectId de EAS, o la librería
+// nativa no está disponible del todo -- ver el comentario de arriba).
 export async function obtenerTokenExpo() {
   if (!Device.isDevice) {
     console.log('Push: los simuladores/emuladores no reciben push de verdad, se omite.');
     return null;
   }
 
-  const { status: estadoActual } = await Notifications.getPermissionsAsync();
-  let estadoFinal = estadoActual;
-  if (estadoActual !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    estadoFinal = status;
-  }
-  if (estadoFinal !== 'granted') {
-    console.log('Push: permiso de notificaciones no concedido.');
-    return null;
-  }
-
-  await configurarCanalAndroid();
-
-  const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
-  if (!projectId) {
-    console.log('Push: falta el projectId de EAS (corre "eas init" primero) -- no se puede pedir el token.');
-    return null;
-  }
-
   try {
+    const { status: estadoActual } = await Notifications.getPermissionsAsync();
+    let estadoFinal = estadoActual;
+    if (estadoActual !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      estadoFinal = status;
+    }
+    if (estadoFinal !== 'granted') {
+      console.log('Push: permiso de notificaciones no concedido.');
+      return null;
+    }
+
+    await configurarCanalAndroid();
+
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+    if (!projectId) {
+      console.log('Push: falta el projectId de EAS (corre "eas init" primero) -- no se puede pedir el token.');
+      return null;
+    }
+
     const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
     return token;
   } catch (err) {
-    console.log('Push: no se pudo obtener el token de Expo:', err.message);
+    console.log('Push: no se pudo obtener el token de Expo:', err?.message);
     return null;
   }
 }
@@ -83,8 +95,13 @@ export async function obtenerTokenExpo() {
 export async function activarPushNativo() {
   const token = await obtenerTokenExpo();
   if (!token) return null;
-  await api.post('/push/expo/registrar', { token });
-  return token;
+  try {
+    await api.post('/push/expo/registrar', { token });
+    return token;
+  } catch (err) {
+    console.log('Push: no se pudo registrar el token en el servidor:', err?.message);
+    return null;
+  }
 }
 
 // notificacionesActivas -- true si el sistema operativo ya tiene el permiso
@@ -92,8 +109,13 @@ export async function activarPushNativo() {
 // app (sin volver a pedir permiso solo por consultarlo).
 export async function notificacionesActivas() {
   if (!Device.isDevice) return false;
-  const { status } = await Notifications.getPermissionsAsync();
-  return status === 'granted';
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    return status === 'granted';
+  } catch (err) {
+    console.log('Push: no se pudo consultar el permiso de notificaciones:', err?.message);
+    return false;
+  }
 }
 
 // desactivarPushNativo -- da de baja el token actual del dispositivo en el
@@ -105,6 +127,6 @@ export async function desactivarPushNativo() {
   try {
     await api.delete('/push/expo/registrar', { data: { token } });
   } catch (err) {
-    console.log('Push: no se pudo eliminar el token:', err.message);
+    console.log('Push: no se pudo eliminar el token:', err?.message);
   }
 }
