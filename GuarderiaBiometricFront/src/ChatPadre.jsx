@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import api from './axiosConfig';
 import { ChevronLeft, Send, Loader2, MessageCircle, Paperclip, X, FileText, Download, ShieldCheck, User } from 'lucide-react';
 import { mostrarError } from './utils/alertas';
+import { fechaLocal, separadorFecha } from './utils/fecha';
 
 const INTERVALO_POLLING_MS = 5000;
 
@@ -197,29 +198,38 @@ const HiloChat = ({ contacto, onVolver }) => {
             Todavía no hay mensajes.<br />Escribe el primero abajo.
           </div>
         ) : (
-          mensajes.map((m) => (
-            <div key={m.id} className={`flex ${m.es_mio ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[80%] px-4 py-3 rounded-2xl ${m.es_mio ? 'bg-brand-600 text-white rounded-br-md' : 'bg-white border border-slate-100 text-slate-700 rounded-bl-md shadow-sm'}`}>
-                {m.adjunto_url && (
-                  m.adjunto_tipo === 'imagen' ? (
-                    <a href={m.adjunto_url} target="_blank" rel="noreferrer" className="block mb-2">
-                      <img src={m.adjunto_url} alt={m.adjunto_nombre || 'imagen'} className="max-w-full max-h-64 rounded-xl object-cover" />
-                    </a>
-                  ) : (
-                    <a
-                      href={m.adjunto_url} target="_blank" rel="noreferrer"
-                      className={`flex items-center gap-2 mb-2 px-3 py-2 rounded-xl ${m.es_mio ? 'bg-white/10' : 'bg-slate-50'}`}
-                    >
-                      <FileText size={18} className="shrink-0" />
-                      <span className="text-xs font-bold truncate flex-1">{m.adjunto_nombre || 'Archivo'}</span>
-                      <Download size={14} className="shrink-0" />
-                    </a>
-                  )
-                )}
-                {m.contenido && <p className="text-sm font-medium whitespace-pre-wrap">{m.contenido}</p>}
-                <p className={`text-[9px] font-bold uppercase mt-1 ${m.es_mio ? 'text-brand-100' : 'text-slate-400'}`}>{formatoHora(m.creado_en)}</p>
+          mensajes.map((m, i) => (
+            <React.Fragment key={m.id}>
+              {(i === 0 || fechaLocal(m.creado_en) !== fechaLocal(mensajes[i - 1].creado_en)) && (
+                <div className="flex justify-center py-1">
+                  <span className="bg-white border border-slate-200 text-slate-400 text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-sm">
+                    {separadorFecha(m.creado_en)}
+                  </span>
+                </div>
+              )}
+              <div className={`flex ${m.es_mio ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[80%] px-4 py-3 rounded-2xl ${m.es_mio ? 'bg-brand-600 text-white rounded-br-md' : 'bg-white border border-slate-100 text-slate-700 rounded-bl-md shadow-sm'}`}>
+                  {m.adjunto_url && (
+                    m.adjunto_tipo === 'imagen' ? (
+                      <a href={m.adjunto_url} target="_blank" rel="noreferrer" className="block mb-2">
+                        <img src={m.adjunto_url} alt={m.adjunto_nombre || 'imagen'} className="max-w-full max-h-64 rounded-xl object-cover" />
+                      </a>
+                    ) : (
+                      <a
+                        href={m.adjunto_url} target="_blank" rel="noreferrer"
+                        className={`flex items-center gap-2 mb-2 px-3 py-2 rounded-xl ${m.es_mio ? 'bg-white/10' : 'bg-slate-50'}`}
+                      >
+                        <FileText size={18} className="shrink-0" />
+                        <span className="text-xs font-bold truncate flex-1">{m.adjunto_nombre || 'Archivo'}</span>
+                        <Download size={14} className="shrink-0" />
+                      </a>
+                    )
+                  )}
+                  {m.contenido && <p className="text-sm font-medium whitespace-pre-wrap">{m.contenido}</p>}
+                  <p className={`text-[9px] font-bold uppercase mt-1 ${m.es_mio ? 'text-brand-100' : 'text-slate-400'}`}>{formatoHora(m.creado_en)}</p>
+                </div>
               </div>
-            </div>
+            </React.Fragment>
           ))
         )}
         <div ref={finRef} />

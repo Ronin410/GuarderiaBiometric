@@ -31,3 +31,30 @@ export function diasHabilesDeLaSemana(lunesISO) {
   }
   return dias;
 }
+
+// fechaLocal: dada una marca de tiempo ISO con hora (ej. "creado_en" de un
+// mensaje de chat), regresa su fecha local YYYY-MM-DD en la zona horaria de
+// la guardería -- para agrupar mensajes por día sin importar en qué zona
+// horaria esté el navegador de quien los lee.
+export function fechaLocal(isoConHora) {
+  return new Date(isoConHora).toLocaleDateString('en-CA', { timeZone: ZONA_HORARIA });
+}
+
+// separadorFecha: el texto del separador que se muestra entre mensajes de
+// chat de días distintos -- "Hoy" / "Ayer" / "30 de agosto de 2026". Se usa
+// en los 4 chats de la app (ChatPadre, PanelChat, SoporteChat,
+// PanelSoportePlataforma) para que quede claro cuándo se mandó cada
+// mensaje sin tener que repetir la fecha en cada burbuja.
+export function separadorFecha(isoConHora) {
+  const fecha = fechaLocal(isoConHora);
+  const hoy = hoyLocal();
+  if (fecha === hoy) return 'Hoy';
+
+  const d = new Date(`${hoy}T00:00:00`);
+  d.setDate(d.getDate() - 1);
+  if (fecha === d.toLocaleDateString('en-CA', { timeZone: 'UTC' })) return 'Ayer';
+
+  return new Date(isoConHora).toLocaleDateString('es-MX', {
+    day: 'numeric', month: 'long', year: 'numeric', timeZone: ZONA_HORARIA,
+  });
+}
