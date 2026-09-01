@@ -38,6 +38,7 @@ import ReportePublico from './ReportePublico'; // <-- Tu nueva ruta pública
 import RegistroGuarderia from './RegistroGuarderia';
 import PanelPlataforma from './PanelPlataforma';
 import LandingPage from './LandingPage';
+import { Capacitor } from '@capacitor/core';
 import TerminosCondiciones from './TerminosCondiciones';
 import AvisoPrivacidadPasitos from './AvisoPrivacidadPasitos';
 import SoporteChat from './SoporteChat';
@@ -101,7 +102,12 @@ function MainApp() {
   const [permisos, setPermisos] = useState(null);
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
-  const [tipoAcceso, setTipoAcceso] = useState('staff');
+  // En la app nativa (Capacitor, instalada por un papá) arranca ya
+  // seleccionado "Papá" -- ahí no hay personal usándola, así que no tiene
+  // caso obligarlos a tocar el toggle primero. En web sigue por defecto en
+  // "staff" como hasta ahora (recepción/dueños entran mucho más seguido
+  // por navegador).
+  const [tipoAcceso, setTipoAcceso] = useState(Capacitor.isNativePlatform() ? 'papa' : 'staff');
   // Solo controla el drawer del menú lateral en pantallas angostas -- en
   // md+ el sidebar siempre está visible y este estado no se usa.
   const [sidebarAbierto, setSidebarAbierto] = useState(false);
@@ -1087,6 +1093,19 @@ function MainApp() {
 }
 
 // --- ESTO ES LO ÚNICO NUEVO: EL ENRUTADOR ---
+// EntradaRaiz -- la "/" normal es LandingPage (para quien llega desde el
+// navegador y aún no conoce Pasitos), pero dentro de la app empacada
+// (Android/iOS vía Capacitor) no tiene sentido: el papá ya "instaló la
+// app", así que abrir directo en identificar/login es lo intuitivo, no una
+// página de presentación de la plataforma. Capacitor.isNativePlatform() da
+// false en el navegador/PWA normal, así que ahí no cambia nada.
+const EntradaRaiz = () => {
+  if (Capacitor.isNativePlatform()) {
+    return <Navigate to="/panel/identificar" replace />;
+  }
+  return <LandingPage />;
+};
+
 function App() {
   return (
     <Router>
@@ -1108,7 +1127,7 @@ function App() {
             ahora la entrada real de "/", en vez de mandar directo al login.
             El login/kiosco se queda en /panel/identificar, alcanzable desde
             el botón "Iniciar sesión" de la propia LandingPage. */}
-        <Route path="/" element={<LandingPage />} />
+        <Route path="/" element={<EntradaRaiz />} />
 
         {/* Términos y Condiciones -- pública, sin sesión, para que
             cualquiera (prospecto o guardería ya dada de alta) pueda

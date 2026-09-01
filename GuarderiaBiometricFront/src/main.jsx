@@ -8,6 +8,11 @@ import ActualizarApp from './components/ActualizarApp.jsx'
 // de DashboardPadre, lo lee después, pero para entonces ya no se lo puede
 // perder aunque el componente tarde en montarse.
 import './utils/pwaInstall.js'
+import { solicitarPermisoCamaraNativo } from './utils/nativeApp.js'
+
+// No-op en web/PWA -- solo hace algo dentro de la app empacada con
+// Capacitor (ver el comentario en nativeApp.js).
+solicitarPermisoCamaraNativo()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

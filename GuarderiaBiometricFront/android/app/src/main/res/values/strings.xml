@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Pasitos</string>
+    <string name="title_activity_main">Pasitos</string>
+    <string name="package_name">com.pasitos.familia</string>
+    <string name="custom_url_scheme">com.pasitos.familia</string>
+</resources>
