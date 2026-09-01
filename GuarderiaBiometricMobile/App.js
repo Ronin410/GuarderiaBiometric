@@ -14,6 +14,7 @@ import ChatHiloScreen from './src/screens/ChatHiloScreen';
 import EncuestasScreen from './src/screens/EncuestasScreen';
 import CircularesScreen from './src/screens/CircularesScreen';
 import EventosScreen from './src/screens/EventosScreen';
+import MenuSemanalScreen from './src/screens/MenuSemanalScreen';
 import ProximamenteScreen from './src/screens/ProximamenteScreen';
 import { color } from './src/theme';
 
@@ -57,6 +58,7 @@ function Root() {
       <Stack.Screen name="Encuestas" component={EncuestasScreen} options={{ title: 'Encuestas' }} />
       <Stack.Screen name="Circulares" component={CircularesScreen} options={{ title: 'Avisos' }} />
       <Stack.Screen name="Eventos" component={EventosScreen} options={{ title: 'Eventos' }} />
+      <Stack.Screen name="MenuSemanal" component={MenuSemanalScreen} options={{ title: 'Menú de la semana' }} />
       <Stack.Screen name="Proximamente" component={ProximamenteScreen} options={{ title: '' }} />
     </Stack.Navigator>
   );

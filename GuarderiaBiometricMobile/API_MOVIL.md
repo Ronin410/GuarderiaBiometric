@@ -17,8 +17,8 @@ Personal/admin sigue usándose por navegador, como hasta ahora.
   mismo backend de siempre (`POST /login`, `tipo: "papa"`).
 - **Inicio** (`src/screens/DashboardScreen.js`) -- saludo, aviso de "las
   bitácoras se actualizan en tiempo real", accesos a Chat/Encuestas/
-  Eventos/Menú semanal (por ahora "Próximamente", ver abajo) y el listado
-  de niños.
+  Eventos/Menú semanal, el aviso más reciente y el menú de hoy (si ya
+  están capturados) y el listado de niños.
 - **Bitácora de hoy** (`src/screens/BitacoraScreen.js`) -- entrada/salida,
   alimentación, siesta, esfínter, fotos del día (con vista ampliada) y la
   nota de la maestra, navegable día por día (igual que la pestaña "Hoy" de
@@ -43,6 +43,10 @@ Personal/admin sigue usándose por navegador, como hasta ahora.
 - **Eventos** (`src/screens/EventosScreen.js`) -- calendario escolar
   completo con el mismo catálogo de colores por tipo (evento/suspensión/
   vacaciones/junta) que usa staff en `PanelCalendario.jsx`.
+- **Menú semanal** (`src/screens/MenuSemanalScreen.js`) -- semana completa
+  navegable atrás/adelante contra `/padre/menu-semanal`, igual que
+  `MenuPadre.jsx`. El inicio además muestra "Menú de hoy" cuando la
+  guardería ya lo capturó (mismo criterio que `DashboardPadre.jsx`).
 - **Sesión**: igual que en la web, la cookie con el JWT es httpOnly y la
   guarda automáticamente el cliente HTTP nativo (no hay que leerla ni
   gestionarla a mano). El token CSRF viaja en memoria, igual que en
@@ -100,14 +104,17 @@ Android Studio ni una Mac física. Lo dejamos para cuando ya estés
 conforme con las pantallas, para no gastar builds de más mientras se sigue
 ajustando la app.
 
+Con esto ya están todas las entradas fijas del inicio (Chat, Encuestas,
+Eventos, Menú semanal) portadas -- ya no queda ninguna en
+"Próximamente" (`ProximamenteScreen.js` se deja en el código por si hace
+falta un placeholder para algo nuevo más adelante).
+
 ## Lo que sigue (orden sugerido)
 
-1. **Menú semanal** -- ya existe el endpoint (`/padre/menu-semanal`), solo
-   falta la pantalla.
-2. El resto de pestañas de `VistaPadreDetalle.jsx` (Expediente, Pagos,
+1. El resto de pestañas de `VistaPadreDetalle.jsx` (Expediente, Pagos,
    Ausencias, Comedor, Galería) dentro de la pantalla de bitácora de cada
-   niño.
-3. **Notificaciones push nativas** (Expo Notifications, que por debajo usa
+   niño -- por ahora esa pantalla solo trae "Hoy".
+2. **Notificaciones push nativas** (Expo Notifications, que por debajo usa
    FCM/APNs) -- las que ya existen hoy son Web Push, pensadas para la PWA
    del navegador; para esta app hace falta el equivalente nativo, que
    Expo también simplifica bastante frente a hacerlo a mano. Esto además
@@ -133,5 +140,6 @@ GuarderiaBiometricMobile/
       EncuestasScreen.js          -- responder encuestas (una sola vez)
       CircularesScreen.js         -- listado completo de avisos
       EventosScreen.js            -- calendario escolar completo
+      MenuSemanalScreen.js        -- menú de la semana completo
       ProximamenteScreen.js      -- placeholder para lo que falta portar
 ```

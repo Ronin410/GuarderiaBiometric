@@ -5,6 +5,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { hoyLocal } from '../utils/fecha';
 import { color, radius, sombra } from '../theme';
 
 // Equivalente a la parte de arriba de DashboardPadre.jsx en la web: saludo,
@@ -16,7 +17,7 @@ import { color, radius, sombra } from '../theme';
 const ENTRADAS = [
   { key: 'encuestas', icon: 'clipboard', titulo: 'Encuestas', subtitulo: 'Comparte tu opinión con la guardería', pantalla: 'Encuestas' },
   { key: 'eventos', icon: 'calendar', titulo: 'Eventos', subtitulo: 'Calendario escolar de la guardería', pantalla: 'Eventos' },
-  { key: 'menu', icon: 'restaurant', titulo: 'Menú semanal', subtitulo: 'Días anteriores y posteriores' },
+  { key: 'menu', icon: 'restaurant', titulo: 'Menú semanal', subtitulo: 'Días anteriores y posteriores', pantalla: 'MenuSemanal' },
 ];
 
 const formatoFechaCircular = (iso) => {
@@ -31,6 +32,7 @@ export default function DashboardScreen({ navigation }) {
   const { usuario, cerrarSesion } = useAuth();
   const [hijos, setHijos] = useState([]);
   const [circulares, setCirculares] = useState([]);
+  const [menuHoy, setMenuHoy] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [refrescando, setRefrescando] = useState(false);
 
@@ -38,9 +40,11 @@ export default function DashboardScreen({ navigation }) {
     try {
       // "0" == el backend lo resuelve con el user_id del propio token (ver
       // el mismo comentario en DashboardPadre.jsx de la web).
-      const [resHijos, resCirculares] = await Promise.all([
+      const hoy = hoyLocal();
+      const [resHijos, resCirculares, resMenu] = await Promise.all([
         api.get('/padre/0/hijos'),
         api.get('/padre/circulares').catch(() => ({ data: [] })),
+        api.get('/padre/menu-semanal', { params: { inicio: hoy, fin: hoy } }).catch(() => ({ data: [] })),
       ]);
       const lista = (resHijos.data || []).map((h) => ({
         id: h.id,
@@ -48,6 +52,8 @@ export default function DashboardScreen({ navigation }) {
       }));
       setHijos(lista);
       setCirculares(Array.isArray(resCirculares.data) ? resCirculares.data : []);
+      const dia = (resMenu.data || [])[0];
+      setMenuHoy(dia && (dia.desayuno || dia.comida || dia.merienda) ? dia : null);
     } catch (err) {
       console.error('Error al cargar el inicio:', err);
     } finally {
@@ -141,6 +147,28 @@ export default function DashboardScreen({ navigation }) {
         </View>
       )}
 
+      {/* MENÚ DE HOY -- clickeable hacia la misma semana completa que la
+          tarjeta "Menú semanal" de arriba, para quien lo toca esperando
+          ver otros días directo desde aquí. */}
+      {!!menuHoy && (
+        <TouchableOpacity
+          style={styles.tarjetaMenu}
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('MenuSemanal')}
+        >
+          <View style={styles.avisoEncabezado}>
+            <View style={styles.avisoEtiqueta}>
+              <Ionicons name="restaurant" size={14} color={color.brand500} />
+              <Text style={styles.avisoEtiquetaTexto}>Menú de hoy</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={color.slate300} />
+          </View>
+          {!!menuHoy.desayuno && <Text style={styles.textoMenu}><Text style={styles.labelMenu}>Desayuno: </Text>{menuHoy.desayuno}</Text>}
+          {!!menuHoy.comida && <Text style={styles.textoMenu}><Text style={styles.labelMenu}>Comida: </Text>{menuHoy.comida}</Text>}
+          {!!menuHoy.merienda && <Text style={styles.textoMenu}><Text style={styles.labelMenu}>Merienda: </Text>{menuHoy.merienda}</Text>}
+        </TouchableOpacity>
+      )}
+
       <Text style={styles.seccionLabel}>Niños</Text>
 
       {cargando ? (
@@ -210,6 +238,9 @@ const styles = StyleSheet.create({
   avisoCuerpo: { fontSize: 12, color: color.slate600, fontWeight: '600', lineHeight: 18, marginTop: 2 },
   verAnteriores: { borderTopWidth: 1, borderTopColor: color.slate100, paddingVertical: 12, alignItems: 'center' },
   verAnterioresTexto: { fontSize: 9, fontWeight: '900', color: color.brand500, textTransform: 'uppercase', letterSpacing: 0.5 },
+  tarjetaMenu: { backgroundColor: color.white, borderWidth: 1, borderColor: color.slate100, borderRadius: radius.lg, padding: 18, gap: 4, ...sombra.sm },
+  textoMenu: { fontSize: 12, fontWeight: '700', color: color.slate700, marginTop: 2 },
+  labelMenu: { color: color.brand500 },
   seccionLabel: { fontSize: 11, fontWeight: '900', color: color.slate400, textTransform: 'uppercase', letterSpacing: 1, marginTop: 8, marginLeft: 4 },
   vacio: { backgroundColor: color.white, borderWidth: 2, borderStyle: 'dashed', borderColor: color.slate200, borderRadius: radius.lg, padding: 32, alignItems: 'center', gap: 12 },
   vacioTexto: { color: color.slate400, fontWeight: '700', fontSize: 11, textTransform: 'uppercase' },
