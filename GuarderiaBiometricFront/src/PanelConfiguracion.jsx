@@ -1,12 +1,47 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from './axiosConfig';
 import {
-  ShieldCheck, Save, Loader2, Users, FileText,
+  ShieldCheck, Save, Loader2, Users, FileText, Building2,
   FolderOpen, Plus, Edit3, Check, X, Trash2, FileUp, ExternalLink,
 } from 'lucide-react';
 import { mostrarExito, mostrarError, confirmar } from './utils/alertas';
 
-const PanelConfiguracion = () => {
+// nombreGuarderia/onNombreActualizado vienen de App.jsx (guarderiaInfo.nombre
+// y su setter) -- así, al renombrar, el nombre que se ve en el pie del menú
+// lateral (el mismo que regresó /login o /me) se actualiza de inmediato sin
+// tener que recargar la página ni volver a pedir la sesión.
+const PanelConfiguracion = ({ nombreGuarderia, onNombreActualizado }) => {
+  const [nombre, setNombre] = useState(nombreGuarderia || '');
+  const [guardandoNombre, setGuardandoNombre] = useState(false);
+
+  // Si guarderiaInfo todavía no cargaba cuando se montó este panel (carrera
+  // poco probable, pero App.jsx la llena de forma asíncrona tras /me), este
+  // efecto lo corrige en cuanto llegue -- sin pisar lo que la directora ya
+  // esté escribiendo si el valor no cambió realmente.
+  useEffect(() => {
+    if (nombreGuarderia) setNombre(nombreGuarderia);
+  }, [nombreGuarderia]);
+
+  const guardarNombreGuarderia = async () => {
+    const limpio = nombre.trim();
+    if (!limpio) {
+      mostrarError('El nombre de la guardería no puede quedar vacío');
+      return;
+    }
+    setGuardandoNombre(true);
+    try {
+      const res = await api.put('/admin/guarderia', { nombre: limpio });
+      setNombre(res.data.nombre);
+      onNombreActualizado?.(res.data.nombre);
+      mostrarExito('Nombre de la guardería actualizado');
+    } catch (err) {
+      console.error('Error al actualizar el nombre de la guardería:', err);
+      mostrarError(err.response?.data?.error || 'No se pudo actualizar el nombre');
+    } finally {
+      setGuardandoNombre(false);
+    }
+  };
+
   const [texto, setTexto] = useState('');
   const [version, setVersion] = useState('');
   const [configurado, setConfigurado] = useState(false);
@@ -160,6 +195,36 @@ const PanelConfiguracion = () => {
   return (
     <div className="animate-in fade-in duration-500">
       <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="bg-brand-100 p-3 rounded-2xl text-brand-600"><Building2 size={28} /></div>
+          <div>
+            <h3 className="text-xl font-black uppercase text-slate-900">Nombre de la Guardería</h3>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Así se ve en el menú y en tus reportes</p>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3">
+          <input
+            type="text"
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && guardarNombreGuarderia()}
+            maxLength={100}
+            placeholder="Nombre de tu guardería"
+            className="flex-1 bg-slate-50 border border-slate-200 px-5 py-4 rounded-2xl outline-none focus:ring-2 focus:ring-brand-500 text-slate-900 font-bold"
+          />
+          <button
+            onClick={guardarNombreGuarderia}
+            disabled={guardandoNombre || nombre.trim() === (nombreGuarderia || '').trim()}
+            className="flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-black uppercase text-sm px-6 py-4 rounded-2xl shadow-lg transition-all active:scale-95 shrink-0"
+          >
+            {guardandoNombre ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+            Guardar
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl mt-8">
         <div className="flex items-center gap-4 mb-6">
           <div className="bg-brand-100 p-3 rounded-2xl text-brand-600"><ShieldCheck size={28} /></div>
           <div>

@@ -842,7 +842,12 @@ function MainApp() {
         {tab === 'calendario' && <PanelCalendario />}
         {tab === 'comedor' && <PanelComedor />}
         {tab === 'encuestas' && <PanelEncuestas />}
-        {tab === 'configuracion' && userRole === 'admin' && <PanelConfiguracion />}
+        {tab === 'configuracion' && userRole === 'admin' && (
+          <PanelConfiguracion
+            nombreGuarderia={guarderiaInfo.nombre}
+            onNombreActualizado={(nombre) => setGuarderiaInfo((prev) => ({ ...prev, nombre }))}
+          />
+        )}
         {tab === 'personal' && userRole === 'admin' && <PanelPersonal usuarioActualId={userId} />}
         {tab === 'horarios' && userRole === 'admin' && <PanelHorarios />}
         {tab === 'admin' && (
