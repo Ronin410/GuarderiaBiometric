@@ -137,7 +137,13 @@ export default function ChatHiloScreen({ route, navigation }) {
   return (
     <KeyboardAvoidingView
       style={styles.pantalla}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      // "mientras escribes no se puede ver lo que vas escribiendo, el
+      // textbox se queda abajo" -- en Android, behavior: undefined no
+      // ajusta nada y deja que el sistema operativo decida (que en varios
+      // equipos no reacomoda la pantalla como se espera); 'height' sí
+      // encoge el contenido para que la barra de envío suba junto con el
+      // teclado, igual que 'padding' en iOS.
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       {cargando ? (

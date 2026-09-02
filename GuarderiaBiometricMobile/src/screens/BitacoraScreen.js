@@ -33,7 +33,12 @@ export default function BitacoraScreen({ route, navigation }) {
 
   return (
     <View style={styles.pantalla}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pestanas}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.pestanasContenedor}
+        contentContainerStyle={styles.pestanas}
+      >
         {PESTANAS.map((p) => (
           <TouchableOpacity
             key={p.key}
@@ -60,9 +65,14 @@ export default function BitacoraScreen({ route, navigation }) {
 
 const styles = StyleSheet.create({
   pantalla: { flex: 1, backgroundColor: color.slate50 },
+  // flexGrow: 0 en el ScrollView + alignItems: 'center' en su contenido --
+  // sin esto, un ScrollView horizontal sin alto fijo estira cada botón
+  // hijo para llenar TODA la pantalla (es el bug clásico de RN: el eje
+  // cruzado de un contenedor "row" es la altura, y por defecto se
+  // "stretch"). Con esto los chips miden lo que su propio contenido pide.
+  pestanasContenedor: { flexGrow: 0, backgroundColor: color.white, borderBottomWidth: 1, borderBottomColor: color.slate100 },
   pestanas: {
-    flexDirection: 'row', gap: 6, backgroundColor: color.white, paddingHorizontal: 16, paddingVertical: 10,
-    borderBottomWidth: 1, borderBottomColor: color.slate100,
+    flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 10,
   },
   pestana: {
     flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: color.slate100,
