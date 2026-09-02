@@ -1,11 +1,17 @@
 import axios from 'axios';
 
-// Mismo backend que ya usa la web (GuarderiaBiometricFront/src/axiosConfig.js).
+// Mismo backend que ya usa la web en producción. OJO: el dominio real es
+// pasitos-backend-f411.onrender.com -- "guarderiabiometricback.onrender.com"
+// (que quedó puesto aquí antes) era solo el valor de ejemplo del fallback
+// en axiosConfig.js de la web, no el dominio real; la web en producción lo
+// pisa con la variable de entorno VITE_API_URL, que aquí no existe, así
+// que hay que ponerlo tal cual.
+//
 // Ver API_MOVIL.md sobre por qué, a diferencia de la web, aquí no hace
 // falta configurar CORS/orígenes en el backend: una app nativa (no un
 // WebView) no manda encabezado Origin, así que el middleware de CORS de
 // gin-contrib/cors ni siquiera evalúa la petición como "cross-origin".
-export const API_URL = 'https://guarderiabiometricback.onrender.com';
+export const API_URL = 'https://pasitos-backend-f411.onrender.com';
 
 // withCredentials NO se pone aquí a propósito -- es una instrucción para
 // que un NAVEGADOR mande cookies en una petición cross-origin (por eso sí
