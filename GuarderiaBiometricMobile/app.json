@@ -18,6 +18,7 @@
     "android": {
       "package": "com.pasitos.familia",
       "softwareKeyboardLayoutMode": "resize",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#22332b",
         "foregroundImage": "./assets/android-icon-foreground.png",
