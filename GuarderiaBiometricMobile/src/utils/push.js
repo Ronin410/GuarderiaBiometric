@@ -51,14 +51,16 @@ export async function configurarCanalAndroid() {
   }
 }
 
-// obtenerTokenExpo -- pide permiso (si hace falta) y regresa el token de
-// push de este dispositivo, o null si no se pudo (simulador/emulador sin
+// obtenerTokenExpo -- pide permiso (si hace falta) y regresa
+// { token, error }: token viene null si no se pudo (simulador/emulador sin
 // Google Play, permiso negado, falta el projectId de EAS, o la librería
-// nativa no está disponible del todo -- ver el comentario de arriba).
+// nativa no está disponible del todo -- ver el comentario de arriba), con
+// error describiendo por qué -- en un build normal (no development) la
+// app no muestra la consola, así que este mensaje es la única forma de
+// ver qué falló sin conectar el celular por USB.
 export async function obtenerTokenExpo() {
   if (!Device.isDevice) {
-    console.log('Push: los simuladores/emuladores no reciben push de verdad, se omite.');
-    return null;
+    return { token: null, error: 'Los simuladores/emuladores no reciben push de verdad, se omite.' };
   }
 
   try {
@@ -69,38 +71,33 @@ export async function obtenerTokenExpo() {
       estadoFinal = status;
     }
     if (estadoFinal !== 'granted') {
-      console.log('Push: permiso de notificaciones no concedido.');
-      return null;
+      return { token: null, error: 'Permiso de notificaciones no concedido.' };
     }
 
     await configurarCanalAndroid();
 
     const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
     if (!projectId) {
-      console.log('Push: falta el projectId de EAS (corre "eas init" primero) -- no se puede pedir el token.');
-      return null;
+      return { token: null, error: 'Falta el projectId de EAS (corre "eas init" primero).' };
     }
 
     const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
-    return token;
+    return { token, error: null };
   } catch (err) {
-    console.log('Push: no se pudo obtener el token de Expo:', err?.message);
-    return null;
+    return { token: null, error: err?.message || String(err) };
   }
 }
 
-// activarPushNativo -- obtiene el token y lo registra en el backend. Regresa
-// el token si quedó activo, o null si no (mismo criterio de "fallar en
-// silencio" de arriba).
+// activarPushNativo -- obtiene el token y lo registra en el backend.
+// Regresa { token, error } igual que obtenerTokenExpo.
 export async function activarPushNativo() {
-  const token = await obtenerTokenExpo();
-  if (!token) return null;
+  const resultado = await obtenerTokenExpo();
+  if (!resultado.token) return resultado;
   try {
-    await api.post('/push/expo/registrar', { token });
-    return token;
+    await api.post('/push/expo/registrar', { token: resultado.token });
+    return resultado;
   } catch (err) {
-    console.log('Push: no se pudo registrar el token en el servidor:', err?.message);
-    return null;
+    return { token: null, error: `No se pudo guardar el token en el servidor: ${err?.message}` };
   }
 }
 
@@ -122,7 +119,7 @@ export async function notificacionesActivas() {
 // backend (se llama al cerrar sesión o al apagar el interruptor de
 // notificaciones).
 export async function desactivarPushNativo() {
-  const token = await obtenerTokenExpo();
+  const { token } = await obtenerTokenExpo();
   if (!token) return;
   try {
     await api.delete('/push/expo/registrar', { data: { token } });

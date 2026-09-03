@@ -47,15 +47,16 @@ export default function DashboardScreen({ navigation }) {
 
   const activarNotificaciones = async () => {
     setNotifEstado('activando');
-    const token = await activarPushNativo();
+    const { token, error } = await activarPushNativo();
     if (token) {
       setNotifEstado('granted');
     } else {
       setNotifEstado('default');
-      Alert.alert(
-        'No se pudo activar',
-        'Revisa que le hayas dado permiso de notificaciones a Pasitos en los Ajustes del celular.',
-      );
+      // Se muestra el error real (error) en vez de un aviso genérico -- en
+      // un build normal (no development) no hay forma de ver la consola
+      // sin conectar el celular por USB, así que este mensaje es la única
+      // pista disponible si algo vuelve a fallar.
+      Alert.alert('No se pudo activar', error || 'Inténtalo de nuevo más tarde.');
     }
   };
 
