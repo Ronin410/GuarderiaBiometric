@@ -17,6 +17,7 @@
     },
     "android": {
       "package": "com.pasitos.familia",
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "backgroundColor": "#22332b",
         "foregroundImage": "./assets/android-icon-foreground.png",

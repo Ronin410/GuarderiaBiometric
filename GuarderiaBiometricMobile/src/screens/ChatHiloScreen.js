@@ -155,6 +155,7 @@ export default function ChatHiloScreen({ route, navigation }) {
       ) : (
         <FlatList
           ref={listaRef}
+          style={styles.listaContenedor}
           data={mensajes}
           keyExtractor={(m) => String(m.id)}
           renderItem={renderMensaje}
@@ -211,6 +212,11 @@ const styles = StyleSheet.create({
   pantalla: { flex: 1, backgroundColor: color.slate50 },
   centro: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
   vacioTexto: { color: color.slate400, fontWeight: '800', fontSize: 12, textTransform: 'uppercase', textAlign: 'center', lineHeight: 20 },
+  // flex: 1 en el FlatList (no solo en su contentContainerStyle) -- sin
+  // esto, dentro de KeyboardAvoidingView el hilo podía crecer más de lo
+  // que cabe y empujar la barra de envío fuera de la pantalla cuando el
+  // teclado está abierto, dejándola invisible en vez de solo encogerse.
+  listaContenedor: { flex: 1 },
   lista: { padding: 16, gap: 8 },
   separadorFila: { alignItems: 'center', marginVertical: 6 },
   separadorTexto: {
