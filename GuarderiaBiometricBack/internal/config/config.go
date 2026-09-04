@@ -46,6 +46,14 @@ type Config struct {
 	// altas de guardería nueva) -- vacía por defecto, deja esas rutas
 	// deshabilitadas. Ver middleware.RequirePlatformKey.
 	PlatformAdminKey string
+
+	// Chat de soporte con IA (RAG) -- ambas vacías por defecto, lo que deja
+	// la función deshabilitada sin romper nada (mismo criterio que Stripe*
+	// arriba): sin las dos, handleEnviarMensajeSoporte se comporta
+	// exactamente como antes de esta función, avisándole siempre al dueño
+	// de la plataforma. Ver server.RAGSoporteHabilitado().
+	AnthropicAPIKey string
+	VoyageAPIKey    string
 }
 
 func Load() Config {
@@ -70,6 +78,9 @@ func Load() Config {
 		FrontendURL:          os.Getenv("FRONTEND_URL"),
 
 		PlatformAdminKey: os.Getenv("PLATFORM_ADMIN_KEY"),
+
+		AnthropicAPIKey: os.Getenv("ANTHROPIC_API_KEY"),
+		VoyageAPIKey:    os.Getenv("VOYAGE_API_KEY"),
 	}
 }
 

@@ -222,7 +222,15 @@ const SoporteChat = ({ modo }) => {
                           </span>
                         </div>
                       )}
-                      <div className={`flex ${m.es_mio ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`flex flex-col ${m.es_mio ? 'items-end' : 'items-start'}`}>
+                        {/* "Chat de soporte con RAG": el asistente contesta solo antes de
+                            avisarle al dueño de la plataforma (ver ia_soporte.go en el
+                            backend) -- esta etiqueta deja claro que esa respuesta no la
+                            escribió una persona todavía, sin que se sienta como el resto
+                            del chat humano. */}
+                        {!m.es_mio && m.generado_por_ia && (
+                          <span className="text-[9px] font-black uppercase tracking-widest text-forest/70 mb-0.5 ml-1">🤖 Respuesta automática</span>
+                        )}
                         <div className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl ${m.es_mio ? 'bg-forest text-white rounded-br-md' : 'bg-white border border-slate-200 text-slate-700 rounded-bl-md shadow-sm'}`}>
                           <p className="text-sm font-medium whitespace-pre-wrap">{m.contenido}</p>
                           <p className={`text-[9px] font-bold uppercase mt-1 ${m.es_mio ? 'text-white/60' : 'text-slate-400'}`}>{formatoHora(m.creado_en)}</p>

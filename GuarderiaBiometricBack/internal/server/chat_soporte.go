@@ -41,13 +41,17 @@ type ConversacionSoporte struct {
 
 // MensajeSoporte es un mensaje del hilo. EsMio se calcula del lado del
 // backend según quién pide la conversación -- mismo criterio que
-// MensajeChat en chat.go.
+// MensajeChat en chat.go. GeneradoPorIA distingue una respuesta que
+// contestó sola el asistente de IA (ver ia_soporte.go) de una que escribió
+// el dueño de la plataforma en persona -- ambas quedan con
+// autor_rol = "plataforma".
 type MensajeSoporte struct {
-	ID        int    `json:"id"`
-	AutorRol  string `json:"autor_rol"`
-	Contenido string `json:"contenido"`
-	CreadoEn  string `json:"creado_en"`
-	EsMio     bool   `json:"es_mio"`
+	ID            int    `json:"id"`
+	AutorRol      string `json:"autor_rol"`
+	Contenido     string `json:"contenido"`
+	CreadoEn      string `json:"creado_en"`
+	EsMio         bool   `json:"es_mio"`
+	GeneradoPorIA bool   `json:"generado_por_ia"`
 }
 
 func (s *Server) registrarRutasSoporte(r *gin.Engine) {
@@ -349,7 +353,18 @@ func (s *Server) handleEnviarMensajeSoporte(c *gin.Context) {
 	if fmtRol(rol) == "papa" {
 		etiquetaRol = "Papá"
 	}
-	go s.notificarPlataformaNuevoMensajeSoporteDeConversacion(convID, etiquetaRol)
+
+	// "Chat de soporte con RAG": con las claves de IA configuradas, el
+	// asistente intenta responder solo antes de molestar al dueño de la
+	// plataforma -- ver intentarRespuestaAutomaticaSoporte, que cae de
+	// vuelta a este mismo aviso si no puede. Sin las claves configuradas
+	// (RAGSoporteHabilitado() false), el comportamiento es EXACTAMENTE el
+	// de siempre: avisar de inmediato.
+	if s.RAGSoporteHabilitado() {
+		go s.intentarRespuestaAutomaticaSoporte(convID, contenido, etiquetaRol)
+	} else {
+		go s.notificarPlataformaNuevoMensajeSoporteDeConversacion(convID, etiquetaRol)
+	}
 
 	c.JSON(http.StatusCreated, gin.H{"message": "Mensaje enviado"})
 }
@@ -625,7 +640,7 @@ func (s *Server) insertarMensajeSoporte(convID any, autorRol, contenido string) 
 // los que NO son de la plataforma.
 func (s *Server) obtenerHiloSoporte(convID any, lector string) ([]MensajeSoporte, error) {
 	rows, err := s.DB.Query(
-		`SELECT id, autor_rol, contenido, creado_en FROM mensajes_soporte WHERE conversacion_id = $1 ORDER BY creado_en ASC`,
+		`SELECT id, autor_rol, contenido, creado_en, generado_por_ia FROM mensajes_soporte WHERE conversacion_id = $1 ORDER BY creado_en ASC`,
 		convID,
 	)
 	if err != nil {
@@ -636,7 +651,7 @@ func (s *Server) obtenerHiloSoporte(convID any, lector string) ([]MensajeSoporte
 	mensajes := []MensajeSoporte{}
 	for rows.Next() {
 		var m MensajeSoporte
-		if err := rows.Scan(&m.ID, &m.AutorRol, &m.Contenido, &m.CreadoEn); err != nil {
+		if err := rows.Scan(&m.ID, &m.AutorRol, &m.Contenido, &m.CreadoEn, &m.GeneradoPorIA); err != nil {
 			continue
 		}
 		if lector == "plataforma" {

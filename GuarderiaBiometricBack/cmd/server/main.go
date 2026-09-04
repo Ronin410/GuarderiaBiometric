@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"os"
 
+	"github.com/anthropics/anthropic-sdk-go"
+	"github.com/anthropics/anthropic-sdk-go/option"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/rekognition"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -171,5 +173,16 @@ func conectarServicios(cfg appconfig.Config) *server.Server {
 	srv.StripeCurrency = cfg.StripeCurrency
 	srv.FrontendURL = cfg.FrontendURL
 	srv.PlatformAdminKey = cfg.PlatformAdminKey
+
+	// Chat de soporte con IA -- ver Server.RAGSoporteHabilitado(). El
+	// cliente de Anthropic solo se construye cuando hay clave; sin ella se
+	// deja como el valor cero de anthropic.Client, que nunca se usa porque
+	// RAGSoporteHabilitado() ya da false primero.
+	srv.AnthropicAPIKey = cfg.AnthropicAPIKey
+	srv.VoyageAPIKey = cfg.VoyageAPIKey
+	if cfg.AnthropicAPIKey != "" {
+		srv.AnthropicClient = anthropic.NewClient(option.WithAPIKey(cfg.AnthropicAPIKey))
+	}
+
 	return srv
 }

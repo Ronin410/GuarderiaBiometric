@@ -145,11 +145,11 @@ func TestMensajesProspecto(t *testing.T) {
 		mock.ExpectQuery("SELECT id FROM conversaciones_soporte WHERE token").
 			WithArgs("token-valido").
 			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(7))
-		mock.ExpectQuery("SELECT id, autor_rol, contenido, creado_en FROM mensajes_soporte").
+		mock.ExpectQuery("SELECT id, autor_rol, contenido, creado_en, generado_por_ia FROM mensajes_soporte").
 			WithArgs(7).
-			WillReturnRows(sqlmock.NewRows([]string{"id", "autor_rol", "contenido", "creado_en"}).
-				AddRow(1, "prospecto", "Hola", "2026-08-12T10:00:00Z").
-				AddRow(2, "plataforma", "¡Hola! Con gusto te ayudo", "2026-08-12T10:05:00Z"))
+			WillReturnRows(sqlmock.NewRows([]string{"id", "autor_rol", "contenido", "creado_en", "generado_por_ia"}).
+				AddRow(1, "prospecto", "Hola", "2026-08-12T10:00:00Z", false).
+				AddRow(2, "plataforma", "¡Hola! Con gusto te ayudo", "2026-08-12T10:05:00Z", false))
 		mock.ExpectExec("UPDATE mensajes_soporte SET leido = true").WithArgs(int64(7)).WillReturnResult(sqlmock.NewResult(0, 1))
 
 		r := nuevoRouterDePrueba(srv)

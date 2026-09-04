@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/aws/aws-sdk-go-v2/service/rekognition"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gin-gonic/gin"
@@ -47,6 +48,14 @@ type Server struct {
 
 	// Ver middleware.RequirePlatformKey.
 	PlatformAdminKey string
+
+	// Chat de soporte con IA (RAG) -- ver RAGSoporteHabilitado() e
+	// internal/server/ia_soporte.go. AnthropicClient solo queda construido
+	// de verdad cuando AnthropicAPIKey no está vacía (ver cmd/server/main.go);
+	// con las claves vacías, RAGSoporteHabilitado() es false y nunca se usa.
+	AnthropicAPIKey string
+	VoyageAPIKey    string
+	AnthropicClient anthropic.Client
 
 	loginLimiter       *middleware.RateLimiter
 	pinLimiter         *middleware.RateLimiter
@@ -86,6 +95,16 @@ func (s *Server) PushConfigurado() bool {
 // variables de entorno de Stripe.
 func (s *Server) StripeHabilitado() bool {
 	return s.StripeSecretKey != ""
+}
+
+// RAGSoporteHabilitado indica si el chat de soporte puede intentar
+// contestar solo con IA antes de avisarle al dueño de la plataforma (ver
+// ia_soporte.go). Hacen falta las dos claves: Voyage para buscar contexto
+// (embeddings) y Anthropic para redactar la respuesta -- sin cualquiera de
+// las dos, handleEnviarMensajeSoporte se comporta exactamente como antes de
+// esta función.
+func (s *Server) RAGSoporteHabilitado() bool {
+	return s.AnthropicAPIKey != "" && s.VoyageAPIKey != ""
 }
 
 // RegisterRoutes registra todas las rutas del backend sobre un *gin.Engine

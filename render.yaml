@@ -84,6 +84,17 @@ services:
         sync: false
       - key: PLATFORM_ADMIN_KEY
         sync: false
+      # Chat de soporte con IA (RAG) -- ambas opcionales, igual que las de
+      # arriba: sin las dos, el chat de soporte se comporta exactamente
+      # como sin esta función (siempre avisa de inmediato al dueño de la
+      # plataforma). Hacen falta las dos para que quede activo: Voyage
+      # busca contexto en los manuales ya indexados (ver
+      # cmd/ingest-conocimiento) y Anthropic redacta la respuesta. Ver
+      # Server.RAGSoporteHabilitado() e internal/server/ia_soporte.go.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: VOYAGE_API_KEY
+        sync: false
 
   - type: web
     name: pasitos-frontend
