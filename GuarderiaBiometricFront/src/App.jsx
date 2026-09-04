@@ -46,7 +46,20 @@ const videoConstraints = {
   width: { ideal: 720 },
   height: { ideal: 1280 },
   facingMode: "user",
-  aspectRatio: 0.75
+  aspectRatio: 0.75,
+  // "el facial en la tablet necesita 40-50cm para enfocar la cara, se
+  // siente muy lejos" -- pedir enfoque continuo explícito en vez de dejar
+  // que el navegador arranque con el modo que traiga por default: en
+  // tablets Android con cámara autofocus, Chrome a veces la deja fija en
+  // el enfoque con el que abrió (normalmente el de distancia "selfie
+  // normal", ~40-50cm) si nada pide lo contrario. Va en "advanced" para
+  // que, si el navegador/cámara no reconoce focusMode, lo ignore sin
+  // tronar el resto de la petición (así se comporta un constraint dentro
+  // de advanced que no se puede cumplir, a diferencia de uno en el nivel
+  // de arriba). En una tablet con lente de enfoque FIJO de verdad (muchas
+  // de las baratas) esto no cambia nada -- ese mínimo de 40-50cm es una
+  // limitación física del lente, ningún ajuste de software lo mueve.
+  advanced: [{ focusMode: "continuous" }]
 };
 
 // "Después de poner el PIN quiero que solo pueda tener acceso unos 30 min o
@@ -530,6 +543,43 @@ function MainApp() {
     setCamaraKey((k) => k + 1);
   };
 
+  // ajustarEnfoqueCercano -- "el facial necesita 40-50cm para enfocar,
+  // ¿se puede hacer algo para que detecte más cerca?" -- el constraint
+  // `advanced: [{ focusMode: "continuous" }]` de arriba ya pide enfoque
+  // continuo al abrir la cámara, pero algunas tablets Android SÍ traen
+  // lente autofocus y exponen un control de distancia manual
+  // (focusDistance) que el navegador no usa por default. Aquí, ya con el
+  // stream abierto, se checa si el track realmente ofrece esos controles
+  // (getCapabilities) y si es así se manda el focusDistance más chico que
+  // permita (el valor "min" de su rango = lo más cerca que puede enfocar)
+  // -- en vez de solo pedir "continuous" y esperar. Si el navegador o la
+  // cámara no exponen nada de esto (la mayoría, sobre todo tablets
+  // baratas con lente de enfoque FIJO) simplemente no hay capabilities
+  // que ajustar y esto no hace nada -- ahí el mínimo de 40-50cm es una
+  // limitación física del lente que ningún ajuste de software puede
+  // mover.
+  const ajustarEnfoqueCercano = (stream) => {
+    try {
+      const track = stream?.getVideoTracks?.()[0];
+      if (!track || typeof track.getCapabilities !== 'function') return;
+      const capacidades = track.getCapabilities();
+      if (!capacidades) return;
+
+      const avanzados = [];
+      if (capacidades.focusMode?.includes?.('continuous')) {
+        avanzados.push({ focusMode: 'continuous' });
+      } else if (capacidades.focusMode?.includes?.('manual') && capacidades.focusDistance) {
+        avanzados.push({ focusMode: 'manual', focusDistance: capacidades.focusDistance.min });
+      }
+      if (avanzados.length > 0) {
+        track.applyConstraints({ advanced: avanzados }).catch(() => {});
+      }
+    } catch {
+      // Sin soporte de la API de capabilities en este navegador -- se
+      // deja la cámara con lo que haya arrancado por default.
+    }
+  };
+
   const capturarYEnviar = async (endpoint) => {
     if (!webcamRef.current) return;
     const imageSrc = webcamRef.current.getScreenshot();
@@ -918,7 +968,7 @@ function MainApp() {
                     videoConstraints={videoConstraints}
                     className="absolute inset-0 w-full h-full object-cover"
                     mirrored={true}
-                    onUserMedia={() => { setCamaraLista(true); setCamaraError(false); }}
+                    onUserMedia={(stream) => { setCamaraLista(true); setCamaraError(false); ajustarEnfoqueCercano(stream); }}
                     onUserMediaError={(err) => { console.error('No se pudo activar la cámara:', err); setCamaraError(true); }}
                   />
                   {/* "A veces prende la cámara y a veces no... me cambio a otra parte
