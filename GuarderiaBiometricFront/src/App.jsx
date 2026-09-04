@@ -999,11 +999,18 @@ function MainApp() {
                       COMPLETO de la caja (inset-0), así que agrandarlo lo empujaba contra el botón de abajo.
                       Ahora el contenedor solo ocupa el alto que NO usa el botón (bottom-24 sm:bottom-28,
                       calcado del espacio real que reserva el botón + su padding), así el óvalo puede crecer
-                      bastante más sin encimarse. */}
+                      bastante más sin encimarse.
+                      "Tengo que estirar todo el brazo para que quepa mi cara completa" -- el que
+                      creciera tanto se pasó de la raya al lado contrario: un óvalo casi del tamaño
+                      del cuadro completo (85%/88% del ancho/alto) solo cabe con la cara completa
+                      adentro si el papá se aleja bastante, porque a distancia normal de selfie la
+                      cara ya no cabe dentro de un óvalo tan grande. Se achica de vuelta (65/90, unos
+                      dos tercios del tamaño anterior) para que quepa cómodo más cerca -- sigue siendo
+                      solo una guía visual, no un requisito real para el escaneo. */}
                   {!loading && (
                     <div className="absolute inset-x-0 top-0 bottom-24 sm:bottom-28 z-10 flex flex-col items-center justify-center pointer-events-none">
                       <svg viewBox="0 0 200 260" className="w-[95%] h-[95%]">
-                        <ellipse cx="100" cy="130" rx="85" ry="115" fill="none" stroke="white" strokeOpacity="0.85" strokeWidth="4" strokeDasharray="14 10" />
+                        <ellipse cx="100" cy="130" rx="65" ry="90" fill="none" stroke="white" strokeOpacity="0.85" strokeWidth="4" strokeDasharray="14 10" />
                       </svg>
                       <span className="mt-3 text-white text-[10px] font-black uppercase tracking-widest drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]">
                         Encuadra tu rostro dentro del óvalo
