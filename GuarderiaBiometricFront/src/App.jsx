@@ -994,29 +994,12 @@ function MainApp() {
                       )}
                     </div>
                   )}
-                  {/* Guía visual de encuadre: no detecta el rostro, solo ayuda a alinearlo antes de escanear.
-                      "El óvalo se ve muy pequeño" -- antes este contenedor centraba el óvalo en el alto
-                      COMPLETO de la caja (inset-0), así que agrandarlo lo empujaba contra el botón de abajo.
-                      Ahora el contenedor solo ocupa el alto que NO usa el botón (bottom-24 sm:bottom-28,
-                      calcado del espacio real que reserva el botón + su padding), así el óvalo puede crecer
-                      bastante más sin encimarse.
-                      "Tengo que estirar todo el brazo para que quepa mi cara completa" -- el que
-                      creciera tanto se pasó de la raya al lado contrario: un óvalo casi del tamaño
-                      del cuadro completo (85%/88% del ancho/alto) solo cabe con la cara completa
-                      adentro si el papá se aleja bastante, porque a distancia normal de selfie la
-                      cara ya no cabe dentro de un óvalo tan grande. Se achica de vuelta (65/90, unos
-                      dos tercios del tamaño anterior) para que quepa cómodo más cerca -- sigue siendo
-                      solo una guía visual, no un requisito real para el escaneo. */}
-                  {!loading && (
-                    <div className="absolute inset-x-0 top-0 bottom-24 sm:bottom-28 z-10 flex flex-col items-center justify-center pointer-events-none">
-                      <svg viewBox="0 0 200 260" className="w-[95%] h-[95%]">
-                        <ellipse cx="100" cy="130" rx="65" ry="90" fill="none" stroke="white" strokeOpacity="0.85" strokeWidth="4" strokeDasharray="14 10" />
-                      </svg>
-                      <span className="mt-3 text-white text-[10px] font-black uppercase tracking-widest drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]">
-                        Encuadra tu rostro dentro del óvalo
-                      </span>
-                    </div>
-                  )}
+                  {/* Antes había un óvalo guía dibujado encima del video ("Encuadra tu rostro
+                      dentro del óvalo"). Nunca fue un requisito real -- Rekognition no lo usa
+                      para nada, solo era una ayuda visual -- pero forzaba a los papás a alejarse
+                      de la cámara para que la cara completa cupiera adentro ("tengo que estirar
+                      todo el brazo"), sin importar qué tan chico se hiciera el óvalo. Se quitó del
+                      todo: ahora el video se ve solo, sin guía de encuadre. */}
                   {/* El botón vive DENTRO del cuadro de la cámara (flotando
                       sobre el video, pegado abajo pero respetando el margen
                       del marco blanco) en vez de un bloque aparte debajo --
