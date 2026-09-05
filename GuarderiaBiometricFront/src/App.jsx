@@ -35,6 +35,7 @@ import { mostrarError, mostrarExito, mostrarAviso, confirmar as confirmarAccion 
 import { segundosHastaExpirar } from './utils/sesion';
 import { ACENTOS, acentoDeTab } from './utils/acentos';
 import DinoDecorativo from './components/DinoDecorativo';
+import InstalarApp from './components/InstalarApp';
 import { suscribirseAPush, desuscribirseDePush, suscripcionActiva, pushSoportado } from './utils/push';
 import ReportePublico from './ReportePublico'; // <-- Tu nueva ruta pública
 import RegistroGuarderia from './RegistroGuarderia';
@@ -688,7 +689,8 @@ function MainApp() {
 
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-paper flex items-center justify-center p-4">
+      <div className="min-h-screen bg-paper flex flex-col items-center justify-center p-4 gap-4">
+        <div className="w-full max-w-md empty:hidden"><InstalarApp /></div>
         <div className="bg-white border border-slate-200 p-8 rounded-[2.5rem] w-full max-w-md shadow-xl text-center">
           <img src="/dinos/logo-pasitos.png" alt="Pasitos" className="h-20 w-auto mx-auto mb-4" />
           <h1 className="text-3xl font-black text-ink uppercase mb-2">Pasitos</h1>
@@ -887,6 +889,12 @@ function MainApp() {
         </div>
 
         <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6 lg:pb-8 pt-8 sm:pt-10 lg:pt-12">
+        {/* La franja de instalar se ve en cualquier pestaña del panel: la
+            tablet de recepción es justo donde más conviene tener Pasitos
+            instalado, y esa cuenta nunca entra al portal del papá, que era
+            el único lugar donde vivía este aviso. El propio componente
+            decide si hay algo que ofrecer y se esconde solo si no. */}
+        <div className="mb-6 empty:hidden"><InstalarApp /></div>
         {tab === 'reportes' && <PanelReportes guarderiaInfo={guarderiaInfo} />}
         {tab === 'bitacora' && <VistaBitacora />}
         {tab === 'perfiles' && <PanelPerfiles />}
