@@ -4,12 +4,17 @@ import { Megaphone, Plus, X, Send, Loader2, Trash2, CalendarClock, Eye, ChevronD
 import { mostrarError, mostrarExito, confirmar } from './utils/alertas';
 import { acentoDeTab } from './utils/acentos';
 import DinoDecorativo from './components/DinoDecorativo';
+import SelectorGrupos from './components/SelectorGrupos';
+import EtiquetaGrupos from './components/EtiquetaGrupos';
 
 // Color y dino de este apartado -- los define utils/acentos.js para que
 // coincidan con los del menú lateral.
 const acento = acentoDeTab('circulares');
 
 const FORM_VACIO = { titulo: '', contenido: '' };
+// Lista vacía = para todas las familias (ver SelectorGrupos y
+// destinatarios.go en el backend).
+const GRUPOS_VACIO = [];
 
 // PanelCirculares — "avisos que el admin o staff pueden mandar a todos los
 // padres de la guardería". Al publicar, el backend dispara una notificación
@@ -25,6 +30,9 @@ const PanelCirculares = () => {
   const [detalleAbierto, setDetalleAbierto] = useState(null);
   const [lecturas, setLecturas] = useState([]);
   const [cargandoLecturas, setCargandoLecturas] = useState(false);
+  const [gruposDestino, setGruposDestino] = useState(GRUPOS_VACIO);
+  // Filtro del listado: null = todas; un id = solo las dirigidas a ese grupo.
+  const [filtroGrupo, setFiltroGrupo] = useState(null);
   const [imagen, setImagen] = useState(null);
   const [previewImagen, setPreviewImagen] = useState(null);
   const inputImagenRef = useRef(null);
@@ -71,9 +79,17 @@ const PanelCirculares = () => {
       data.append('titulo', form.titulo.trim());
       data.append('contenido', form.contenido.trim());
       if (imagen) data.append('imagen', imagen);
+      // Cada grupo va como un campo "grupos" repetido; el backend lo lee con
+      // PostFormArray. Sin ninguno, la circular es para todas las familias.
+      gruposDestino.forEach((id) => data.append('grupos', String(id)));
       await api.post('/circulares', data);
-      mostrarExito('La circular se publicó y se notificó a los tutores suscritos');
+      mostrarExito(
+        gruposDestino.length === 0
+          ? 'La circular se publicó y se notificó a los tutores suscritos'
+          : 'La circular se publicó y se notificó solo a las familias de los grupos elegidos'
+      );
       setForm(FORM_VACIO);
+      setGruposDestino(GRUPOS_VACIO);
       quitarImagen();
       setMostrarForm(false);
       cargar();
@@ -119,6 +135,23 @@ const PanelCirculares = () => {
     }
   };
 
+  // Filtrado en memoria y no con otra llamada a la API: el listado trae 50
+  // circulares como mucho, así que pedirle al servidor una consulta nueva
+  // por cada clic sería más lento que recorrerlas aquí.
+  const circularesVisibles = filtroGrupo === null
+    ? circulares
+    : circulares.filter((cir) => (cir.grupos || []).some((g) => g.id === filtroGrupo));
+
+  // Solo se ofrecen como filtro los grupos que de verdad aparecen en alguna
+  // circular; un desplegable con salones que nunca recibieron ninguna solo
+  // lleva a listas vacías.
+  const gruposEnUso = [];
+  circulares.forEach((cir) => {
+    (cir.grupos || []).forEach((g) => {
+      if (!gruposEnUso.some((x) => x.id === g.id)) gruposEnUso.push(g);
+    });
+  });
+
   const formatoFecha = (iso) => {
     try {
       return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -140,7 +173,7 @@ const PanelCirculares = () => {
             <DinoDecorativo src="/dinos/dino-naranja.png" className="hidden sm:block h-14 w-auto shrink-0" />
           </div>
           <button
-            onClick={() => { setMostrarForm(!mostrarForm); setForm(FORM_VACIO); quitarImagen(); }}
+            onClick={() => { setMostrarForm(!mostrarForm); setForm(FORM_VACIO); setGruposDestino(GRUPOS_VACIO); quitarImagen(); }}
             className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black uppercase px-4 py-2.5 rounded-xl shadow-md transition-all active:scale-95"
           >
             {mostrarForm ? <X size={14} /> : <Plus size={14} />}
@@ -189,6 +222,8 @@ const PanelCirculares = () => {
                 onChange={(e) => elegirImagen(e.target.files?.[0])}
               />
             </div>
+            <SelectorGrupos seleccionados={gruposDestino} onChange={setGruposDestino} acento={acento} />
+
             <div className="flex justify-end">
               <button
                 onClick={publicar}
@@ -201,20 +236,50 @@ const PanelCirculares = () => {
           </div>
         )}
 
+        {gruposEnUso.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 mb-5">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-1">Ver:</span>
+            <button
+              onClick={() => setFiltroGrupo(null)}
+              className={`text-[11px] font-black uppercase px-3 py-1.5 rounded-lg border transition-all ${
+                filtroGrupo === null ? 'bg-forest text-white border-forest' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              Todas
+            </button>
+            {gruposEnUso.map((g) => (
+              <button
+                key={g.id}
+                onClick={() => setFiltroGrupo(filtroGrupo === g.id ? null : g.id)}
+                className={`text-[11px] font-black uppercase px-3 py-1.5 rounded-lg border transition-all ${
+                  filtroGrupo === g.id ? `${acento.fondo} ${acento.texto} ${acento.borde}` : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                {g.nombre}
+              </button>
+            ))}
+          </div>
+        )}
+
         {loading ? (
           <div className="py-20 text-center text-slate-400 font-black uppercase tracking-widest text-xs">Cargando...</div>
         ) : circulares.length === 0 ? (
           <div className="py-20 text-center text-slate-400 font-black uppercase tracking-widest text-xs">Sin circulares publicadas</div>
+        ) : circularesVisibles.length === 0 ? (
+          <div className="py-20 text-center text-slate-400 font-black uppercase tracking-widest text-xs">Ninguna circular dirigida a ese grupo</div>
         ) : (
           <div className="space-y-4">
-            {circulares.map((cir) => (
+            {circularesVisibles.map((cir) => (
               <div key={cir.id} className="p-6 rounded-[2rem] border border-slate-100 bg-slate-50">
                 <div className="flex justify-between items-start gap-4">
                   <div className="min-w-0">
                     <p className="font-black text-lg uppercase tracking-tight text-slate-900">{cir.titulo}</p>
-                    <p className="text-[10px] text-brand-500 font-bold uppercase flex items-center gap-1 mt-1">
-                      <CalendarClock size={12} /> {formatoFecha(cir.creado_en)}
-                    </p>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+                      <p className="text-[10px] text-brand-500 font-bold uppercase flex items-center gap-1">
+                        <CalendarClock size={12} /> {formatoFecha(cir.creado_en)}
+                      </p>
+                      <EtiquetaGrupos paraTodos={cir.para_todos} grupos={cir.grupos} acento={acento} />
+                    </div>
                   </div>
                   <button
                     onClick={() => eliminar(cir)}

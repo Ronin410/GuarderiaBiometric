@@ -6,6 +6,8 @@ import {
 import { mostrarError, mostrarExito, confirmar } from './utils/alertas';
 import { acentoDeTab } from './utils/acentos';
 import DinoDecorativo from './components/DinoDecorativo';
+import SelectorGrupos from './components/SelectorGrupos';
+import EtiquetaGrupos from './components/EtiquetaGrupos';
 
 // Color y dino de este apartado -- los define utils/acentos.js para que
 // coincidan con los del menú lateral.
@@ -13,6 +15,9 @@ const acento = acentoDeTab('encuestas');
 
 const PREGUNTA_VACIA = { texto: '', tipo: 'opcion_multiple', opciones: ['', ''] };
 const FORM_VACIO = { titulo: '', descripcion: '', preguntas: [{ ...PREGUNTA_VACIA }] };
+// Lista vacía = para todas las familias (ver SelectorGrupos y
+// destinatarios.go en el backend).
+const GRUPOS_VACIO = [];
 
 // PanelEncuestas -- "Encuestas para familias" del PDF de referencia (lado
 // staff): crear cuestionarios (opción múltiple o texto libre) y ver los
@@ -24,6 +29,9 @@ const PanelEncuestas = () => {
   const [form, setForm] = useState(FORM_VACIO);
   const [publicando, setPublicando] = useState(false);
   const [seleccionada, setSeleccionada] = useState(null);
+  const [gruposDestino, setGruposDestino] = useState(GRUPOS_VACIO);
+  // Filtro del listado: null = todas; un id = solo las dirigidas a ese grupo.
+  const [filtroGrupo, setFiltroGrupo] = useState(null);
 
   const cargar = async () => {
     setLoading(true);
@@ -69,6 +77,22 @@ const PanelEncuestas = () => {
   const agregarPregunta = () => setForm({ ...form, preguntas: [...form.preguntas, { ...PREGUNTA_VACIA }] });
   const quitarPregunta = (i) => setForm({ ...form, preguntas: form.preguntas.filter((_, k) => k !== i) });
 
+  // Filtrado en memoria: el listado ya trae todas las encuestas de la
+  // guardería, así que pedirle otra consulta al servidor por cada clic sería
+  // más lento que recorrerlas aquí.
+  const encuestasVisibles = filtroGrupo === null
+    ? encuestas
+    : encuestas.filter((enc) => (enc.grupos || []).some((g) => g.id === filtroGrupo));
+
+  // Solo se ofrecen como filtro los grupos que de verdad aparecen en alguna
+  // encuesta, para no llevar a listas vacías.
+  const gruposEnUso = [];
+  encuestas.forEach((enc) => {
+    (enc.grupos || []).forEach((g) => {
+      if (!gruposEnUso.some((x) => x.id === g.id)) gruposEnUso.push(g);
+    });
+  });
+
   const publicar = async () => {
     if (!form.titulo.trim()) {
       mostrarError('El título es obligatorio');
@@ -89,14 +113,21 @@ const PanelEncuestas = () => {
       await api.post('/encuestas', {
         titulo: form.titulo,
         descripcion: form.descripcion,
+        // Vacío = para todas las familias.
+        grupos: gruposDestino,
         preguntas: form.preguntas.map((p) => ({
           texto: p.texto,
           tipo: p.tipo,
           opciones: p.tipo === 'opcion_multiple' ? p.opciones.filter((o) => o.trim()) : undefined,
         })),
       });
-      mostrarExito('La encuesta se publicó y se notificó a los tutores suscritos');
+      mostrarExito(
+        gruposDestino.length === 0
+          ? 'La encuesta se publicó y se notificó a los tutores suscritos'
+          : 'La encuesta se publicó y se notificó solo a las familias de los grupos elegidos'
+      );
       setForm(FORM_VACIO);
+      setGruposDestino(GRUPOS_VACIO);
       setMostrarForm(false);
       cargar();
     } catch (err) {
@@ -124,7 +155,7 @@ const PanelEncuestas = () => {
             <DinoDecorativo src="/dinos/dino-morado.png" className="hidden sm:block h-14 w-auto shrink-0" espejo />
           </div>
           <button
-            onClick={() => { setMostrarForm(!mostrarForm); setForm(FORM_VACIO); }}
+            onClick={() => { setMostrarForm(!mostrarForm); setForm(FORM_VACIO); setGruposDestino(GRUPOS_VACIO); }}
             className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black uppercase px-4 py-2.5 rounded-xl shadow-md transition-all active:scale-95"
           >
             {mostrarForm ? <X size={14} /> : <Plus size={14} />}
@@ -200,6 +231,8 @@ const PanelEncuestas = () => {
               </button>
             </div>
 
+            <SelectorGrupos seleccionados={gruposDestino} onChange={setGruposDestino} acento={acento} />
+
             <div className="flex justify-end">
               <button
                 onClick={publicar}
@@ -212,13 +245,40 @@ const PanelEncuestas = () => {
           </div>
         )}
 
+        {gruposEnUso.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 mb-5">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-1">Ver:</span>
+            <button
+              onClick={() => setFiltroGrupo(null)}
+              className={`text-[11px] font-black uppercase px-3 py-1.5 rounded-lg border transition-all ${
+                filtroGrupo === null ? 'bg-forest text-white border-forest' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              Todas
+            </button>
+            {gruposEnUso.map((g) => (
+              <button
+                key={g.id}
+                onClick={() => setFiltroGrupo(filtroGrupo === g.id ? null : g.id)}
+                className={`text-[11px] font-black uppercase px-3 py-1.5 rounded-lg border transition-all ${
+                  filtroGrupo === g.id ? `${acento.fondo} ${acento.texto} ${acento.borde}` : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                {g.nombre}
+              </button>
+            ))}
+          </div>
+        )}
+
         {loading ? (
           <div className="py-20 text-center text-slate-400 font-black uppercase tracking-widest text-xs">Cargando...</div>
         ) : encuestas.length === 0 ? (
           <div className="py-20 text-center text-slate-400 font-black uppercase tracking-widest text-xs">Sin encuestas publicadas</div>
+        ) : encuestasVisibles.length === 0 ? (
+          <div className="py-20 text-center text-slate-400 font-black uppercase tracking-widest text-xs">Ninguna encuesta dirigida a ese grupo</div>
         ) : (
           <div className="space-y-3">
-            {encuestas.map((enc) => (
+            {encuestasVisibles.map((enc) => (
               <button
                 key={enc.id}
                 onClick={() => setSeleccionada(enc.id)}
@@ -230,6 +290,7 @@ const PanelEncuestas = () => {
                     <p className="font-black uppercase text-sm text-slate-900 truncate">{enc.titulo}</p>
                   </div>
                   {enc.descripcion && <p className="text-xs text-slate-500 font-medium truncate">{enc.descripcion}</p>}
+                  <div className="mt-1"><EtiquetaGrupos paraTodos={enc.para_todos} grupos={enc.grupos} acento={acento} /></div>
                 </div>
                 <span className="shrink-0 flex items-center gap-1.5 bg-brand-100 text-brand-700 text-[10px] font-black px-3 py-1.5 rounded-full">
                   <ListChecks size={12} /> {enc.total_respuestas} de {enc.total_familias}

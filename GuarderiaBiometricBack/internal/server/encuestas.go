@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -27,6 +28,11 @@ type Encuesta struct {
 	Descripcion string `json:"descripcion"`
 	Activa      bool   `json:"activa"`
 	CreadoEn    string `json:"creado_en"`
+	// ParaTodos + Grupos: a quién va dirigida (ver destinatarios.go). Mismo
+	// modelo que las circulares -- sin grupos elegidos, para toda la
+	// guardería, que es como se comportaban todas antes de esto.
+	ParaTodos bool           `json:"para_todos"`
+	Grupos    []GrupoDestino `json:"grupos"`
 }
 
 // EncuestaConConteo es lo que ve staff en el listado: la encuesta más
@@ -99,16 +105,17 @@ func (s *Server) registrarRutasEncuestas(r *gin.Engine) {
 func (s *Server) handleListarEncuestasStaff(c *gin.Context) {
 	gID, _ := c.Get("guarderia_id")
 
-	rows, err := s.DB.Query(
-		`SELECT e.id, e.titulo, COALESCE(e.descripcion, ''), e.activa, e.creado_en,
+	rows, err := s.DB.Query(fmt.Sprintf(
+		`SELECT e.id, e.titulo, COALESCE(e.descripcion, ''), e.activa, e.creado_en, e.para_todos,
                 COUNT(DISTINCT er.padre_id),
-                (SELECT COUNT(*) FROM padres p WHERE p.guarderia_id = $1)
+                %s
          FROM encuestas e
          LEFT JOIN encuesta_preguntas ep ON ep.encuesta_id = e.id
          LEFT JOIN encuesta_respuestas er ON er.pregunta_id = ep.id
          WHERE e.guarderia_id = $1
          GROUP BY e.id
          ORDER BY e.creado_en DESC`,
+		contarFamiliasDestino("e", "encuestas_grupos", "encuesta_id", 1)),
 		gID,
 	)
 	if err != nil {
@@ -119,13 +126,29 @@ func (s *Server) handleListarEncuestasStaff(c *gin.Context) {
 	defer rows.Close()
 
 	encuestas := []EncuestaConConteo{}
+	ids := []int{}
 	for rows.Next() {
 		var enc EncuestaConConteo
-		if err := rows.Scan(&enc.ID, &enc.Titulo, &enc.Descripcion, &enc.Activa, &enc.CreadoEn, &enc.TotalRespuestas, &enc.TotalFamilias); err != nil {
+		if err := rows.Scan(&enc.ID, &enc.Titulo, &enc.Descripcion, &enc.Activa, &enc.CreadoEn, &enc.ParaTodos, &enc.TotalRespuestas, &enc.TotalFamilias); err != nil {
 			continue
 		}
+		enc.Grupos = []GrupoDestino{}
 		encuestas = append(encuestas, enc)
+		ids = append(ids, enc.ID)
 	}
+
+	// Mismo criterio que en circulares: si los grupos no se pueden consultar,
+	// el listado sale igual sin sus etiquetas en vez de quedar vacío.
+	if porEncuesta, err := s.gruposDePublicaciones("encuestas_grupos", "encuesta_id", ids); err != nil {
+		s.logError(c, "No se pudieron consultar los grupos de las encuestas", err)
+	} else {
+		for i := range encuestas {
+			if grupos := porEncuesta[encuestas[i].ID]; grupos != nil {
+				encuestas[i].Grupos = grupos
+			}
+		}
+	}
+
 	c.JSON(http.StatusOK, encuestas)
 }
 
@@ -136,7 +159,9 @@ func (s *Server) handleCrearEncuesta(c *gin.Context) {
 	var input struct {
 		Titulo      string `json:"titulo"`
 		Descripcion string `json:"descripcion"`
-		Preguntas   []struct {
+		// Grupos vacío = para todas las familias.
+		Grupos    []int `json:"grupos"`
+		Preguntas []struct {
 			Texto    string   `json:"texto"`
 			Tipo     string   `json:"tipo"`
 			Opciones []string `json:"opciones"`
@@ -171,12 +196,43 @@ func (s *Server) handleCrearEncuesta(c *gin.Context) {
 		}
 	}
 
+	// A quién va dirigida. Llega como ids numéricos (a diferencia de las
+	// circulares, que viajan en multipart por la imagen), así que se
+	// convierten a texto para reusar la misma validación.
+	idsTexto := make([]string, 0, len(input.Grupos))
+	for _, id := range input.Grupos {
+		idsTexto = append(idsTexto, strconv.Itoa(id))
+	}
+	grupos, err := s.validarGruposDeGuarderia(idsTexto, gID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Todo en una transacción: antes las preguntas se insertaban una por una
+	// después del INSERT de la encuesta, así que un fallo a media escritura
+	// dejaba publicada una encuesta incompleta. Ahora, o queda entera (con
+	// sus grupos y sus preguntas) o no queda nada.
+	tx, err := s.DB.Begin()
+	if err != nil {
+		s.logError(c, "No se pudo crear la encuesta", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo crear la encuesta"})
+		return
+	}
+	defer tx.Rollback()
+
 	var encuestaID int
-	if err := s.DB.QueryRow(
-		`INSERT INTO encuestas (guarderia_id, titulo, descripcion, creado_por) VALUES ($1, $2, $3, $4) RETURNING id`,
-		gID, titulo, strings.TrimSpace(input.Descripcion), userID,
+	if err := tx.QueryRow(
+		`INSERT INTO encuestas (guarderia_id, titulo, descripcion, creado_por, para_todos) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+		gID, titulo, strings.TrimSpace(input.Descripcion), userID, len(grupos) == 0,
 	).Scan(&encuestaID); err != nil {
 		s.logError(c, "No se pudo crear la encuesta", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo crear la encuesta"})
+		return
+	}
+
+	if err := guardarGruposDestino(tx, "encuestas_grupos", "encuesta_id", encuestaID, grupos); err != nil {
+		s.logError(c, "No se pudieron guardar los grupos de la encuesta", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo crear la encuesta"})
 		return
 	}
@@ -193,7 +249,7 @@ func (s *Server) handleCrearEncuesta(c *gin.Context) {
 			texto := string(b)
 			opcionesJSON = &texto
 		}
-		if _, err := s.DB.Exec(
+		if _, err := tx.Exec(
 			`INSERT INTO encuesta_preguntas (encuesta_id, texto, tipo, opciones, orden) VALUES ($1, $2, $3, $4, $5)`,
 			encuestaID, strings.TrimSpace(p.Texto), p.Tipo, opcionesJSON, i,
 		); err != nil {
@@ -203,7 +259,13 @@ func (s *Server) handleCrearEncuesta(c *gin.Context) {
 		}
 	}
 
-	go s.notificarCircular(gID, "Nueva encuesta: "+titulo, "Tu opinión nos importa -- respóndela desde tu portal de familia.")
+	if err := tx.Commit(); err != nil {
+		s.logError(c, "No se pudo crear la encuesta", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo crear la encuesta"})
+		return
+	}
+
+	go s.notificarCircular(gID, "Nueva encuesta: "+titulo, "Tu opinión nos importa -- respóndela desde tu portal de familia.", grupos)
 
 	c.JSON(http.StatusCreated, gin.H{"id": encuestaID, "message": "Encuesta publicada"})
 }
@@ -305,11 +367,12 @@ func (s *Server) handleListarEncuestasPadre(c *gin.Context) {
 	gID, _ := c.Get("guarderia_id")
 	userID, _ := c.Get("user_id")
 
-	rows, err := s.DB.Query(
-		`SELECT id, titulo, COALESCE(descripcion, ''), activa, creado_en
-         FROM encuestas WHERE guarderia_id = $1 AND activa = true
-         ORDER BY creado_en DESC`,
-		gID,
+	rows, err := s.DB.Query(fmt.Sprintf(
+		`SELECT e.id, e.titulo, COALESCE(e.descripcion, ''), e.activa, e.creado_en, e.para_todos
+         FROM encuestas e WHERE e.guarderia_id = $1 AND e.activa = true AND %s
+         ORDER BY e.creado_en DESC`,
+		condicionVisibleParaPadre("e", "encuestas_grupos", "encuesta_id", 2)),
+		gID, userID,
 	)
 	if err != nil {
 		s.logError(c, "Error al consultar las encuestas (padre)", err)
@@ -319,9 +382,12 @@ func (s *Server) handleListarEncuestasPadre(c *gin.Context) {
 	encuestas := []EncuestaParaPadre{}
 	for rows.Next() {
 		var enc Encuesta
-		if err := rows.Scan(&enc.ID, &enc.Titulo, &enc.Descripcion, &enc.Activa, &enc.CreadoEn); err != nil {
+		if err := rows.Scan(&enc.ID, &enc.Titulo, &enc.Descripcion, &enc.Activa, &enc.CreadoEn, &enc.ParaTodos); err != nil {
 			continue
 		}
+		// Al papá no le sirve saber a qué grupos se dirigió: o le toca la
+		// encuesta o no le aparece.
+		enc.Grupos = []GrupoDestino{}
 		encuestas = append(encuestas, EncuestaParaPadre{Encuesta: enc})
 	}
 	rows.Close()
@@ -379,8 +445,15 @@ func (s *Server) handleResponderEncuesta(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	encuestaID := c.Param("id")
 
+	// Se comprueba la audiencia además de la guardería: sin esto, un papá
+	// podría responder por API una encuesta dirigida a otro salón y
+	// contaminar sus resultados.
 	var activa bool
-	err := s.DB.QueryRow(`SELECT activa FROM encuestas WHERE id = $1 AND guarderia_id = $2`, encuestaID, gID).Scan(&activa)
+	err := s.DB.QueryRow(fmt.Sprintf(
+		`SELECT e.activa FROM encuestas e WHERE e.id = $1 AND e.guarderia_id = $2 AND %s`,
+		condicionVisibleParaPadre("e", "encuestas_grupos", "encuesta_id", 3)),
+		encuestaID, gID, userID,
+	).Scan(&activa)
 	if err == sql.ErrNoRows {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Encuesta no encontrada"})
 		return
@@ -450,13 +523,29 @@ func (s *Server) handleResponderEncuesta(c *gin.Context) {
 
 // obtenerEncuesta trae los datos base de una encuesta, verificando que
 // pertenezca a la guardería que hace la petición.
+// obtenerEncuesta trae también para_todos y sus grupos: sin eso, el detalle
+// respondía para_todos = false con la lista de grupos vacía, que es justo la
+// combinación que significa "esta encuesta ya no le aparece a nadie" -- una
+// encuesta normal se habría reportado como rota.
 func (s *Server) obtenerEncuesta(encuestaID string, gID any) (Encuesta, error) {
 	var enc Encuesta
 	err := s.DB.QueryRow(
-		`SELECT id, titulo, COALESCE(descripcion, ''), activa, creado_en FROM encuestas WHERE id = $1 AND guarderia_id = $2`,
+		`SELECT id, titulo, COALESCE(descripcion, ''), activa, creado_en, para_todos FROM encuestas WHERE id = $1 AND guarderia_id = $2`,
 		encuestaID, gID,
-	).Scan(&enc.ID, &enc.Titulo, &enc.Descripcion, &enc.Activa, &enc.CreadoEn)
-	return enc, err
+	).Scan(&enc.ID, &enc.Titulo, &enc.Descripcion, &enc.Activa, &enc.CreadoEn, &enc.ParaTodos)
+	if err != nil {
+		return enc, err
+	}
+
+	enc.Grupos = []GrupoDestino{}
+	if !enc.ParaTodos {
+		if porEncuesta, errGrupos := s.gruposDePublicaciones("encuestas_grupos", "encuesta_id", []int{enc.ID}); errGrupos != nil {
+			s.logError(nil, "No se pudieron consultar los grupos de la encuesta", errGrupos, "encuesta_id", enc.ID)
+		} else if grupos := porEncuesta[enc.ID]; grupos != nil {
+			enc.Grupos = grupos
+		}
+	}
+	return enc, nil
 }
 
 // obtenerPreguntas trae las preguntas de una encuesta, desmarshaleando el

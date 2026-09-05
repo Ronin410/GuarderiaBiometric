@@ -16,11 +16,14 @@ import (
 // multipartCircularRequest arma un POST multipart con título/contenido y,
 // opcionalmente, una imagen en "imagen" -- handleCrearCircular ya no acepta
 // JSON (ver el comentario largo ahí sobre por qué).
-func multipartCircularRequest(titulo, contenido string, incluirImagen bool) *http.Request {
+func multipartCircularRequest(titulo, contenido string, incluirImagen bool, grupos ...string) *http.Request {
 	body := &bytes.Buffer{}
 	w := multipart.NewWriter(body)
 	w.WriteField("titulo", titulo)
 	w.WriteField("contenido", contenido)
+	for _, g := range grupos {
+		w.WriteField("grupos", g)
+	}
 	if incluirImagen {
 		fw, _ := w.CreateFormFile("imagen", "foto.jpg")
 		fw.Write([]byte("contenido de prueba"))
@@ -36,8 +39,11 @@ func TestListarCirculares(t *testing.T) {
 	srv, mock := nuevoServidorDePruebaConDB(t)
 	mock.ExpectQuery("SELECT c.id, c.titulo, c.contenido, c.creado_en").
 		WithArgs(1).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "titulo", "contenido", "creado_en", "imagen_s3_key", "leido_por", "total_familias"}).
-			AddRow(1, "Suspensión de clases", "El viernes no hay clases por junta de consejo técnico.", "2026-08-10T12:00:00Z", nil, 3, 8))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "titulo", "contenido", "creado_en", "imagen_s3_key", "para_todos", "leido_por", "total_familias"}).
+			AddRow(1, "Suspensión de clases", "El viernes no hay clases por junta de consejo técnico.", "2026-08-10T12:00:00Z", nil, true, 3, 8))
+	// Los grupos de las circulares listadas se piden en una segunda consulta.
+	mock.ExpectQuery("FROM circulares_grupos pg").
+		WillReturnRows(sqlmock.NewRows([]string{"circular_id", "id", "nombre"}))
 
 	r := nuevoRouterDePrueba(srv)
 	req := jsonRequest(http.MethodGet, "/circulares", nil)
@@ -62,9 +68,9 @@ func TestListarCirculares(t *testing.T) {
 
 func TestListarCircularesComoPadre(t *testing.T) {
 	srv, mock := nuevoServidorDePruebaConDB(t)
-	mock.ExpectQuery("SELECT id, titulo, contenido, creado_en, imagen_s3_key FROM circulares").
-		WithArgs(1).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "titulo", "contenido", "creado_en", "imagen_s3_key"}))
+	mock.ExpectQuery("SELECT c.id, c.titulo, c.contenido, c.creado_en, c.imagen_s3_key, c.para_todos").
+		WithArgs(1, 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "titulo", "contenido", "creado_en", "imagen_s3_key", "para_todos"}))
 
 	r := nuevoRouterDePrueba(srv)
 	req := jsonRequest(http.MethodGet, "/padre/circulares", nil)
@@ -80,7 +86,7 @@ func TestListarCircularesComoPadre(t *testing.T) {
 func TestMarcarCircularLeida(t *testing.T) {
 	t.Run("circular de otra guardería -> 404", func(t *testing.T) {
 		srv, mock := nuevoServidorDePruebaConDB(t)
-		mock.ExpectQuery("SELECT EXISTS").WithArgs("9", 1).
+		mock.ExpectQuery("SELECT EXISTS").WithArgs("9", 1, 1).
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
 
 		r := nuevoRouterDePrueba(srv)
@@ -96,7 +102,7 @@ func TestMarcarCircularLeida(t *testing.T) {
 
 	t.Run("papá marca como leída -> 200", func(t *testing.T) {
 		srv, mock := nuevoServidorDePruebaConDB(t)
-		mock.ExpectQuery("SELECT EXISTS").WithArgs("1", 1).
+		mock.ExpectQuery("SELECT EXISTS").WithArgs("1", 1, 1).
 			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 		mock.ExpectExec("INSERT INTO circulares_lecturas").
 			WithArgs("1", 1).
@@ -181,11 +187,15 @@ func TestCrearCircular(t *testing.T) {
 		}
 	})
 
-	t.Run("staff publica -> 201", func(t *testing.T) {
+	t.Run("staff publica para todas las familias -> 201", func(t *testing.T) {
 		srv, mock := nuevoServidorDePruebaConDB(t)
+		mock.ExpectBegin()
+		// para_todos = true: sin grupos elegidos la circular es para toda la
+		// guardería, igual que antes de que existieran los destinatarios.
 		mock.ExpectQuery("INSERT INTO circulares").
-			WithArgs(1, "Aviso importante", "Mañana hay junta de padres a las 5pm.", 1, nil).
+			WithArgs(1, "Aviso importante", "Mañana hay junta de padres a las 5pm.", 1, nil, true).
 			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(7))
+		mock.ExpectCommit()
 
 		r := nuevoRouterDePrueba(srv)
 		req := multipartCircularRequest("Aviso importante", "Mañana hay junta de padres a las 5pm.", false)
@@ -195,6 +205,55 @@ func TestCrearCircular(t *testing.T) {
 
 		if w.Code != http.StatusCreated {
 			t.Fatalf("código = %d; esperado 201 (body: %s)", w.Code, w.Body.String())
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Fatalf("consultas no coinciden: %v", err)
+		}
+	})
+
+	t.Run("staff la dirige a dos grupos -> 201 con para_todos en false", func(t *testing.T) {
+		srv, mock := nuevoServidorDePruebaConDB(t)
+		// Los grupos elegidos se validan contra la guardería antes de nada.
+		mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM grupos").
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
+		mock.ExpectBegin()
+		mock.ExpectQuery("INSERT INTO circulares").
+			WithArgs(1, "Solo maternal", "Traigan cambio de ropa.", 1, nil, false).
+			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(8))
+		mock.ExpectExec("INSERT INTO circulares_grupos").WithArgs(8, 3).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectExec("INSERT INTO circulares_grupos").WithArgs(8, 4).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+
+		r := nuevoRouterDePrueba(srv)
+		req := multipartCircularRequest("Solo maternal", "Traigan cambio de ropa.", false, "3", "4")
+		autenticarRequestPrueba(t, req, srv.JWTKey, "staff", time.Hour)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusCreated {
+			t.Fatalf("código = %d; esperado 201 (body: %s)", w.Code, w.Body.String())
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Fatalf("consultas no coinciden: %v", err)
+		}
+	})
+
+	t.Run("grupo de otra guardería -> 400", func(t *testing.T) {
+		srv, mock := nuevoServidorDePruebaConDB(t)
+		// Se piden 2 grupos pero solo 1 es de esta guardería.
+		mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM grupos").
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+
+		r := nuevoRouterDePrueba(srv)
+		req := multipartCircularRequest("Aviso", "Texto", false, "3", "999")
+		autenticarRequestPrueba(t, req, srv.JWTKey, "staff", time.Hour)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("código = %d; esperado 400 (body: %s)", w.Code, w.Body.String())
 		}
 	})
 }

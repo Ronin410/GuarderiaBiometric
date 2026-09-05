@@ -6,6 +6,7 @@ import (
 
 	webpush "github.com/SherClockHolmes/webpush-go"
 	"github.com/gin-gonic/gin"
+	"github.com/lib/pq"
 
 	"biometrico/internal/middleware"
 )
@@ -136,7 +137,11 @@ func (s *Server) notificarEvento(hijoID int, evento string, detalle string) {
 // de un niño en particular, a diferencia de notificarEvento) cuando se
 // publica una circular nueva. Igual que notificarEvento, debe llamarse como
 // "go s.notificarCircular(...)" -- nunca debe frenar la respuesta al panel.
-func (s *Server) notificarCircular(guarderiaID any, titulo, contenido string) {
+// grupos vacío = la publicación va para toda la guardería, que es el
+// comportamiento de siempre. Con grupos, la notificación solo sale hacia los
+// tutores que tienen un hijo activo en alguno de ellos -- si el aviso no se
+// le muestra a una familia, tampoco tiene por qué sonarle el teléfono.
+func (s *Server) notificarCircular(guarderiaID any, titulo, contenido string, grupos []int) {
 	// Recorte por runas, no por bytes: el contenido es texto en español con
 	// acentos/ñ (multi-byte en UTF-8) -- cortar por índice de byte podría
 	// partir un carácter a la mitad y mandar texto corrupto en la notificación.
@@ -146,10 +151,27 @@ func (s *Server) notificarCircular(guarderiaID any, titulo, contenido string) {
 		cuerpo = string(runas[:120]) + "…"
 	}
 
+	if len(grupos) == 0 {
+		s.enviarWebPushYExpo(
+			`SELECT id, endpoint, p256dh, auth FROM push_subscripciones WHERE guarderia_id = $1`,
+			`SELECT id, token FROM push_tokens_expo WHERE guarderia_id = $1`,
+			"📢 "+titulo, cuerpo, "notificarCircular", guarderiaID,
+		)
+		return
+	}
+
+	// El mismo criterio que condicionVisibleParaPadre en destinatarios.go,
+	// pero contra el padre_id de la suscripción en vez del del token.
+	const filtroGrupos = ` AND EXISTS (
+        SELECT 1 FROM tutor_hijos th
+        JOIN hijos h ON h.id = th.hijo_id AND h.activo
+        WHERE th.padre_id = sub.padre_id AND h.grupo_id = ANY($2)
+    )`
+
 	s.enviarWebPushYExpo(
-		`SELECT id, endpoint, p256dh, auth FROM push_subscripciones WHERE guarderia_id = $1`,
-		`SELECT id, token FROM push_tokens_expo WHERE guarderia_id = $1`,
-		"📢 "+titulo, cuerpo, "notificarCircular", guarderiaID,
+		`SELECT sub.id, sub.endpoint, sub.p256dh, sub.auth FROM push_subscripciones sub WHERE sub.guarderia_id = $1`+filtroGrupos,
+		`SELECT sub.id, sub.token FROM push_tokens_expo sub WHERE sub.guarderia_id = $1`+filtroGrupos,
+		"📢 "+titulo, cuerpo, "notificarCircular", guarderiaID, pq.Array(grupos),
 	)
 }
 

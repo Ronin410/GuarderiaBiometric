@@ -23,6 +23,11 @@ type Circular struct {
 	Contenido string  `json:"contenido"`
 	CreadoEn  string  `json:"creado_en"`
 	ImagenURL *string `json:"imagen_url,omitempty"`
+	// ParaTodos + Grupos: a quién va dirigida (ver destinatarios.go). Con
+	// ParaTodos en true, Grupos viene vacío y la circular es para toda la
+	// guardería, que es como se comportaban todas antes de esto.
+	ParaTodos bool           `json:"para_todos"`
+	Grupos    []GrupoDestino `json:"grupos"`
 }
 
 // CircularConLecturas es lo que ve el staff en el listado: la circular más
@@ -62,16 +67,21 @@ func (s *Server) registrarRutasCirculares(r *gin.Engine) {
 func (s *Server) handleListarCircularesStaff(c *gin.Context) {
 	gID, _ := c.Get("guarderia_id")
 
-	rows, err := s.DB.Query(
-		`SELECT c.id, c.titulo, c.contenido, c.creado_en, c.imagen_s3_key,
-                COUNT(cl.padre_id),
-                (SELECT COUNT(*) FROM padres p WHERE p.guarderia_id = $1)
+	// COUNT(DISTINCT cl.padre_id) y no COUNT(cl.padre_id): el total de
+	// familias destinatarias ahora se calcula con subconsultas que unen
+	// grupos e hijos, y cualquier join que se agregue a este SELECT
+	// multiplicaría las filas de lecturas. DISTINCT lo deja a salvo.
+	rows, err := s.DB.Query(fmt.Sprintf(
+		`SELECT c.id, c.titulo, c.contenido, c.creado_en, c.imagen_s3_key, c.para_todos,
+                COUNT(DISTINCT cl.padre_id),
+                %s
          FROM circulares c
          LEFT JOIN circulares_lecturas cl ON cl.circular_id = c.id
          WHERE c.guarderia_id = $1
          GROUP BY c.id
          ORDER BY c.creado_en DESC
          LIMIT 50`,
+		contarFamiliasDestino("c", "circulares_grupos", "circular_id", 1)),
 		gID,
 	)
 	if err != nil {
@@ -82,15 +92,33 @@ func (s *Server) handleListarCircularesStaff(c *gin.Context) {
 	defer rows.Close()
 
 	circulares := []CircularConLecturas{}
+	ids := []int{}
 	for rows.Next() {
 		var cir CircularConLecturas
 		var imagenKey sql.NullString
-		if err := rows.Scan(&cir.ID, &cir.Titulo, &cir.Contenido, &cir.CreadoEn, &imagenKey, &cir.LeidoPor, &cir.TotalFamilias); err != nil {
+		if err := rows.Scan(&cir.ID, &cir.Titulo, &cir.Contenido, &cir.CreadoEn, &imagenKey, &cir.ParaTodos, &cir.LeidoPor, &cir.TotalFamilias); err != nil {
 			continue
 		}
 		s.firmarImagenCircular(&cir.Circular, imagenKey)
+		cir.Grupos = []GrupoDestino{}
 		circulares = append(circulares, cir)
+		ids = append(ids, cir.ID)
 	}
+
+	// Los grupos se traen aparte, de un solo viaje: meterlos en el SELECT de
+	// arriba obligaría a agregarlos por circular y ya hay dos subconsultas
+	// de conteo ahí. Si esta parte falla, el listado se manda igual sin las
+	// etiquetas de grupo en vez de dejar la pantalla vacía.
+	if porCircular, err := s.gruposDePublicaciones("circulares_grupos", "circular_id", ids); err != nil {
+		s.logError(c, "No se pudieron consultar los grupos de las circulares", err)
+	} else {
+		for i := range circulares {
+			if grupos := porCircular[circulares[i].ID]; grupos != nil {
+				circulares[i].Grupos = grupos
+			}
+		}
+	}
+
 	c.JSON(http.StatusOK, circulares)
 }
 
@@ -116,12 +144,16 @@ func (s *Server) firmarImagenCircular(cir *Circular, imagenKey sql.NullString) {
 func (s *Server) handleListarCircularesPadre(c *gin.Context) {
 	gID, _ := c.Get("guarderia_id")
 
-	rows, err := s.DB.Query(
-		`SELECT id, titulo, contenido, creado_en, imagen_s3_key FROM circulares
-         WHERE guarderia_id = $1
-         ORDER BY creado_en DESC
+	userID, _ := c.Get("user_id")
+
+	rows, err := s.DB.Query(fmt.Sprintf(
+		`SELECT c.id, c.titulo, c.contenido, c.creado_en, c.imagen_s3_key, c.para_todos
+         FROM circulares c
+         WHERE c.guarderia_id = $1 AND %s
+         ORDER BY c.creado_en DESC
          LIMIT 50`,
-		gID,
+		condicionVisibleParaPadre("c", "circulares_grupos", "circular_id", 2)),
+		gID, userID,
 	)
 	if err != nil {
 		s.logError(c, "Error al consultar las circulares (padre)", err)
@@ -134,10 +166,13 @@ func (s *Server) handleListarCircularesPadre(c *gin.Context) {
 	for rows.Next() {
 		var cir Circular
 		var imagenKey sql.NullString
-		if err := rows.Scan(&cir.ID, &cir.Titulo, &cir.Contenido, &cir.CreadoEn, &imagenKey); err != nil {
+		if err := rows.Scan(&cir.ID, &cir.Titulo, &cir.Contenido, &cir.CreadoEn, &imagenKey, &cir.ParaTodos); err != nil {
 			continue
 		}
 		s.firmarImagenCircular(&cir, imagenKey)
+		// El papá no necesita saber a qué grupos se dirigió: para él la
+		// circular o le toca o no aparece.
+		cir.Grupos = []GrupoDestino{}
 		circulares = append(circulares, cir)
 	}
 	c.JSON(http.StatusOK, circulares)
@@ -152,8 +187,15 @@ func (s *Server) handleMarcarCircularLeida(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 	circularID := c.Param("id")
 
+	// Se comprueba la audiencia, no solo que la circular sea de su
+	// guardería: si no, un papá podría marcar como leída una circular
+	// dirigida a otro salón e inflar el "leído por" que ve el staff.
 	var existe bool
-	if err := s.DB.QueryRow(`SELECT EXISTS(SELECT 1 FROM circulares WHERE id = $1 AND guarderia_id = $2)`, circularID, gID).Scan(&existe); err != nil || !existe {
+	if err := s.DB.QueryRow(fmt.Sprintf(
+		`SELECT EXISTS(SELECT 1 FROM circulares c WHERE c.id = $1 AND c.guarderia_id = $2 AND %s)`,
+		condicionVisibleParaPadre("c", "circulares_grupos", "circular_id", 3)),
+		circularID, gID, userID,
+	).Scan(&existe); err != nil || !existe {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Circular no encontrada"})
 		return
 	}
@@ -243,13 +285,37 @@ func (s *Server) handleCrearCircular(c *gin.Context) {
 		imagenKey = &key
 	}
 
-	var nuevoID int
-	err := s.DB.QueryRow(
-		`INSERT INTO circulares (guarderia_id, titulo, contenido, creado_por, imagen_s3_key)
-         VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-		gID, titulo, contenido, userID, imagenKey,
-	).Scan(&nuevoID)
+	// A quién va dirigida. Sin grupos elegidos se comporta como siempre:
+	// para todas las familias de la guardería.
+	grupos, err := s.validarGruposDeGuarderia(c.PostFormArray("grupos"), gID)
 	if err != nil {
+		if imagenKey != nil {
+			go s.borrarDeS3(*imagenKey)
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// La circular y sus grupos se guardan juntos o no se guarda ninguno: una
+	// circular dirigida que quedara sin sus filas de grupo se le mostraría a
+	// toda la guardería, justo lo contrario de lo que se pidió.
+	tx, err := s.DB.Begin()
+	if err != nil {
+		if imagenKey != nil {
+			go s.borrarDeS3(*imagenKey)
+		}
+		s.logError(c, "No se pudo publicar la circular", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo publicar la circular"})
+		return
+	}
+	defer tx.Rollback()
+
+	var nuevoID int
+	if err := tx.QueryRow(
+		`INSERT INTO circulares (guarderia_id, titulo, contenido, creado_por, imagen_s3_key, para_todos)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+		gID, titulo, contenido, userID, imagenKey, len(grupos) == 0,
+	).Scan(&nuevoID); err != nil {
 		if imagenKey != nil {
 			go s.borrarDeS3(*imagenKey) // la circular no se guardó, no dejamos la imagen huérfana
 		}
@@ -258,7 +324,25 @@ func (s *Server) handleCrearCircular(c *gin.Context) {
 		return
 	}
 
-	go s.notificarCircular(gID, titulo, contenido)
+	if err := guardarGruposDestino(tx, "circulares_grupos", "circular_id", nuevoID, grupos); err != nil {
+		if imagenKey != nil {
+			go s.borrarDeS3(*imagenKey)
+		}
+		s.logError(c, "No se pudieron guardar los grupos de la circular", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo publicar la circular"})
+		return
+	}
+
+	if err := tx.Commit(); err != nil {
+		if imagenKey != nil {
+			go s.borrarDeS3(*imagenKey)
+		}
+		s.logError(c, "No se pudo publicar la circular", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo publicar la circular"})
+		return
+	}
+
+	go s.notificarCircular(gID, titulo, contenido, grupos)
 
 	c.JSON(http.StatusCreated, gin.H{"id": nuevoID, "message": "Circular publicada"})
 }

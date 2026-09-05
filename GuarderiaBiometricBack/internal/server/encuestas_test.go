@@ -15,8 +15,11 @@ func TestListarEncuestasStaff(t *testing.T) {
 	srv, mock := nuevoServidorDePruebaConDB(t)
 	mock.ExpectQuery("SELECT e.id, e.titulo, COALESCE\\(e.descripcion, ''\\), e.activa, e.creado_en").
 		WithArgs(1).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "titulo", "descripcion", "activa", "creado_en", "total_respuestas", "total_familias"}).
-			AddRow(1, "Posada navideña", "¿Asistirán?", true, "2026-08-13T10:00:00Z", 3, 8))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "titulo", "descripcion", "activa", "creado_en", "para_todos", "total_respuestas", "total_familias"}).
+			AddRow(1, "Posada navideña", "¿Asistirán?", true, "2026-08-13T10:00:00Z", true, 3, 8))
+	// Los grupos de las encuestas listadas se piden en una segunda consulta.
+	mock.ExpectQuery("FROM encuestas_grupos pg").
+		WillReturnRows(sqlmock.NewRows([]string{"encuesta_id", "id", "nombre"}))
 
 	r := nuevoRouterDePrueba(srv)
 	req := jsonRequest(http.MethodGet, "/encuestas", nil)
@@ -82,8 +85,10 @@ func TestCrearEncuesta(t *testing.T) {
 
 	t.Run("staff crea con una pregunta de opción múltiple y otra de texto libre -> 201", func(t *testing.T) {
 		srv, mock := nuevoServidorDePruebaConDB(t)
+		mock.ExpectBegin()
+		// para_todos = true: sin grupos elegidos va para toda la guardería.
 		mock.ExpectQuery("INSERT INTO encuestas").
-			WithArgs(1, "Posada navideña", "Confírmanos", 1).
+			WithArgs(1, "Posada navideña", "Confírmanos", 1, true).
 			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(9))
 		mock.ExpectExec("INSERT INTO encuesta_preguntas").
 			WithArgs(9, "¿Asistirán?", "opcion_multiple", sqlmock.AnyArg(), 0).
@@ -91,6 +96,7 @@ func TestCrearEncuesta(t *testing.T) {
 		mock.ExpectExec("INSERT INTO encuesta_preguntas").
 			WithArgs(9, "Comentarios", "texto_libre", nil, 1).
 			WillReturnResult(sqlmock.NewResult(2, 1))
+		mock.ExpectCommit()
 
 		r := nuevoRouterDePrueba(srv)
 		req := jsonRequest(http.MethodPost, "/encuestas", map[string]any{
@@ -110,10 +116,71 @@ func TestCrearEncuesta(t *testing.T) {
 	})
 }
 
+// Dirigir una encuesta a grupos: para_todos queda en false y se escriben
+// las filas de encuestas_grupos, todo dentro de la misma transacción que las
+// preguntas -- una encuesta dirigida que se guardara a medias le aparecería
+// a familias a las que no iba.
+func TestCrearEncuestaDirigidaAGrupos(t *testing.T) {
+	srv, mock := nuevoServidorDePruebaConDB(t)
+	mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM grupos").
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectBegin()
+	mock.ExpectQuery("INSERT INTO encuestas").
+		WithArgs(1, "Salida al zoológico", "", 1, false).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(11))
+	mock.ExpectExec("INSERT INTO encuestas_grupos").WithArgs(11, 5).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec("INSERT INTO encuesta_preguntas").
+		WithArgs(11, "¿Va tu hijo?", "texto_libre", nil, 0).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	r := nuevoRouterDePrueba(srv)
+	req := jsonRequest(http.MethodPost, "/encuestas", map[string]any{
+		"titulo": "Salida al zoológico",
+		"grupos": []int{5},
+		"preguntas": []map[string]any{
+			{"texto": "¿Va tu hijo?", "tipo": "texto_libre"},
+		},
+	})
+	autenticarRequestPrueba(t, req, srv.JWTKey, "staff", time.Hour)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("código = %d; esperado 201 (body: %s)", w.Code, w.Body.String())
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("consultas no coinciden: %v", err)
+	}
+}
+
+// Un papá que responde una encuesta que no le tocaba: la comprobación de
+// audiencia no la encuentra y contesta 404, en vez de dejarlo contaminar los
+// resultados de otro salón.
+func TestResponderEncuestaFueraDeAudiencia(t *testing.T) {
+	srv, mock := nuevoServidorDePruebaConDB(t)
+	mock.ExpectQuery("SELECT e.activa FROM encuestas").
+		WithArgs("1", 1, 1).
+		WillReturnError(sql.ErrNoRows)
+
+	r := nuevoRouterDePrueba(srv)
+	req := jsonRequest(http.MethodPost, "/padre/encuestas/1/respuestas", map[string]any{
+		"respuestas": []map[string]any{{"pregunta_id": 1, "respuesta": "Sí"}},
+	})
+	autenticarRequestPrueba(t, req, srv.JWTKey, "papa", time.Hour)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("código = %d; esperado 404 (body: %s)", w.Code, w.Body.String())
+	}
+}
+
 func TestDetalleEncuesta(t *testing.T) {
 	t.Run("no encontrada -> 404", func(t *testing.T) {
 		srv, mock := nuevoServidorDePruebaConDB(t)
-		mock.ExpectQuery("SELECT id, titulo, COALESCE\\(descripcion, ''\\), activa, creado_en FROM encuestas").
+		mock.ExpectQuery("SELECT id, titulo, COALESCE\\(descripcion, ''\\), activa, creado_en, para_todos FROM encuestas").
 			WithArgs("99", 1).
 			WillReturnError(sql.ErrNoRows)
 
@@ -130,10 +197,10 @@ func TestDetalleEncuesta(t *testing.T) {
 
 	t.Run("staff ve el detalle con resultados agregados -> 200", func(t *testing.T) {
 		srv, mock := nuevoServidorDePruebaConDB(t)
-		mock.ExpectQuery("SELECT id, titulo, COALESCE\\(descripcion, ''\\), activa, creado_en FROM encuestas").
+		mock.ExpectQuery("SELECT id, titulo, COALESCE\\(descripcion, ''\\), activa, creado_en, para_todos FROM encuestas").
 			WithArgs("1", 1).
-			WillReturnRows(sqlmock.NewRows([]string{"id", "titulo", "descripcion", "activa", "creado_en"}).
-				AddRow(1, "Posada navideña", "Confírmanos", true, "2026-08-13T10:00:00Z"))
+			WillReturnRows(sqlmock.NewRows([]string{"id", "titulo", "descripcion", "activa", "creado_en", "para_todos"}).
+				AddRow(1, "Posada navideña", "Confírmanos", true, "2026-08-13T10:00:00Z", true))
 		mock.ExpectQuery("SELECT id, texto, tipo, opciones FROM encuesta_preguntas").
 			WithArgs("1").
 			WillReturnRows(sqlmock.NewRows([]string{"id", "texto", "tipo", "opciones"}).
@@ -163,10 +230,10 @@ func TestDetalleEncuesta(t *testing.T) {
 
 func TestListarEncuestasComoPadre(t *testing.T) {
 	srv, mock := nuevoServidorDePruebaConDB(t)
-	mock.ExpectQuery("SELECT id, titulo, COALESCE\\(descripcion, ''\\), activa, creado_en FROM encuestas").
-		WithArgs(1).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "titulo", "descripcion", "activa", "creado_en"}).
-			AddRow(1, "Posada navideña", "Confírmanos", true, "2026-08-13T10:00:00Z"))
+	mock.ExpectQuery("SELECT e.id, e.titulo, COALESCE\\(e.descripcion, ''\\), e.activa, e.creado_en, e.para_todos").
+		WithArgs(1, 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "titulo", "descripcion", "activa", "creado_en", "para_todos"}).
+			AddRow(1, "Posada navideña", "Confírmanos", true, "2026-08-13T10:00:00Z", true))
 	mock.ExpectQuery("SELECT id, texto, tipo, opciones FROM encuesta_preguntas").
 		WithArgs("1").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "texto", "tipo", "opciones"}).
@@ -201,10 +268,10 @@ func TestListarEncuestasComoPadre(t *testing.T) {
 // información cargada (en vez de solo un aviso genérico).
 func TestListarEncuestasComoPadreYaRespondida(t *testing.T) {
 	srv, mock := nuevoServidorDePruebaConDB(t)
-	mock.ExpectQuery("SELECT id, titulo, COALESCE\\(descripcion, ''\\), activa, creado_en FROM encuestas").
-		WithArgs(1).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "titulo", "descripcion", "activa", "creado_en"}).
-			AddRow(1, "Posada navideña", "Confírmanos", true, "2026-08-13T10:00:00Z"))
+	mock.ExpectQuery("SELECT e.id, e.titulo, COALESCE\\(e.descripcion, ''\\), e.activa, e.creado_en, e.para_todos").
+		WithArgs(1, 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "titulo", "descripcion", "activa", "creado_en", "para_todos"}).
+			AddRow(1, "Posada navideña", "Confírmanos", true, "2026-08-13T10:00:00Z", true))
 	mock.ExpectQuery("SELECT id, texto, tipo, opciones FROM encuesta_preguntas").
 		WithArgs("1").
 		WillReturnRows(sqlmock.NewRows([]string{"id", "texto", "tipo", "opciones"}).
@@ -240,8 +307,8 @@ func TestListarEncuestasComoPadreYaRespondida(t *testing.T) {
 func TestResponderEncuesta(t *testing.T) {
 	t.Run("encuesta cerrada -> 400", func(t *testing.T) {
 		srv, mock := nuevoServidorDePruebaConDB(t)
-		mock.ExpectQuery("SELECT activa FROM encuestas").
-			WithArgs("1", 1).
+		mock.ExpectQuery("SELECT e.activa FROM encuestas").
+			WithArgs("1", 1, 1).
 			WillReturnRows(sqlmock.NewRows([]string{"activa"}).AddRow(false))
 
 		r := nuevoRouterDePrueba(srv)
@@ -259,8 +326,8 @@ func TestResponderEncuesta(t *testing.T) {
 
 	t.Run("papá responde -> 200", func(t *testing.T) {
 		srv, mock := nuevoServidorDePruebaConDB(t)
-		mock.ExpectQuery("SELECT activa FROM encuestas").
-			WithArgs("1", 1).
+		mock.ExpectQuery("SELECT e.activa FROM encuestas").
+			WithArgs("1", 1, 1).
 			WillReturnRows(sqlmock.NewRows([]string{"activa"}).AddRow(true))
 		mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM encuesta_preguntas").
 			WithArgs("1").
@@ -289,8 +356,8 @@ func TestResponderEncuesta(t *testing.T) {
 
 	t.Run("ya respondió todas las preguntas -> 400 (no se puede reenviar)", func(t *testing.T) {
 		srv, mock := nuevoServidorDePruebaConDB(t)
-		mock.ExpectQuery("SELECT activa FROM encuestas").
-			WithArgs("1", 1).
+		mock.ExpectQuery("SELECT e.activa FROM encuestas").
+			WithArgs("1", 1, 1).
 			WillReturnRows(sqlmock.NewRows([]string{"activa"}).AddRow(true))
 		mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM encuesta_preguntas").
 			WithArgs("1").
