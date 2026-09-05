@@ -3,6 +3,12 @@ import api from './axiosConfig';
 import { CalendarOff, Baby } from 'lucide-react';
 import { mostrarError } from './utils/alertas';
 import { hoyLocal } from './utils/fecha';
+import { acentoDeTab } from './utils/acentos';
+import DinoDecorativo from './components/DinoDecorativo';
+
+// Color y dino de este apartado -- los define utils/acentos.js para que
+// coincidan con los del menú lateral.
+const acento = acentoDeTab('ausencias');
 
 // PanelAusencias -- "Planificación de ausencias por parte de los padres"
 // (lado staff): qué niños ya avisaron que no vienen, en un rango de fechas.
@@ -56,11 +62,12 @@ const PanelAusencias = () => {
       <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div className="flex items-center gap-4">
-            <div className="bg-brand-100 p-3 rounded-2xl text-brand-600"><CalendarOff size={28} /></div>
+            <div className={`${acento.fondo} p-3 rounded-2xl ${acento.texto}`}><CalendarOff size={28} /></div>
             <div>
               <h3 className="text-xl font-black uppercase text-slate-900">Ausencias Avisadas</h3>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Quién no viene, avisado por los papás</p>
             </div>
+            <DinoDecorativo src="/dinos/dino-verde.png" className="hidden sm:block h-14 w-auto shrink-0" espejo />
           </div>
           <div className="flex items-center gap-2">
             <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className="bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-brand-500 text-xs font-bold" />

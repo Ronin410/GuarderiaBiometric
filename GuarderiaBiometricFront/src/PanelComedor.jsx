@@ -3,6 +3,12 @@ import api from './axiosConfig';
 import { UtensilsCrossed, Sunrise, Soup, Cookie, Baby } from 'lucide-react';
 import { mostrarError } from './utils/alertas';
 import { hoyLocal } from './utils/fecha';
+import { acentoDeTab } from './utils/acentos';
+import DinoDecorativo from './components/DinoDecorativo';
+
+// Color y dino de este apartado -- los define utils/acentos.js para que
+// coincidan con los del menú lateral.
+const acento = acentoDeTab('comedor');
 
 // PanelComedor -- "Pedidos para el comedor o catering" del PDF de
 // referencia (lado staff): cuántas porciones de cada comida hay que
@@ -43,11 +49,12 @@ const PanelComedor = () => {
       <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div className="flex items-center gap-4">
-            <div className="bg-brand-100 p-3 rounded-2xl text-brand-600"><UtensilsCrossed size={28} /></div>
+            <div className={`${acento.fondo} p-3 rounded-2xl ${acento.texto}`}><UtensilsCrossed size={28} /></div>
             <div>
               <h3 className="text-xl font-black uppercase text-slate-900">Pedidos de Comedor</h3>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cuántas porciones preparar hoy</p>
             </div>
+            <DinoDecorativo src="/dinos/dino-naranja.png" className="hidden sm:block h-14 w-auto shrink-0" espejo />
           </div>
           <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-brand-500 text-xs font-bold" />
         </div>

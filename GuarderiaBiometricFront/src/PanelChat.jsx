@@ -6,6 +6,12 @@ import {
 } from 'lucide-react';
 import { mostrarError } from './utils/alertas';
 import { fechaLocal, separadorFecha } from './utils/fecha';
+import { acentoDeTab } from './utils/acentos';
+import DinoDecorativo from './components/DinoDecorativo';
+
+// Color y dino de este apartado -- los define utils/acentos.js para que
+// coincidan con los del menú lateral.
+const acento = acentoDeTab('chat');
 
 const INTERVALO_POLLING_MS = 5000;
 
@@ -71,11 +77,12 @@ const PanelChat = ({ usuarioActualId }) => {
       <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl">
         <div className="flex items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-4 min-w-0">
-            <div className="bg-brand-100 p-3 rounded-2xl text-brand-600 shrink-0"><MessageCircle size={28} /></div>
+            <div className={`${acento.fondo} p-3 rounded-2xl ${acento.texto} shrink-0`}><MessageCircle size={28} /></div>
             <div className="min-w-0">
               <h3 className="text-xl font-black uppercase text-slate-900">Chat con Familias</h3>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mensajes privados, sin apps de terceros</p>
             </div>
+            <DinoDecorativo src="/dinos/dino-morado.png" className="hidden sm:block h-14 w-auto shrink-0" />
           </div>
           <button
             onClick={() => setMostrarSelectorFamilia(true)}
@@ -282,7 +289,7 @@ const HiloChat = ({ padreId, personalId, nombre, onVolver }) => {
 
       <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl flex flex-col h-[75vh] overflow-hidden">
         <div className="p-6 border-b border-slate-100 flex items-center gap-4 shrink-0">
-          <div className="bg-brand-100 p-3 rounded-2xl text-brand-600"><User size={22} /></div>
+          <div className={`${acento.fondo} p-3 rounded-2xl ${acento.texto}`}><User size={22} /></div>
           <h3 className="text-lg font-black uppercase text-slate-900">{nombre}</h3>
         </div>
 

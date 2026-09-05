@@ -3,6 +3,12 @@ import api from './axiosConfig';
 import { UtensilsCrossed, ChevronLeft, ChevronRight, Save, Loader2, Coffee, Soup, Cookie } from 'lucide-react';
 import { mostrarError, mostrarExito } from './utils/alertas';
 import { hoyLocal, lunesDeLaSemana, diasHabilesDeLaSemana } from './utils/fecha';
+import { acentoDeTab } from './utils/acentos';
+import DinoDecorativo from './components/DinoDecorativo';
+
+// Color y dino de este apartado -- los define utils/acentos.js para que
+// coincidan con los del menú lateral.
+const acento = acentoDeTab('menu');
 
 const NOMBRES_DIA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
 const VACIO = { desayuno: '', comida: '', merienda: '' };
@@ -78,11 +84,12 @@ const PanelMenu = () => {
       <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div className="flex items-center gap-4">
-            <div className="bg-brand-100 p-3 rounded-2xl text-brand-600"><UtensilsCrossed size={28} /></div>
+            <div className={`${acento.fondo} p-3 rounded-2xl ${acento.texto}`}><UtensilsCrossed size={28} /></div>
             <div>
               <h3 className="text-xl font-black uppercase text-slate-900">Menú Semanal</h3>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Desayuno, comida y merienda</p>
             </div>
+            <DinoDecorativo src="/dinos/dino-amarillo.png" className="hidden sm:block h-14 w-auto shrink-0" />
           </div>
           <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-2xl px-2 py-2">
             <button onClick={() => cambiarSemana(-1)} className="p-2 rounded-xl hover:bg-white text-slate-500 transition-all"><ChevronLeft size={18} /></button>

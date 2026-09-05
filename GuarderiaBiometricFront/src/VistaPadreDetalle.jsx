@@ -15,6 +15,8 @@ import { mostrarError, mostrarExito, confirmar } from './utils/alertas';
 import ReporteDiario from './components/ReporteDiario';
 import ReciboPago from './components/ReciboPago';
 import GaleriaFotos from './components/GaleriaFotos';
+import { ACENTOS } from './utils/acentos';
+import DinoDecorativo from './components/DinoDecorativo';
 
 const ESTADO_PAGO_INFO = {
   pagado: { label: 'Pagado', color: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: CheckCircle2 },
@@ -318,9 +320,12 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
         </button>
 
         <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">{nombreHijo}</h2>
-            <div className="bg-brand-600 p-3 rounded-2xl text-white shadow-lg shadow-brand-200">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <h2 className="text-3xl font-black text-slate-900 uppercase tracking-tighter truncate">{nombreHijo}</h2>
+              <DinoDecorativo src="/dinos/dino-morado.png" className="h-12 w-auto shrink-0" />
+            </div>
+            <div className="bg-brand-600 p-3 rounded-2xl text-white shadow-lg shrink-0">
               <Heart size={20} fill="currentColor" />
             </div>
           </div>
@@ -374,7 +379,7 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
         <div className="max-w-md mx-auto p-4 space-y-4">
           <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-slate-100 space-y-5">
             <div className="flex items-center gap-2">
-              <div className="p-2 bg-brand-100 text-brand-600 rounded-lg"><IdCard size={18} /></div>
+              <div className={`p-2 rounded-lg ${ACENTOS.verde.fondo} ${ACENTOS.verde.texto}`}><IdCard size={18} /></div>
               <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest">Expediente</h3>
             </div>
             <div className="flex items-center gap-4">
@@ -412,7 +417,7 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
               sepa qué falta sin tener que preguntar. */}
           <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-slate-100 space-y-4">
             <div className="flex items-center gap-2">
-              <div className="p-2 bg-brand-100 text-brand-600 rounded-lg"><FileText size={18} /></div>
+              <div className={`p-2 rounded-lg ${ACENTOS.naranja.fondo} ${ACENTOS.naranja.texto}`}><FileText size={18} /></div>
               <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest">Documentos entregados</h3>
             </div>
             {loadingDocumentos ? (
@@ -455,7 +460,7 @@ const VistaPadreDetalle = ({ hijoId, nombreHijo, expediente, onVolver }) => {
           {pagosEnLineaHabilitado && estadoPago && (estadoPago.colegiatura_mensual - estadoPago.total_pagado) > 0 && (
             <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100 space-y-4">
               <div className="flex items-center gap-2">
-                <div className="p-2 bg-brand-100 text-brand-600 rounded-lg"><CreditCard size={18} /></div>
+                <div className={`p-2 rounded-lg ${ACENTOS.amarillo.fondo} ${ACENTOS.amarillo.texto}`}><CreditCard size={18} /></div>
                 <h3 className="font-black text-slate-900 uppercase text-xs tracking-widest">Pagar colegiatura con tarjeta</h3>
               </div>
               <div className="flex items-center justify-between text-xs font-bold text-slate-500">

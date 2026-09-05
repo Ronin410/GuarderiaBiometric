@@ -8,6 +8,12 @@ import {
 import { mostrarError, mostrarExito, confirmar } from './utils/alertas';
 import DocumentosNino from './DocumentosNino';
 import GaleriaFotos from './components/GaleriaFotos';
+import { acentoDeTab } from './utils/acentos';
+import DinoDecorativo from './components/DinoDecorativo';
+
+// Color y dino de este apartado -- los define utils/acentos.js para que
+// coincidan con los del menú lateral.
+const acento = acentoDeTab('perfiles');
 
 const PanelPerfiles = () => {
   const [ninos, setNinos] = useState([]);
@@ -160,11 +166,12 @@ const PanelPerfiles = () => {
       <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div className="flex items-center gap-4">
-            <div className="bg-brand-100 p-3 rounded-2xl text-brand-600"><IdCard size={28} /></div>
+            <div className={`${acento.fondo} p-3 rounded-2xl ${acento.texto}`}><IdCard size={28} /></div>
             <div>
               <h3 className="text-xl font-black uppercase text-slate-900">Perfiles de Alumnos</h3>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Expediente administrativo</p>
             </div>
+            <DinoDecorativo src="/dinos/dino-verde.png" className="hidden sm:block h-14 w-auto shrink-0" />
           </div>
           <button
             onClick={() => setVerBajas(!verBajas)}

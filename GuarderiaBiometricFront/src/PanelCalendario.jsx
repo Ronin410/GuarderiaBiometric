@@ -3,6 +3,12 @@ import api from './axiosConfig';
 import { CalendarDays, Plus, X, Send, Loader2, Trash2 } from 'lucide-react';
 import { mostrarError, mostrarExito, confirmar } from './utils/alertas';
 import { hoyLocal } from './utils/fecha';
+import { acentoDeTab } from './utils/acentos';
+import DinoDecorativo from './components/DinoDecorativo';
+
+// Color y dino de este apartado -- los define utils/acentos.js para que
+// coincidan con los del menú lateral.
+const acento = acentoDeTab('calendario');
 
 const FORM_VACIO = { titulo: '', descripcion: '', fecha_inicio: '', fecha_fin: '', tipo: 'evento' };
 
@@ -96,11 +102,12 @@ const PanelCalendario = () => {
       <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div className="flex items-center gap-4">
-            <div className="bg-brand-100 p-3 rounded-2xl text-brand-600"><CalendarDays size={28} /></div>
+            <div className={`${acento.fondo} p-3 rounded-2xl ${acento.texto}`}><CalendarDays size={28} /></div>
             <div>
               <h3 className="text-xl font-black uppercase text-slate-900">Calendario Escolar</h3>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Fechas importantes del centro</p>
             </div>
+            <DinoDecorativo src="/dinos/dino-amarillo.png" className="hidden sm:block h-14 w-auto shrink-0" espejo />
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">

@@ -7,6 +7,12 @@ import {
 import { hoyLocal } from './utils/fecha';
 import { mostrarError, mostrarExito, confirmar } from './utils/alertas';
 import ReciboPago from './components/ReciboPago';
+import { acentoDeTab } from './utils/acentos';
+import DinoDecorativo from './components/DinoDecorativo';
+
+// Color y dino de este apartado -- los define utils/acentos.js para que
+// coincidan con los del menú lateral.
+const acento = acentoDeTab('pagos');
 
 const CONCEPTOS = ['Colegiatura', 'Inscripción', 'Material', 'Otro'];
 const METODOS = ['efectivo', 'transferencia', 'tarjeta', 'otro'];
@@ -96,11 +102,12 @@ const PanelPagos = () => {
       <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div className="flex items-center gap-4">
-            <div className="bg-brand-100 p-3 rounded-2xl text-brand-600"><Wallet size={28} /></div>
+            <div className={`${acento.fondo} p-3 rounded-2xl ${acento.texto}`}><Wallet size={28} /></div>
             <div>
               <h3 className="text-xl font-black uppercase text-slate-900">Control de Pagos</h3>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Colegiaturas mensuales</p>
             </div>
+            <DinoDecorativo src="/dinos/dino-amarillo.png" className="hidden sm:block h-14 w-auto shrink-0" />
           </div>
           <div className="flex items-center gap-3">
             <div className="relative flex items-center bg-slate-50 rounded-2xl border border-slate-200 px-4">

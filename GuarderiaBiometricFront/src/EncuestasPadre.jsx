@@ -2,6 +2,12 @@ import React, { useState, useEffect } from 'react';
 import api from './axiosConfig';
 import { ChevronLeft, ClipboardCheck, Send, Loader2, CheckCircle2 } from 'lucide-react';
 import { mostrarError, mostrarExito } from './utils/alertas';
+import { ACENTOS } from './utils/acentos';
+import DinoDecorativo from './components/DinoDecorativo';
+
+// Mismo color con el que este acceso aparece en el tablero del papá
+// (DashboardPadre), definido en utils/acentos.js.
+const acento = ACENTOS.morado;
 
 // EncuestasPadre -- vista de pantalla completa (mismo patrón que ChatPadre:
 // swap desde DashboardPadre) para responder las "Encuestas para familias"
@@ -68,8 +74,11 @@ const EncuestasPadre = ({ onVolver }) => {
           <ChevronLeft size={16} /> Volver
         </button>
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Encuestas</h2>
-          <div className="bg-brand-600 p-3 rounded-2xl text-white shadow-lg shadow-brand-200">
+          <div className="flex items-center gap-3 min-w-0">
+            <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Encuestas</h2>
+            <DinoDecorativo src="/dinos/dino-morado.png" className="h-11 w-auto shrink-0" />
+          </div>
+          <div className={`${acento.solido} p-3 rounded-2xl text-white shadow-lg`}>
             <ClipboardCheck size={20} />
           </div>
         </div>

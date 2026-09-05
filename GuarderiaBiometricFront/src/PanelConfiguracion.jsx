@@ -5,6 +5,12 @@ import {
   FolderOpen, Plus, Edit3, Check, X, Trash2, FileUp, ExternalLink,
 } from 'lucide-react';
 import { mostrarExito, mostrarError, confirmar } from './utils/alertas';
+import { acentoDeTab } from './utils/acentos';
+import DinoDecorativo from './components/DinoDecorativo';
+
+// Color y dino de este apartado -- los define utils/acentos.js para que
+// coincidan con los del menú lateral.
+const acento = acentoDeTab('configuracion');
 
 // nombreGuarderia/onNombreActualizado vienen de App.jsx (guarderiaInfo.nombre
 // y su setter) -- así, al renombrar, el nombre que se ve en el pie del menú
@@ -196,11 +202,12 @@ const PanelConfiguracion = ({ nombreGuarderia, onNombreActualizado }) => {
     <div className="animate-in fade-in duration-500">
       <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl">
         <div className="flex items-center gap-4 mb-6">
-          <div className="bg-brand-100 p-3 rounded-2xl text-brand-600"><Building2 size={28} /></div>
+          <div className={`${acento.fondo} p-3 rounded-2xl ${acento.texto}`}><Building2 size={28} /></div>
           <div>
             <h3 className="text-xl font-black uppercase text-slate-900">Nombre de la Guardería</h3>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Así se ve en el menú y en tus reportes</p>
           </div>
+          <DinoDecorativo src="/dinos/dino-morado.png" className="hidden sm:block h-14 w-auto shrink-0" />
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3">
@@ -226,7 +233,7 @@ const PanelConfiguracion = ({ nombreGuarderia, onNombreActualizado }) => {
 
       <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl mt-8">
         <div className="flex items-center gap-4 mb-6">
-          <div className="bg-brand-100 p-3 rounded-2xl text-brand-600"><ShieldCheck size={28} /></div>
+          <div className={`${acento.fondo} p-3 rounded-2xl ${acento.texto}`}><ShieldCheck size={28} /></div>
           <div>
             <h3 className="text-xl font-black uppercase text-slate-900">Aviso de Privacidad</h3>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cumplimiento LFPDPPP</p>
@@ -349,7 +356,7 @@ const PanelConfiguracion = ({ nombreGuarderia, onNombreActualizado }) => {
           este mismo catálogo. */}
       <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl mt-8">
         <div className="flex items-center gap-4 mb-6">
-          <div className="bg-brand-100 p-3 rounded-2xl text-brand-600"><FolderOpen size={28} /></div>
+          <div className={`${acento.fondo} p-3 rounded-2xl ${acento.texto}`}><FolderOpen size={28} /></div>
           <div>
             <h3 className="text-xl font-black uppercase text-slate-900">Documentos Requeridos</h3>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Misma lista para todos los niños de la guardería</p>

@@ -7,6 +7,12 @@ import {
 import FormularioBitacora from './FormularioBitacora';
 import { hoyLocal } from './utils/fecha';
 import { MySwal } from './utils/alertas';
+import { acentoDeTab } from './utils/acentos';
+import DinoDecorativo from './components/DinoDecorativo';
+
+// Color y dino de este apartado -- los define utils/acentos.js para que
+// coincidan con los del menú lateral.
+const acento = acentoDeTab('bitacora');
 
 const VistaBitacora = () => {
   const [niños, setNiños] = useState([]);
@@ -91,9 +97,12 @@ const VistaBitacora = () => {
         
         {/* CABECERA */}
         <div className="flex flex-col md:flex-row gap-6 items-center justify-between bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-200/60">
-          <div className="flex flex-col gap-1">
-            <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Bitácora</h3>
-            <div className="h-1 w-20 bg-brand-600 rounded-full"></div>
+          <div className="flex items-center gap-4">
+            <div className="flex flex-col gap-1">
+              <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Bitácora</h3>
+              <div className={`h-1 w-20 rounded-full ${acento.solido}`}></div>
+            </div>
+            <DinoDecorativo src="/dinos/dino-verde.png" className="hidden sm:block h-16 w-auto shrink-0" />
           </div>
 
           <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">

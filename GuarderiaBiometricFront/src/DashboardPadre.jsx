@@ -30,6 +30,7 @@ import { suscribirseAPush, desuscribirseDePush, suscripcionActiva, pushSoportado
 import { hoyLocal } from './utils/fecha';
 import InstalarApp from './components/InstalarApp';
 import { mostrarExito, mostrarAviso } from './utils/alertas';
+import DinoDecorativo from './components/DinoDecorativo';
 
 const formatoFechaEvento = (iso) => {
   try {
@@ -275,9 +276,12 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
         
         {/* SALUDO - Ahora dinámico */}
         <div className="space-y-2 text-center pt-4">
-          <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter leading-none">
-            Hola, <br/><span className="text-brand-600">{usuarioNombre}</span>
-          </h2>
+          <div className="flex items-center justify-center gap-3">
+            <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter leading-none">
+              Hola, <br/><span className="text-brand-600">{usuarioNombre}</span>
+            </h2>
+            <DinoDecorativo src="/dinos/dino-verde-saludo.png" className="h-16 w-auto shrink-0" />
+          </div>
           <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.15em]">
             ¿De quién deseas ver el reporte hoy?
           </p>

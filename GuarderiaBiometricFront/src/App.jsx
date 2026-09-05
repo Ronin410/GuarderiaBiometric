@@ -33,6 +33,8 @@ import DashboardPadre from './DashboardPadre';
 import AvisoPrivacidadModal from './AvisoPrivacidadModal';
 import { mostrarError, mostrarExito, mostrarAviso, confirmar as confirmarAccion } from './utils/alertas';
 import { segundosHastaExpirar } from './utils/sesion';
+import { ACENTOS, acentoDeTab } from './utils/acentos';
+import DinoDecorativo from './components/DinoDecorativo';
 import { suscribirseAPush, desuscribirseDePush, suscripcionActiva, pushSoportado } from './utils/push';
 import ReportePublico from './ReportePublico'; // <-- Tu nueva ruta pública
 import RegistroGuarderia from './RegistroGuarderia';
@@ -738,7 +740,7 @@ function MainApp() {
   // vez de menús desplegables).
   const seccionesNav = [
     {
-      acento: 'text-brand-300',
+      acento: ACENTOS.teal.claro,
       items: [
         { tab: 'identificar', label: 'Recepción', Icon: ScanEye },
         { tab: 'registrar', label: 'Registro', Icon: UserPlus },
@@ -746,7 +748,7 @@ function MainApp() {
     },
     {
       label: 'Alumnos',
-      acento: 'text-dino-verde-claro',
+      acento: ACENTOS.verde.claro,
       items: filtrarProtegidos([
         { tab: 'admin', label: 'Familia', Icon: Users },
         { tab: 'perfiles', label: 'Perfiles', Icon: IdCard },
@@ -754,7 +756,7 @@ function MainApp() {
     },
     {
       label: 'Día a día',
-      acento: 'text-dino-naranja-claro',
+      acento: ACENTOS.naranja.claro,
       items: filtrarProtegidos([
         { tab: 'bitacora', label: 'Bitácora', Icon: ClipboardList },
         { tab: 'menu', label: 'Menú Semanal', Icon: UtensilsCrossed },
@@ -768,7 +770,7 @@ function MainApp() {
     },
     {
       label: 'Administración',
-      acento: 'text-dino-amarillo-claro',
+      acento: ACENTOS.amarillo.claro,
       items: filtrarProtegidos([
         { tab: 'reportes', label: 'Reportes', Icon: TrendingUp },
         { tab: 'pagos', label: 'Pagos', Icon: Wallet },
@@ -777,7 +779,7 @@ function MainApp() {
     },
     {
       label: 'Sistema',
-      acento: 'text-dino-morado-claro',
+      acento: ACENTOS.morado.claro,
       // Exclusivo del admin -- el staff no debe ver ni entrar aquí nunca,
       // ni siquiera con permisos personalizados (ver el comentario largo de
       // AREA_DE_TAB más arriba).
@@ -909,8 +911,9 @@ function MainApp() {
           <div className="animate-in fade-in duration-500">
             <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl">
               <div className="flex items-center gap-4 mb-6">
-                <div className="bg-brand-100 p-3 rounded-2xl text-brand-600"><Search size={28} /></div>
+                <div className={`${acentoDeTab('admin').fondo} p-3 rounded-2xl ${acentoDeTab('admin').texto}`}><Search size={28} /></div>
                 <h3 className="text-xl font-black uppercase text-slate-900">Directorio de Tutores</h3>
+                <DinoDecorativo src="/dinos/dino-verde-saludo.png" className="hidden sm:block h-14 w-auto shrink-0" />
               </div>
               <input type="text" placeholder="Buscar por nombre..." className="w-full bg-slate-50 border border-slate-200 p-5 rounded-2xl focus:ring-2 focus:ring-brand-500 outline-none text-slate-900 mb-6 transition-all" onChange={(e) => cargarTodosLosPadres(e.target.value)} />
               <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
