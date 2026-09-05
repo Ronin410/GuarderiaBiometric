@@ -56,6 +56,15 @@ func main() {
 	if srv.PlatformAdminKey == "" {
 		applog.Info("PLATFORM_ADMIN_KEY no configurada; las solicitudes de alta de guardería se pueden recibir pero no revisar/aprobar desde /plataforma")
 	}
+	// Se registra en ambos sentidos a propósito: sin esta línea, un chat de
+	// soporte que no contesta solo se ve igual esté la IA prendida o
+	// apagada, y no hay forma de saber desde los logs cuál de los dos casos
+	// es. Ver Server.RAGSoporteHabilitado().
+	if srv.RAGSoporteHabilitado() {
+		applog.Info("Chat de soporte con IA habilitado (ANTHROPIC_API_KEY y VOYAGE_API_KEY configuradas)")
+	} else {
+		applog.Info("ANTHROPIC_API_KEY y/o VOYAGE_API_KEY sin configurar; el chat de soporte no responde solo y cada mensaje se avisa directo a la plataforma")
+	}
 
 	srv.RegisterRoutes(r)
 

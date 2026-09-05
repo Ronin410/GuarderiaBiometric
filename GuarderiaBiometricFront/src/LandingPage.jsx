@@ -21,7 +21,6 @@ import SoporteChat from './SoporteChat';
 const FUNCIONES = [
   {
     key: 'dia',
-    dino: '/dinos/dino-verde.png',
     tono: 'verde',
     label: 'Día a día',
     items: [
@@ -32,7 +31,6 @@ const FUNCIONES = [
   },
   {
     key: 'comunicacion',
-    dino: '/dinos/dino-naranja.png',
     tono: 'naranja',
     label: 'Comunicación',
     items: [
@@ -43,7 +41,6 @@ const FUNCIONES = [
   },
   {
     key: 'organizacion',
-    dino: '/dinos/dino-morado.png',
     tono: 'morado',
     label: 'Organización',
     items: [
@@ -54,7 +51,6 @@ const FUNCIONES = [
   },
   {
     key: 'administracion',
-    dino: '/dinos/dino-amarillo.png',
     tono: 'amarillo',
     label: 'Administración',
     items: [
@@ -65,24 +61,37 @@ const FUNCIONES = [
   },
 ];
 
-const TONOS_DINO = {
-  verde:    { fondo: 'bg-dino-verde-suave',    borde: 'border-dino-verde/25',    texto: 'text-dino-verde' },
-  naranja:  { fondo: 'bg-dino-naranja-suave',  borde: 'border-dino-naranja/25',  texto: 'text-dino-naranja' },
-  morado:   { fondo: 'bg-dino-morado-suave',   borde: 'border-dino-morado/25',   texto: 'text-dino-morado' },
-  amarillo: { fondo: 'bg-dino-amarillo-suave', borde: 'border-dino-amarillo/30', texto: 'text-dino-amarillo' },
+// Tonos de los dinos como lista ORDENADA: cada pestaña de funciones arranca
+// en el suyo (`tono`) y las tres tarjetas van tomando los siguientes, así
+// cada pestaña enseña tres colores a la vez en vez de tres tarjetas del
+// mismo tinte. Las clases van escritas completas porque Tailwind v4 no
+// puede generar nombres construidos por interpolación.
+const TONOS_DINO = [
+  { key: 'verde',    fondo: 'bg-dino-verde-suave',    borde: 'border-dino-verde/25',    texto: 'text-dino-verde',    dino: '/dinos/dino-verde.png' },
+  { key: 'naranja',  fondo: 'bg-dino-naranja-suave',  borde: 'border-dino-naranja/25',  texto: 'text-dino-naranja',  dino: '/dinos/dino-naranja.png' },
+  { key: 'morado',   fondo: 'bg-dino-morado-suave',   borde: 'border-dino-morado/25',   texto: 'text-dino-morado',   dino: '/dinos/dino-morado.png' },
+  { key: 'amarillo', fondo: 'bg-dino-amarillo-suave', borde: 'border-dino-amarillo/30', texto: 'text-dino-amarillo', dino: '/dinos/dino-amarillo.png' },
+];
+
+const tonoDeTarjeta = (tonoInicial, i) => {
+  const inicio = Math.max(0, TONOS_DINO.findIndex((t) => t.key === tonoInicial));
+  return TONOS_DINO[(inicio + i) % TONOS_DINO.length];
 };
 
+// Cada beneficio toma el color de uno de los dinos de la marca y lo lleva a
+// toda la tarjeta (fondo, borde y número), no solo al cuadrito del número:
+// cuatro tarjetas blancas seguidas se veían planas junto al resto de la
+// página, que ya es teal de arriba a abajo.
 const BENEFICIOS = [
-  { n: '01', bg: 'bg-brand-100', color: 'text-brand-600', titulo: 'Evita el ruido de los grupos', texto: 'La comunicación con cada familia pasa por un canal directo con el staff que le corresponde, no por un grupo donde se mezclan los avisos de todos los niños.' },
-  { n: '02', bg: 'bg-dino-verde-suave', color: 'text-dino-verde', titulo: 'Nada se pierde ni se olvida', texto: 'Bitácora, mensajes y avisos quedan guardados con fecha y hora -- no dependen del cuaderno de una sola maestra.' },
-  { n: '03', bg: 'bg-dino-naranja-suave', color: 'text-dino-naranja', titulo: 'Menos tiempo administrativo', texto: 'El equipo deja de repetir el mismo aviso por WhatsApp, de pasar lista a mano o de buscar una foto que alguien pidió hace días.' },
-  { n: '04', bg: 'bg-dino-morado-suave', color: 'text-dino-morado', titulo: 'El acceso, solo para quien debe verlo', texto: 'Cada cuenta del staff ve solo lo que le corresponde, y la dirección decide qué áreas puede tocar cada quien.' },
+  { n: '01', fondo: 'bg-dino-verde-suave', borde: 'border-dino-verde/25', color: 'text-dino-verde', chip: 'bg-white', dino: '/dinos/dino-verde-saludo.png', titulo: 'Evita el ruido de los grupos', texto: 'La comunicación con cada familia pasa por un canal directo con el staff que le corresponde, no por un grupo donde se mezclan los avisos de todos los niños.' },
+  { n: '02', fondo: 'bg-dino-naranja-suave', borde: 'border-dino-naranja/25', color: 'text-dino-naranja', chip: 'bg-white', dino: '/dinos/dino-naranja.png', titulo: 'Nada se pierde ni se olvida', texto: 'Bitácora, mensajes y avisos quedan guardados con fecha y hora -- no dependen del cuaderno de una sola maestra.' },
+  { n: '03', fondo: 'bg-dino-morado-suave', borde: 'border-dino-morado/25', color: 'text-dino-morado', chip: 'bg-white', dino: '/dinos/dino-morado.png', titulo: 'Menos tiempo administrativo', texto: 'El equipo deja de repetir el mismo aviso por WhatsApp, de pasar lista a mano o de buscar una foto que alguien pidió hace días.' },
+  { n: '04', fondo: 'bg-dino-amarillo-suave', borde: 'border-dino-amarillo/30', color: 'text-dino-amarillo', chip: 'bg-white', dino: '/dinos/dino-amarillo.png', titulo: 'El acceso, solo para quien debe verlo', texto: 'Cada cuenta del staff ve solo lo que le corresponde, y la dirección decide qué áreas puede tocar cada quien.' },
 ];
 
 const LandingPage = () => {
   const [tabActiva, setTabActiva] = useState('dia');
   const funcionesActivas = FUNCIONES.find((f) => f.key === tabActiva) ?? FUNCIONES[0];
-  const tono = TONOS_DINO[funcionesActivas.tono];
 
   return (
     <>
@@ -201,10 +210,16 @@ const LandingPage = () => {
             </ul>
           </div>
 
-          <div className="bg-forest rounded-[2rem] p-8">
-            <span className="inline-block text-[10px] font-black uppercase tracking-widest text-forest bg-white px-3.5 py-1.5 rounded-full">Con Pasitos</span>
-            <h3 className="mt-5 text-lg font-bold text-white">Una plataforma para todo el día</h3>
-            <ul className="mt-5 space-y-3.5">
+          <div className="relative overflow-hidden bg-forest rounded-[2rem] p-8">
+            <img
+              src="/dinos/dino-amarillo.png"
+              alt=""
+              aria-hidden="true"
+              className="pointer-events-none select-none absolute right-2 bottom-2 h-24 w-auto"
+            />
+            <span className="inline-block text-[10px] font-black uppercase tracking-widest text-forest bg-white px-3.5 py-1.5 rounded-full relative z-[1]">Con Pasitos</span>
+            <h3 className="mt-5 text-lg font-bold text-white relative z-[1]">Una plataforma para todo el día</h3>
+            <ul className="mt-5 space-y-3.5 relative z-[1]">
               {[
                 'Entradas y salidas con reconocimiento facial, en segundos',
                 'Bitácora del día para cada niño, disponible al instante',
@@ -212,7 +227,7 @@ const LandingPage = () => {
                 'Notificaciones automáticas de entradas, salidas y mensajes',
               ].map((t) => (
                 <li key={t} className="flex gap-3 text-sm text-white/85">
-                  <Check size={16} className="text-brand-300 mt-0.5 shrink-0" /> {t}
+                  <Check size={16} className="text-dino-amarillo mt-0.5 shrink-0" /> {t}
                 </li>
               ))}
             </ul>
@@ -224,12 +239,18 @@ const LandingPage = () => {
       <section className="max-w-6xl mx-auto px-5 sm:px-8 pb-16 sm:pb-20">
         <div className="grid sm:grid-cols-2 gap-5">
           {BENEFICIOS.map((b) => (
-            <div key={b.n} className="border border-slate-200 rounded-[1.75rem] p-7 bg-white">
-              <div className={`w-11 h-11 rounded-xl ${b.bg} ${b.color} flex items-center justify-center font-black text-sm`} style={{ fontFamily: "'Lora', Georgia, serif" }}>
+            <div key={b.n} className={`relative overflow-hidden border rounded-[1.75rem] p-7 ${b.fondo} ${b.borde}`}>
+              <img
+                src={b.dino}
+                alt=""
+                aria-hidden="true"
+                className="pointer-events-none select-none absolute top-5 right-5 h-16 w-auto opacity-80"
+              />
+              <div className={`w-11 h-11 rounded-xl ${b.chip} ${b.color} flex items-center justify-center font-black text-sm shadow-sm`} style={{ fontFamily: "'Lora', Georgia, serif" }}>
                 {b.n}
               </div>
-              <h3 className="mt-5 text-[17px] font-bold text-ink">{b.titulo}</h3>
-              <p className="mt-2.5 text-sm text-slate-500 leading-relaxed">{b.texto}</p>
+              <h3 className="mt-5 text-[17px] font-bold text-ink relative z-[1]">{b.titulo}</h3>
+              <p className="mt-2.5 text-sm text-slate-600 leading-relaxed relative z-[1]">{b.texto}</p>
             </div>
           ))}
         </div>
@@ -260,28 +281,27 @@ const LandingPage = () => {
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {funcionesActivas.items.map((item, i) => (
-              <div
-                key={item.titulo}
-                className={`relative overflow-hidden border rounded-[1.75rem] p-7 ${tono.fondo} ${tono.borde}`}
-              >
-                {/* El dino de la sección acompaña solo a la primera tarjeta para
-                    dar color sin repetir el mismo personaje tres veces. */}
-                {i === 0 && (
+            {funcionesActivas.items.map((item, i) => {
+              const tono = tonoDeTarjeta(funcionesActivas.tono, i);
+              return (
+                <div
+                  key={item.titulo}
+                  className={`relative overflow-hidden border rounded-[1.75rem] p-7 ${tono.fondo} ${tono.borde}`}
+                >
                   <img
-                    src={funcionesActivas.dino}
+                    src={tono.dino}
                     alt=""
                     aria-hidden="true"
                     className="pointer-events-none select-none absolute top-3 right-4 h-[74px] w-auto"
                   />
-                )}
-                <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-sm">
-                  <item.Icon size={24} strokeWidth={1.8} className={tono.texto} />
+                  <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-sm">
+                    <item.Icon size={24} strokeWidth={1.8} className={tono.texto} />
+                  </div>
+                  <h3 className="mt-4 text-[17px] font-bold text-ink relative z-[1]">{item.titulo}</h3>
+                  <p className="mt-2 text-sm text-slate-600 leading-relaxed relative z-[1]">{item.texto}</p>
                 </div>
-                <h3 className="mt-4 text-[17px] font-bold text-ink">{item.titulo}</h3>
-                <p className="mt-2 text-sm text-slate-600 leading-relaxed relative z-[1]">{item.texto}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
@@ -300,13 +320,13 @@ const LandingPage = () => {
 
         <div className="space-y-4">
           {[
-            { Icon: ShieldCheck, texto: <><strong className="text-ink">El reconocimiento facial se usa solo para registrar entradas y salidas</strong> -- no queda como una foto suelta que cualquiera puede reenviar.</> },
-            { Icon: Lock, texto: <><strong className="text-ink">Cada cuenta entra con su propia contraseña</strong>, y las secciones más delicadas piden un PIN aparte antes de mostrarse.</> },
-            { Icon: Clock3, texto: <><strong className="text-ink">La sesión se cierra sola</strong> tras un rato de inactividad en las cuentas de staff y administración.</> },
+            { Icon: ShieldCheck, chip: 'bg-brand-100', icono: 'text-brand-600', texto: <><strong className="text-ink">El reconocimiento facial se usa solo para registrar entradas y salidas</strong> -- no queda como una foto suelta que cualquiera puede reenviar.</> },
+            { Icon: Lock, chip: 'bg-dino-morado-suave', icono: 'text-dino-morado', texto: <><strong className="text-ink">Cada cuenta entra con su propia contraseña</strong>, y las secciones más delicadas piden un PIN aparte antes de mostrarse.</> },
+            { Icon: Clock3, chip: 'bg-dino-amarillo-suave', icono: 'text-dino-amarillo', texto: <><strong className="text-ink">La sesión se cierra sola</strong> tras un rato de inactividad en las cuentas de staff y administración.</> },
           ].map((item, i) => (
             <div key={i} className="bg-white border border-slate-200 rounded-2xl p-6 flex gap-4">
-              <div className="w-10 h-10 rounded-xl bg-brand-100 flex items-center justify-center shrink-0">
-                <item.Icon size={19} className="text-brand-600" />
+              <div className={`w-10 h-10 rounded-xl ${item.chip} flex items-center justify-center shrink-0`}>
+                <item.Icon size={19} className={item.icono} />
               </div>
               <p className="text-sm text-slate-600 leading-relaxed">{item.texto}</p>
             </div>
@@ -317,6 +337,20 @@ const LandingPage = () => {
       {/* CTA FINAL */}
       <section className="relative overflow-hidden bg-forest">
         <div className="absolute -bottom-32 -left-24 w-[420px] h-[420px] rounded-full bg-brand-600/25 blur-3xl pointer-events-none" />
+        <div className="absolute -top-28 right-0 w-[360px] h-[360px] rounded-full bg-dino-morado/25 blur-3xl pointer-events-none" />
+        <div className="absolute top-1/3 left-1/3 w-[260px] h-[260px] rounded-full bg-brand-400/15 blur-3xl pointer-events-none" />
+        <img
+          src="/dinos/dino-morado.png"
+          alt=""
+          aria-hidden="true"
+          className="hidden md:block pointer-events-none select-none absolute left-12 bottom-10 h-24 w-auto"
+        />
+        <img
+          src="/dinos/dino-verde.png"
+          alt=""
+          aria-hidden="true"
+          className="hidden md:block pointer-events-none select-none absolute right-12 top-12 h-20 w-auto"
+        />
         <div className="max-w-2xl mx-auto px-5 sm:px-8 py-20 sm:py-24 text-center relative">
           <h2 className="font-black text-white" style={{ fontFamily: "'Lora', Georgia, serif", fontSize: 'clamp(1.9rem, 3.8vw, 2.8rem)' }}>
             ¿Lista para dejar el cuaderno?

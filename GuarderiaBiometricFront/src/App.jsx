@@ -738,6 +738,7 @@ function MainApp() {
   // vez de menús desplegables).
   const seccionesNav = [
     {
+      acento: 'text-brand-300',
       items: [
         { tab: 'identificar', label: 'Recepción', Icon: ScanEye },
         { tab: 'registrar', label: 'Registro', Icon: UserPlus },
@@ -745,6 +746,7 @@ function MainApp() {
     },
     {
       label: 'Alumnos',
+      acento: 'text-dino-verde-claro',
       items: filtrarProtegidos([
         { tab: 'admin', label: 'Familia', Icon: Users },
         { tab: 'perfiles', label: 'Perfiles', Icon: IdCard },
@@ -752,6 +754,7 @@ function MainApp() {
     },
     {
       label: 'Día a día',
+      acento: 'text-dino-naranja-claro',
       items: filtrarProtegidos([
         { tab: 'bitacora', label: 'Bitácora', Icon: ClipboardList },
         { tab: 'menu', label: 'Menú Semanal', Icon: UtensilsCrossed },
@@ -765,6 +768,7 @@ function MainApp() {
     },
     {
       label: 'Administración',
+      acento: 'text-dino-amarillo-claro',
       items: filtrarProtegidos([
         { tab: 'reportes', label: 'Reportes', Icon: TrendingUp },
         { tab: 'pagos', label: 'Pagos', Icon: Wallet },
@@ -773,6 +777,7 @@ function MainApp() {
     },
     {
       label: 'Sistema',
+      acento: 'text-dino-morado-claro',
       // Exclusivo del admin -- el staff no debe ver ni entrar aquí nunca,
       // ni siquiera con permisos personalizados (ver el comentario largo de
       // AREA_DE_TAB más arriba).
@@ -789,6 +794,10 @@ function MainApp() {
       activo ? 'bg-forest-light text-white shadow-sm' : 'text-white/70 hover:bg-white/10 hover:text-white'
     }`;
 
+  // El ícono lleva el color de su sección mientras el item no está activo;
+  // el activo pasa a blanco porque ya se distingue por el fondo.
+  const claseIconoNav = (activo, acento) => `shrink-0 ${activo ? 'text-white' : acento || 'text-white/70'}`;
+
   const contenidoSidebar = (
     <>
       <div className="flex items-center gap-2.5 px-1 shrink-0">
@@ -800,11 +809,11 @@ function MainApp() {
         {seccionesNav.map((seccion, i) => (
           <div key={i} className="space-y-1">
             {seccion.label && (
-              <p className="text-[10px] font-black uppercase tracking-widest text-white/40 px-3.5 mb-1.5">{seccion.label}</p>
+              <p className={`text-[10px] font-black uppercase tracking-widest px-3.5 mb-1.5 ${seccion.acento || 'text-white/40'}`}>{seccion.label}</p>
             )}
             {seccion.items.map(({ tab: t, label, Icon }) => (
               <button key={t} onClick={() => { cambiarTab(t); setSidebarAbierto(false); }} className={claseItemNav(tab === t)}>
-                <Icon size={17} className="shrink-0" /> {label}
+                <Icon size={17} className={claseIconoNav(tab === t, seccion.acento)} /> {label}
                 {t === 'chat' && chatNoLeidos > 0 && (
                   <span className="ml-auto bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shrink-0">{chatNoLeidos}</span>
                 )}

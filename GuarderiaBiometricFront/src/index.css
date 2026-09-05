@@ -43,6 +43,14 @@
   --color-dino-amarillo: #c79511;
   --color-dino-amarillo-suave: #fff9e6;
   --color-dino-check: #609848;
+
+  /* Versiones claras de los mismos acentos, para cuando van sobre el
+     sidebar oscuro (--color-forest): los tonos fuertes de arriba no tienen
+     contraste suficiente sobre navy. */
+  --color-dino-verde-claro: #b7d98a;
+  --color-dino-naranja-claro: #f7b96a;
+  --color-dino-morado-claro: #bdb0d4;
+  --color-dino-amarillo-claro: #f2d271;
 }
 
 /* Tipografía de marca: Lora en encabezados (calidez, distingue de las

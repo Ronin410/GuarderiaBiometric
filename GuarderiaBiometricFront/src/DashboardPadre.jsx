@@ -12,7 +12,6 @@ import {
   CheckCircle2,
   Clock,
   XCircle,
-  LayoutDashboard,
   UtensilsCrossed,
   Megaphone,
   MessageCircle,
@@ -255,9 +254,7 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
       {/* NAVBAR */}
       <div className="bg-white px-6 py-4 flex justify-between items-center border-b border-slate-100 sticky top-0 z-10 shadow-sm">
         <div className="flex items-center gap-2">
-          <div className="bg-brand-600 p-2 rounded-xl text-white">
-            <LayoutDashboard size={18} />
-          </div>
+          <img src="/dinos/logo-pasitos.png" alt="" className="h-8 w-auto shrink-0" />
           <span className="font-black text-slate-900 uppercase tracking-tighter text-sm">PASITOS <span className="text-brand-600">FAMILIA</span></span>
         </div>
         <div className="flex items-center gap-1">
@@ -303,7 +300,7 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
           onClick={() => setMostrarChat(true)}
           className="w-full bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-all active:scale-[0.98]"
         >
-          <div className="bg-brand-100 p-3 rounded-2xl text-brand-600 shrink-0"><MessageCircle size={20} /></div>
+          <div className="bg-dino-naranja-suave p-3 rounded-2xl text-dino-naranja shrink-0"><MessageCircle size={20} /></div>
           <div className="flex-1 text-left">
             <p className="text-[11px] font-black text-slate-900 uppercase leading-tight">Chat con la guardería</p>
             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Mensajes directos, sin WhatsApp</p>
@@ -316,7 +313,7 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
           onClick={() => setMostrarEncuestas(true)}
           className="w-full bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-all active:scale-[0.98]"
         >
-          <div className="bg-brand-100 p-3 rounded-2xl text-brand-600 shrink-0"><ClipboardCheck size={20} /></div>
+          <div className="bg-dino-morado-suave p-3 rounded-2xl text-dino-morado shrink-0"><ClipboardCheck size={20} /></div>
           <div className="flex-1 text-left">
             <p className="text-[11px] font-black text-slate-900 uppercase leading-tight">Encuestas</p>
             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Comparte tu opinión con la guardería</p>
@@ -332,7 +329,7 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
           onClick={() => setMostrarEventos(true)}
           className="w-full bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-all active:scale-[0.98]"
         >
-          <div className="bg-brand-100 p-3 rounded-2xl text-brand-600 shrink-0"><CalendarDays size={20} /></div>
+          <div className="bg-dino-verde-suave p-3 rounded-2xl text-dino-verde shrink-0"><CalendarDays size={20} /></div>
           <div className="flex-1 text-left">
             <p className="text-[11px] font-black text-slate-900 uppercase leading-tight">Eventos</p>
             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Calendario escolar de la guardería</p>
@@ -349,7 +346,7 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
           onClick={() => setMostrarMenu(true)}
           className="w-full bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-all active:scale-[0.98]"
         >
-          <div className="bg-brand-100 p-3 rounded-2xl text-brand-600 shrink-0"><UtensilsCrossed size={20} /></div>
+          <div className="bg-dino-amarillo-suave p-3 rounded-2xl text-dino-amarillo shrink-0"><UtensilsCrossed size={20} /></div>
           <div className="flex-1 text-left">
             <p className="text-[11px] font-black text-slate-900 uppercase leading-tight">Menú semanal</p>
             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Días anteriores y posteriores</p>
