@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS hijos (
+    id SERIAL PRIMARY KEY,
+    nombre_niño VARCHAR(100) NOT NULL,
+    guarderia_id INTEGER REFERENCES guarderias(id) ON DELETE CASCADE
+);

@@ -1,7 +1,110 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&family=Public+Sans:wght@400;500;600;700;800;900&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Color de marca: antes se usaba la clase violet-* literal de Tailwind en
+   cientos de lugares del código, así que cambiar el color de marca hubiera
+   significado editar cada componente uno por uno. Se define aquí como un
+   token con nombre propio -- cambiar el color de marca en el futuro solo
+   requiere editar estos valores. Paleta teal del dinosaurio (identidad
+   "Pasitos", tomada del logo: el teal #18a8a8 del personaje y el navy
+   #084850 del wordmark). */
+@theme {
+  --color-brand-50: #eefafa;
+  --color-brand-100: #d3f2f2;
+  --color-brand-200: #a9e6e7;
+  --color-brand-300: #74d5d7;
+  --color-brand-400: #3cc0c3;
+  --color-brand-500: #18a8a8;
+  --color-brand-600: #0f9294;
+  --color-brand-700: #0c777b;
+  --color-brand-800: #0a5f66;
+  --color-brand-900: #084850;
+  --color-brand-950: #05323a;
+
+  /* Sidebar y superficies oscuras: el navy del wordmark del logo. */
+  --color-forest: #084850;
+  --color-forest-light: #0c5a63;
+  --color-forest-dark: #05323a;
+  --color-paper: #f8fcfc;
+  --color-ink: #0d2a2e;
+
+  /* Los otros dinosaurios de la familia: cada sección de la app tiene el
+     suyo (ver public/dinos/). El tono fuerte es para texto/íconos y el
+     "-suave" para el fondo de la tarjeta que lo acompaña. */
+  --color-dino-verde: #6f9134;
+  --color-dino-verde-suave: #f2faf0;
+  --color-dino-naranja: #d47a0b;
+  --color-dino-naranja-suave: #fff6ea;
+  --color-dino-morado: #6f6486;
+  --color-dino-morado-suave: #f6f3fb;
+  --color-dino-amarillo: #c79511;
+  --color-dino-amarillo-suave: #fff9e6;
+  --color-dino-check: #609848;
+
+  /* Versiones claras de los mismos acentos, para cuando van sobre el
+     sidebar oscuro (--color-forest): los tonos fuertes de arriba no tienen
+     contraste suficiente sobre navy. */
+  --color-dino-verde-claro: #b7d98a;
+  --color-dino-naranja-claro: #f7b96a;
+  --color-dino-morado-claro: #bdb0d4;
+  --color-dino-amarillo-claro: #f2d271;
+}
+
+/* Tipografía de marca: Lora en encabezados (calidez, distingue de las
+   plantillas genéricas que usan un solo sans-serif para todo), Public Sans
+   en el resto (legible en tablas y formularios). */
+body {
+  font-family: 'Public Sans', system-ui, -apple-system, sans-serif;
+}
+h1, h2, h3 {
+  font-family: 'Lora', Georgia, serif;
+}
+
+/* Scrollbar delgado en vez del scrollbar nativo del SO (grueso, con
+   flechas) que se ve en listas internas con overflow -- .custom-scrollbar
+   para usar sobre fondos claros (modales, listas blancas), .custom-scrollbar-dark
+   para usar sobre fondos oscuros (el sidebar). Firefox usa
+   scrollbar-width/color; Chrome/Safari/Edge usan los pseudo-elementos
+   ::-webkit-scrollbar-*, hay que definir ambos. */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #b9d9da transparent;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #b9d9da;
+  border-radius: 999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #c2b79c;
+}
+
+.custom-scrollbar-dark {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+.custom-scrollbar-dark::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar-dark::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar-dark::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+}
+.custom-scrollbar-dark::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.4);
+}
 
 /* 1. CONFIGURACIÓN PARA PWA Y PANTALLA COMPLETA */
 html, body, #root {
@@ -11,7 +114,7 @@ html, body, #root {
   /* Evita el rebote elástico en iOS y scrolls laterales accidentales */
   overscroll-behavior-y: contain;
   overflow-x: hidden;
-  background-color: #ffffff;
+  background-color: #f8fcfc;
 }
 
 :root {

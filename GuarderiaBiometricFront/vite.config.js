@@ -7,31 +7,29 @@ export default defineConfig({
   plugins: [
     react(),
     basicSsl(),
-    VitePWA({ 
-      registerType: 'autoUpdate',
-      injectRegister: 'auto', // Registra el Service Worker automáticamente
-      includeAssets: ['favicon.ico', 'logo192.png', 'logo512.png'],
-      manifest: {
-        short_name: "Guardería",
-        name: "Sistema Biométrico Guardería",
-        display: "standalone",
-        theme_color: "#7c3aed",
-        background_color: "#ffffff",
-        orientation: "portrait",
-        icons: [
-          {
-            src: "logo192.png",
-            type: "image/png",
-            sizes: "192x192"
-          },
-          {
-            src: "logo512.png",
-            type: "image/png",
-            sizes: "512x512",
-            purpose: "any maskable" // Optimiza para Android
-          }
-        ]
-      }
+    VitePWA({
+      // 'prompt' (en vez de 'autoUpdate'): cuando hay versión nueva, NO se
+      // recarga sola de golpe (le borraría a un papá a medio llenar un
+      // formulario, o a una tablet de recepción a medio escaneo) -- en vez
+      // de eso, ActualizarApp.jsx (montado en main.jsx, visible en toda la
+      // app) muestra un aviso con botón "Actualizar" y aplica la nueva
+      // versión solo cuando alguien lo confirma.
+      registerType: 'prompt',
+      // El registro del Service Worker lo hace el hook useRegisterSW() de
+      // ActualizarApp.jsx (virtual:pwa-register/react) -- injectRegister
+      // en false evita registrarlo una segunda vez desde un <script>
+      // inyectado aparte.
+      injectRegister: false,
+      includeAssets: ['favicon.png', 'logo192.png', 'logo512.png', 'apple-touch-icon.png'],
+      // El manifest se sirve de forma estática desde public/manifest.json y se
+      // enlaza explícitamente en index.html. Desactivamos la generación/inyección
+      // propia del plugin para no terminar con dos <link rel="manifest"> distintos.
+      manifest: false,
+      // Service Worker propio (src/sw.js) en vez de uno autogenerado, para poder
+      // escuchar los eventos "push" y "notificationclick" de las notificaciones.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js'
     })
   ],
   server: {

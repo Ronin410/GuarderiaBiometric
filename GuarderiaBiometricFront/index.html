@@ -2,26 +2,26 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/logo192.png" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
     
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     
-    <title>Sistema Biométrico - Guardería</title>
+    <title>Pasitos</title>
 
-    <meta name="theme-color" content="#7c3aed" /> 
+    <meta name="theme-color" content="#084850" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     
     <link rel="manifest" href="/manifest.json" />
     
-    <link rel="apple-touch-icon" href="/logo192.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
     <style>
       html, body {
         height: 100%;
         margin: 0;
         padding: 0;
-        background-color: #ffffff;
+        background-color: #f8fcfc;
         overscroll-behavior-y: contain;
         font-family: system-ui, -apple-system, sans-serif;
       }
@@ -35,16 +35,9 @@
   <body>
     <div id="root"></div>
 
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('SW registrado', reg))
-            .catch(err => console.error('Error al registrar SW', err));
-        });
-      }
-    </script>
-
+    <!-- El registro del Service Worker lo hace src/components/ActualizarApp.jsx
+         (useRegisterSW, virtual:pwa-register/react) -- injectRegister: false
+         en vite.config.js, para que esta sea la única fuente de registro. -->
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

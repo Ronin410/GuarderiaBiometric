@@ -1,0 +1,5 @@
+ALTER TABLE hijos ADD COLUMN IF NOT EXISTS fecha_nacimiento DATE;
+ALTER TABLE hijos ADD COLUMN IF NOT EXISTS direccion TEXT;
+ALTER TABLE hijos ADD COLUMN IF NOT EXISTS contacto_emergencia_nombre VARCHAR(150);
+ALTER TABLE hijos ADD COLUMN IF NOT EXISTS contacto_emergencia_telefono VARCHAR(20);
+ALTER TABLE hijos ADD COLUMN IF NOT EXISTS colegiatura_mensual NUMERIC(10,2) DEFAULT 0;

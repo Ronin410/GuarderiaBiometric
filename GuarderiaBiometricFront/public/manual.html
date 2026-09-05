@@ -1,0 +1,1192 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pasitos — Manual para Administración y Personal</title>
+<style>
+  :root {
+    --bg: #f8fcfc;
+    --surface: #ffffff;
+    --surface-alt: #eefafa;
+    --text: #0d2a2e;
+    --text-muted: #5c7377;
+    --border: #d7eaea;
+    --border-strong: #b3dcdd;
+    --accent: #0f9294;
+    --accent-soft: #d3f2f2;
+    --accent-ink: #0a5f66;
+    --good: #187a55;
+    --good-soft: #e3f5ec;
+    --warn: #a6650a;
+    --warn-soft: #faeed9;
+    --crit: #c23b3b;
+    --crit-soft: #fbe7e6;
+    --shadow: 0 1px 2px rgba(32,29,43,0.04), 0 8px 24px -12px rgba(32,29,43,0.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0a1618;
+      --surface: #102225;
+      --surface-alt: #163035;
+      --text: #e6f4f4;
+      --text-muted: #93b3b5;
+      --border: #1e4147;
+      --border-strong: #2a565e;
+      --accent: #3cc0c3;
+      --accent-soft: #103a3d;
+      --accent-ink: #a9e6e7;
+      --good: #4cc38a;
+      --good-soft: #163227;
+      --warn: #e0a542;
+      --warn-soft: #372a12;
+      --crit: #f0736b;
+      --crit-soft: #3a1e1e;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0a1618;
+    --surface: #102225;
+    --surface-alt: #163035;
+    --text: #e6f4f4;
+    --text-muted: #93b3b5;
+    --border: #1e4147;
+    --border-strong: #2a565e;
+    --accent: #3cc0c3;
+    --accent-soft: #103a3d;
+    --accent-ink: #a9e6e7;
+    --good: #4cc38a;
+    --good-soft: #163227;
+    --warn: #e0a542;
+    --warn-soft: #372a12;
+    --crit: #f0736b;
+    --crit-soft: #3a1e1e;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .font-display {
+    font-family: Georgia, "Iowan Old Style", "Palatino Linotype", "URW Palladio L", serif;
+  }
+
+  a { color: var(--accent); }
+  a:focus-visible, button:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .shell {
+    display: grid;
+    grid-template-columns: 272px minmax(0, 1fr);
+    min-height: 100vh;
+  }
+
+  /* ---------- sidebar ---------- */
+  .sidebar {
+    background: var(--surface-alt);
+    border-right: 1px solid var(--border);
+    padding: 1.75rem 1.25rem 3rem;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.15rem;
+  }
+  .brand-mark {
+    height: 1.75rem; width: auto;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+  .brand h1 {
+    font-size: 1.05rem;
+    margin: 0;
+    letter-spacing: 0.01em;
+  }
+  .brand-sub {
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 1.75rem;
+  }
+  .switch-audience {
+    display: block;
+    margin: -0.75rem 0 1.5rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 0.6rem;
+    border: 1px dashed var(--border-strong);
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+  .switch-audience strong { display: block; color: var(--text); font-size: 0.82rem; margin-bottom: 0.15rem; }
+  .nav-group { margin-bottom: 1.4rem; }
+  .nav-group-title {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--text-muted);
+    margin: 0 0 0.45rem;
+    font-weight: 600;
+  }
+  .nav-group ul { list-style: none; margin: 0; padding: 0; }
+  .nav-group li a {
+    display: block;
+    padding: 0.28rem 0.5rem;
+    margin-left: -0.5rem;
+    border-radius: 0.4rem;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 0.855rem;
+  }
+  .nav-group li a:hover { background: var(--surface); color: var(--accent-ink); }
+
+  /* ---------- main content ---------- */
+  main {
+    padding: 3rem clamp(1.25rem, 4vw, 4rem) 6rem;
+    min-width: 0;
+  }
+
+  header.intro h1 {
+    font-size: clamp(2rem, 4vw, 2.6rem);
+    margin: 0 0 0.6rem;
+    text-wrap: balance;
+  }
+  header.intro .lede {
+    font-size: 1.05rem;
+    color: var(--text-muted);
+    max-width: 42rem;
+  }
+
+  section.top-section {
+    margin-top: 4.5rem;
+    padding-top: 0.5rem;
+    scroll-margin-top: 1.5rem;
+  }
+  section.top-section > h2 {
+    font-size: 1.7rem;
+    margin: 0 0 0.35rem;
+    text-wrap: balance;
+  }
+  section.top-section > .section-kicker {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent-ink);
+    font-weight: 600;
+    margin: 0 0 0.4rem;
+  }
+  section.top-section > .section-intro {
+    color: var(--text-muted);
+    max-width: 44rem;
+    margin: 0 0 1.75rem;
+  }
+
+  h3.cat-title {
+    font-size: 1.35rem;
+    margin: 3rem 0 0.35rem;
+    scroll-margin-top: 1.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border);
+  }
+  h3.cat-title:first-of-type { border-top: none; margin-top: 2rem; }
+
+  /* pills */
+  .pills { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+  .pill {
+    display: inline-block;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    padding: 0.16rem 0.5rem;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+    white-space: nowrap;
+  }
+  .pill.outline {
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    color: var(--text-muted);
+  }
+
+  /* manuals grid */
+  .manual-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+  }
+  article.manual {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0.9rem;
+    padding: 1.1rem 1.2rem 1.2rem;
+    scroll-margin-top: 1.5rem;
+    box-shadow: var(--shadow);
+  }
+  article.manual h4 {
+    margin: 0 0 0.55rem;
+    font-size: 1.02rem;
+  }
+  article.manual ul {
+    margin: 0 0 0.6rem;
+    padding-left: 1.1rem;
+    font-size: 0.9rem;
+  }
+  article.manual ul li { margin-bottom: 0.35rem; }
+  article.manual ul li:last-child { margin-bottom: 0; }
+  .manual-note {
+    margin: 0.6rem 0 0;
+    padding-top: 0.6rem;
+    border-top: 1px dashed var(--border);
+    font-size: 0.82rem;
+    color: var(--text-muted);
+  }
+  .manual-note b { color: var(--text); }
+
+  .tip-box {
+    background: var(--good-soft);
+    border: 1px solid var(--good);
+    border-radius: 0.9rem;
+    padding: 1rem 1.2rem;
+    margin: 1.25rem 0;
+    font-size: 0.92rem;
+  }
+  .tip-box b { color: var(--good); }
+  .warn-box {
+    background: var(--warn-soft);
+    border: 1px solid var(--warn);
+    border-radius: 0.9rem;
+    padding: 1rem 1.2rem;
+    margin: 1.25rem 0;
+    font-size: 0.92rem;
+  }
+  .warn-box b { color: var(--warn); }
+
+  footer.doc-footer {
+    margin-top: 4rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+  }
+
+  @media (max-width: 860px) {
+    .shell { grid-template-columns: 1fr; }
+    .sidebar {
+      position: static;
+      height: auto;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 1.25rem;
+    }
+    .nav-group { margin-bottom: 0.9rem; }
+    main { padding: 2rem 1.25rem 4rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <nav class="sidebar" aria-label="Índice del manual">
+    <div class="brand"><img class="brand-mark" src="dinos/logo-pasitos.png" alt="" aria-hidden="true"><h1 class="font-display">Pasitos</h1></div>
+    <p class="brand-sub">Manual para administración y personal</p>
+    <div class="switch-audience">
+      <strong>¿Eres papá o mamá?</strong>
+      <a href="/manual-papa.html">Ve al manual para familias →</a>
+    </div>
+
+    <div class="nav-group">
+      <p class="nav-group-title">Empezar aquí</p>
+      <ul>
+        <li><a href="#intro">Bienvenida</a></li>
+        <li><a href="#entrar">Cómo entrar</a></li>
+        <li><a href="#pin">El PIN de las pantallas protegidas</a></li>
+        <li><a href="#menu">Moverte por el menú</a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <p class="nav-group-title">Recepción y Registro</p>
+      <ul>
+        <li><a href="#kiosco-identificar">Recepción (entradas y salidas)</a></li>
+        <li><a href="#kiosco-registro">Registro de un tutor nuevo</a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <p class="nav-group-title">Alumnos</p>
+      <ul>
+        <li><a href="#alumnos-familia">Familia</a></li>
+        <li><a href="#alumnos-perfiles">Perfiles</a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <p class="nav-group-title">Día a día</p>
+      <ul>
+        <li><a href="#dia-bitacora">Bitácora</a></li>
+        <li><a href="#dia-menu">Menú semanal</a></li>
+        <li><a href="#dia-circulares">Circulares</a></li>
+        <li><a href="#dia-chat">Chat con familias</a></li>
+        <li><a href="#dia-ausencias">Ausencias avisadas</a></li>
+        <li><a href="#dia-calendario">Calendario escolar</a></li>
+        <li><a href="#dia-comedor">Pedidos de comedor</a></li>
+        <li><a href="#dia-encuestas">Encuestas</a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <p class="nav-group-title">Administración</p>
+      <ul>
+        <li><a href="#admin-reportes">Reportes</a></li>
+        <li><a href="#admin-pagos">Pagos</a></li>
+        <li><a href="#admin-estadisticas">Estadísticas</a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <p class="nav-group-title">Sistema (solo administrador)</p>
+      <ul>
+        <li><a href="#sistema-config">Configuración</a></li>
+        <li><a href="#sistema-personal">Personal</a></li>
+        <li><a href="#sistema-horarios">Horarios de personal</a></li>
+      </ul>
+    </div>
+
+    <div class="nav-group">
+      <p class="nav-group-title">Ayuda</p>
+      <ul>
+        <li><a href="#problemas-acceso">No puedo entrar</a></li>
+        <li><a href="#problemas-notificaciones">No llegan las notificaciones</a></li>
+        <li><a href="#problemas-datos">Un dato se ve mal</a></li>
+        <li><a href="#problemas-instalar">Instalar en tablet o celular</a></li>
+        <li><a href="#problemas-imprimir">Qué se puede imprimir</a></li>
+        <li><a href="#ayuda-soporte">Chat de soporte de Pasitos</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main>
+    <header class="intro" id="intro">
+      <h1 class="font-display">Manual para administración y personal</h1>
+      <p class="lede">Esta guía explica, sin tecnicismos, para qué sirve cada pantalla de Pasitos y cómo se usa en el día a día de la guardería. Úsala como consulta rápida — busca la sección que necesitas en el menú de la izquierda, no hace falta leerla completa.</p>
+      <p class="lede">¿Buscas el manual para los papás y mamás? Está en <a href="/manual-papa.html">este otro enlace</a>.</p>
+    </header>
+
+    <!-- ================= EMPEZAR AQUÍ ================= -->
+    <section class="top-section" id="entrar">
+      <p class="section-kicker">Antes de empezar</p>
+      <h2>Cómo entrar al sistema</h2>
+      <p class="section-intro">En la pantalla de acceso hay dos pestañas: "Personal" y "Papá". Como parte del staff o administración, usa siempre la pestaña "Personal" con el usuario y contraseña que te dio la guardería.</p>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Iniciar sesión</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Elige la pestaña "Personal", escribe tu usuario y contraseña, y entra.</li>
+            <li>Si olvidaste tu contraseña, pídele al administrador de tu guardería que te la restablezca desde su cuenta.</li>
+            <li>Tu sesión se mantiene abierta un tiempo; si pasa mucho sin usarla, el sistema te pedirá volver a entrar.</li>
+            <li>Si eliges la pestaña equivocada para tu tipo de cuenta (por ejemplo, "Papá" con credenciales de staff), el sistema te lo dice explícitamente en vez de solo fallar.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="top-section" id="menu">
+      <p class="section-kicker">Antes de empezar</p>
+      <h2>Moverte por el menú</h2>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Los grupos del menú se abren y se cierran</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>El menú lateral está agrupado por áreas: Alumnos, Día a día, Administración y Sistema. Cada grupo se abre y se cierra tocando su título; la flechita de la derecha indica si está desplegado.</li>
+            <li>Arrancan cerrados para que la lista no sea larguísima. El grupo del apartado en el que estás se abre solo.</li>
+            <li>Lo que dejes abierto se recuerda en ese dispositivo: si vives en Bitácora, ese grupo te va a esperar abierto la próxima vez.</li>
+            <li>Recepción y Registro están siempre a la vista, arriba de todo, porque no pertenecen a ningún grupo.</li>
+            <li>Si un grupo cerrado tiene mensajes de chat sin leer, el contador rojo se muestra en el título del grupo para que no se te pase.</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>La barra de abajo en tablet y celular</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>En celular y en tablet <strong>vertical</strong> aparece una barra fija abajo de la pantalla con los tres accesos que más se usan en el día.</li>
+            <li><strong>Al centro, el botón redondo grande: Recepción.</strong> Es el de marcar entradas y salidas con la cámara.</li>
+            <li><strong>A la izquierda: Bitácora.</strong> A la <strong>derecha: Chat</strong> con las familias, con el contador de mensajes sin leer.</li>
+            <li>El resto de las pantallas sigue en el menú completo, que se abre con el botón de las tres rayas de arriba a la izquierda.</li>
+            <li>En una computadora (o en una tablet en horizontal) no aparece la barra de abajo: ahí el menú lateral está siempre visible y no hace falta.</li>
+            <li>Bitácora desde la barra pide el PIN igual que desde el menú, si tu cuenta lo necesita.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="top-section" id="pin">
+      <p class="section-kicker">Antes de empezar</p>
+      <h2>El PIN de las pantallas protegidas</h2>
+      <p class="section-intro">Algunas secciones (como Pagos, Perfiles o Reportes) manejan información sensible de las familias, así que piden un PIN de 4 dígitos la primera vez que entras a cualquiera de ellas.</p>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Cómo funciona</h4>
+          <div class="pills"><span class="pill">Staff</span></div>
+          <ul>
+            <li>La primera vez que intentas entrar a una de esas secciones, el sistema te pide el PIN — pregúntaselo al administrador si no lo tienes.</li>
+            <li>Una vez que lo escribes correctamente, tienes acceso libre por 30 minutos — no te lo vuelve a pedir mientras te muevas entre esas pantallas.</li>
+            <li>Pasados los 30 minutos, si sigues en una de esas pantallas (o vuelves a entrar a alguna), te lo pide de nuevo.</li>
+          </ul>
+          <p class="manual-note">Si tu cuenta ya tiene acceso concedido por el administrador a áreas específicas (ver <a href="#sistema-personal">Sistema → Personal</a>), no te va a pedir PIN para esas — el PIN solo aplica a cuentas de staff "genéricas", sin permisos personalizados.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ================= RECEPCIÓN Y REGISTRO ================= -->
+    <section class="top-section" id="kiosco">
+      <p class="section-kicker">Pantallas</p>
+      <h2>Recepción y Registro</h2>
+      <p class="section-intro">La pantalla que se queda montada en la tablet de la entrada — no pide login personal, cualquiera del staff la puede operar. Tiene dos botones: "Recepción" y "Registro".</p>
+
+      <h3 class="cat-title" id="kiosco-identificar">Recepción (entradas y salidas)</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Marcar la entrada o salida de un niño</h4>
+          <div class="pills"><span class="pill">Tablet</span><span class="pill outline">Staff</span></div>
+          <ul>
+            <li>El tutor (o quien lleve al niño, si ya está registrado) se acomoda frente a la cámara de la tablet — el rostro que se reconoce siempre es el del tutor, nunca el del niño.</li>
+            <li>El sistema lo reconoce por su rostro y marca automáticamente la entrada del niño (la primera vez del día) o su salida (la siguiente).</li>
+            <li>Al papá le llega un aviso al instante si tiene las notificaciones activadas.</li>
+            <li>Si llegan varios hermanos a la vez, confirma cuáles quedan marcados antes de terminar.</li>
+          </ul>
+          <p class="manual-note">Si el reconocimiento falla o hay un error, puedes corregir la asistencia a mano desde <a href="#alumnos-familia">Familia</a>.</p>
+        </article>
+
+        <article class="manual">
+          <h4>La cámara no reconoce a un tutor</h4>
+          <div class="pills"><span class="pill">Tablet</span><span class="pill outline">Staff</span></div>
+          <ul>
+            <li>Pide que se acerque a la tablet hasta que su cara ocupe buena parte de la pantalla, de frente y sin gorra, cubrebocas ni lentes oscuros.</li>
+            <li>Cuida la luz: a contraluz (con una ventana atrás) el reconocimiento falla mucho más. Lo ideal es luz de frente.</li>
+            <li>Si aun así no lo reconoce, el rostro puede haber quedado mal capturado al inscribirlo: vuelve a tomarle la foto desde Registro.</li>
+            <li>Mientras tanto, marca la entrada o la salida a mano desde la lista de <a href="#dia-bitacora">Bitácora</a>, tocando el botón de estado del niño.</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>Cómo decide el sistema si es entrada o salida</h4>
+          <div class="pills"><span class="pill">Tablet</span><span class="pill outline">Staff</span></div>
+          <ul>
+            <li>El primer reconocimiento del día marca <strong>ENTRADA</strong>; el siguiente marca <strong>SALIDA</strong>. No hay que elegir nada.</li>
+            <li>Antes del primer registro, el niño aparece como "En Casa".</li>
+            <li>Si alguien pasó dos veces por error y quedó marcado como SALIDA sin haberse ido, corrígelo desde la lista de Bitácora tocando el botón de estado.</li>
+            <li>El rostro que se registra siempre es el del <strong>tutor</strong>, nunca el del niño. Por eso un tutor con varios hijos marca a todos sus hermanos de una vez.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="kiosco-registro">Registro de un tutor nuevo</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Inscribir a un niño y a su tutor</h4>
+          <div class="pills"><span class="pill">Tablet</span><span class="pill outline">Staff</span></div>
+          <ul>
+            <li>Antes de tomarle la foto al tutor, debe aceptar el Aviso de Privacidad en pantalla.</li>
+            <li>Aquí se captura el rostro del <b>tutor</b> (papá, mamá o quien lo vaya a llevar/recoger) — no el del niño; los niños nunca se enrolan por su cara, solo se escribe su nombre para inscribirlos.</li>
+            <li>Si el tutor quiere usar el portal desde su celular (bitácora, pagos, chat), marca la casilla para crearle su cuenta ahí mismo, con un usuario y contraseña.</li>
+            <li>Si el tutor ya tiene un hijo inscrito, no hace falta volver a capturar su rostro — solo agrega al hermano desde <a href="#alumnos-familia">Familia</a>.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- ================= ALUMNOS ================= -->
+    <section class="top-section" id="alumnos">
+      <p class="section-kicker">Pantallas</p>
+      <h2>Alumnos</h2>
+      <p class="section-intro">El directorio de familias y la ficha de cada niño.</p>
+
+      <h3 class="cat-title" id="alumnos-familia">Familia</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Buscar y gestionar tutores</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Busca a un tutor por nombre; verás todos sus hijos vinculados.</li>
+            <li>Vincula o desvincula a un hijo, edita los datos de contacto del tutor, o agrega a un hermano sin volver a capturar el rostro del tutor.</li>
+            <li>Puedes restablecer la contraseña del portal de un papá si la olvidó.</li>            <li>Puedes restablecer la contraseña del portal de un papá si la olvidó. Es la única forma: los papás no tienen recuperación por correo.</li>
+            <li>Genera un enlace público para que alguien externo (por ejemplo un familiar) vea la bitácora de un niño sin necesitar cuenta — y lo puedes invalidar cuando quieras.</li>            <li>Genera un enlace público para que alguien externo (por ejemplo un familiar) vea la bitácora de un niño sin necesitar cuenta — y lo puedes invalidar cuando quieras.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="alumnos-perfiles">Perfiles</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Ficha completa del niño</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Datos del niño: fecha de nacimiento, dirección, contacto de emergencia, colegiatura mensual y grupo/salón.</li>
+            <li>Documentos de inscripción: sube, revisa o reemplaza los documentos que la guardería pide (acta de nacimiento, cartilla, etc.). Qué documentos se piden se configura una sola vez para toda la guardería — ver <a href="#sistema-config">Sistema → Configuración</a>.</li>
+            <li>Galería de fotos del niño y organización por grupos.</li>            <li>Galería de fotos del niño y organización por grupos (salas o salones, que tú mismo creas y nombras).</li>
+            <li>Puedes dar de baja a un niño sin borrar su historial.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- ================= DÍA A DÍA ================= -->
+    <section class="top-section" id="dia-a-dia">
+      <p class="section-kicker">Pantallas</p>
+      <h2>Día a día</h2>
+      <p class="section-intro">Todo lo que se captura y comparte con las familias sobre el día a día en la guardería.</p>
+
+      <h3 class="cat-title" id="dia-bitacora">Bitácora</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Reporte diario de cada niño</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Registra comidas, siesta, cambios de pañal/baño, estado de ánimo y cualquier nota del día.</li>
+            <li>Puedes subir fotos del día — el papá las ve desde su portal en la bitácora de ese mismo día.</li>
+            <li>El papá recibe un aviso en cuanto guardas el reporte, si tiene notificaciones activadas.</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>Qué se captura exactamente en la bitácora</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li><strong>Desayuno, comida y merienda:</strong> cada una se marca con una de tres opciones — "Nada", "Poco" o "Bien". No se captura una cantidad ni un horario.</li>
+            <li><strong>Siesta:</strong> un interruptor de si durmió o no, y el tiempo que durmió.</li>
+            <li><strong>Aseado:</strong> si el niño está limpio y con el pañal cambiado. Mientras esté sin marcar, la tarjeta del niño lo resalta en rojo en la lista de Bitácora, para que nadie se salte el cambio.</li>
+            <li><strong>Golpe:</strong> márcalo solo si el niño tuvo un golpe o caída. Al marcarlo, la tarjeta lo resalta en ámbar.</li>
+            <li><strong>Notas del día:</strong> texto libre para cualquier detalle que quieras contarle al papá.</li>
+            <li><strong>Fotos:</strong> puedes subir varias; el papá las ve en la bitácora de ese mismo día.</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>No aparece el botón para llenar la bitácora de un niño</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>La bitácora de un niño solo se puede llenar cuando ya tiene registrada su <strong>entrada</strong> del día (estado ENTRADA o SALIDA).</li>
+            <li>Si el niño sigue marcado como "En Casa", primero hay que registrar su entrada — desde la tablet de Recepción, o a mano desde la misma lista de Bitácora tocando el botón de estado del niño.</li>
+            <li>Ese botón de estado también sirve para corregir: cambia entre ENTRADA y SALIDA si alguien se equivocó o si el reconocimiento facial falló.</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>¿Se puede imprimir la bitácora del día?</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>No. La bitácora diaria no tiene botón de imprimir ni de exportar a PDF, ni del lado del personal ni del lado de los papás. Se consulta dentro de la aplicación.</li>
+            <li>Lo único que se imprime en Pasitos es el <strong>historial de asistencia</strong>, desde la sección <a href="#admin-reportes">Reportes</a>: entradas y salidas de un rango de fechas, con el logo y el nombre de la guardería en el encabezado.</li>
+            <li>Los recibos de pago también se pueden ver y guardar uno por uno, desde <a href="#admin-pagos">Pagos</a>.</li>
+            <li>Si un papá pide "el reporte de su hijo" en papel, lo que se le entrega es el historial de asistencia de Reportes.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="dia-menu">Menú semanal</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Publicar el menú de la semana</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Captura el desayuno, comida y colación de cada día de la semana.</li>
+            <li>Se ve automáticamente en el portal de todos los papás.</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>Menú semanal no es lo mismo que Pedidos de comedor</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li><strong>Menú semanal</strong> lo escriben ustedes: es lo que se va a servir. Los papás solo lo consultan.</li>
+            <li><strong>Pedidos de comedor</strong> lo escriben los papás: es quién no va a comer qué ese día. Ustedes solo lo consultan.</li>
+            <li>Un día sin menú capturado le aparece al papá como "Sin menú capturado". No pasa nada, pero conviene llenarlo con anticipación.</li>
+            <li>Los papás pueden moverse a semanas anteriores y siguientes, así que lo que captures se queda como historial.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="dia-circulares">Circulares</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Avisos generales para todas las familias</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Escribe un aviso (título y contenido) y opcionalmente agrégale una imagen.</li>
+            <li>Todos los papás lo ven en su propio apartado de "Circulares" del portal, y les llega un aviso de "hay una circular nueva".</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>Circular, chat o encuesta: cuál usar</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li><strong>Circular</strong> cuando el mismo aviso va para todas las familias y no esperas respuesta (un cambio de horario, un recordatorio, una convocatoria).</li>
+            <li><strong>Chat</strong> cuando es algo de un niño en particular o esperas que el papá te conteste.</li>
+            <li><strong>Encuesta</strong> cuando necesitas recoger respuestas de las familias de forma ordenada, no comentarios sueltos.</li>
+            <li>La circular más reciente le aparece completa al papá en su pantalla de Inicio, no solo el título, así que no hace falta que la repitas por WhatsApp.</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>Mandar una circular solo a ciertos grupos</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Al escribir la circular, abajo del formulario está <strong>"¿A quién va dirigida?"</strong> con un botón por cada grupo de tu guardería.</li>
+            <li>Por default queda marcado <strong>"Todas las familias"</strong>, que es como se comportaban todas las circulares antes de esto.</li>
+            <li>Si marcas uno o varios grupos, la circular <strong>solo la ven</strong> las familias con un hijo activo en esos grupos, y <strong>solo a ellas les llega la notificación</strong>. Al resto no les aparece en ningún lado.</li>
+            <li>Un papá con hijos en dos salones distintos ve las circulares de los dos.</li>
+            <li>El número entre paréntesis junto a cada grupo son los niños activos que tiene, para que sepas a cuántos les va a llegar.</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>Ver a qué grupos se mandó cada circular</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>En el listado, debajo del título de cada circular dice a quién se le mandó: "Todas las familias" o los nombres de los grupos.</li>
+            <li>Arriba del listado aparece una barra de <strong>"Ver:"</strong> con los grupos que han recibido alguna circular. Tócalos para quedarte solo con las de ese grupo.</li>
+            <li>El contador de leídas se calcula sobre las familias a las que <strong>de verdad le tocaba</strong>: una circular mandada a un salón de 8 dice "3 de 8", no "3 de 40".</li>
+            <li>Si borras un grupo, las circulares que iban dirigidas a él dejan de verse (aparecen marcadas como "Sus grupos ya no existen"). Es a propósito: se prefiere que deje de verla alguien a que un aviso de un salón se le muestre de golpe a toda la guardería.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="dia-chat">Chat con familias</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Mensajes directos con cada papá</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>El papá elige con quién de la guardería quiere hablar (tú, otro miembro del staff, o el administrador) -- cada conversación queda dirigida a esa persona en particular.</li>
+            <li>Solo ves y respondes las conversaciones que un papá te dirigió a ti. El administrador es la excepción: además de las suyas, puede ver todas las conversaciones de todo el staff.</li>
+            <li>Puedes mandar y recibir también fotos y archivos, no solo texto.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="dia-ausencias">Ausencias avisadas</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Ausencias que reportaron los papás</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Lista de los días que cada papá avisó que su hijo no va a asistir, con el motivo si lo escribió.</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>Qué hace y qué no hace una ausencia avisada</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Es solo un aviso del papá al personal. <strong>No</strong> marca al niño como ausente en el registro de asistencia, <strong>no</strong> cancela el cobro de la colegiatura y <strong>no</strong> lo quita del conteo del comedor.</li>
+            <li>Si el niño no llega, en el registro de asistencia simplemente no aparece movimiento de ese día: se queda "En Casa".</li>
+            <li>El papá puede avisar de un día suelto o de un rango de días, y puede cancelar el aviso si al final sí asiste.</li>
+            <li>Esta pantalla es de consulta: las ausencias las captura el papá, el personal no las puede dar de alta por él.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="dia-calendario">Calendario escolar</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Eventos, suspensiones, vacaciones y juntas</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Publica una fecha importante (evento, suspensión de clases, vacaciones o junta de padres), con su descripción.</li>
+            <li>Los papás lo ven en el apartado "Eventos" de su portal, con anticipación de hasta 90 días.</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>Los cuatro tipos de fecha y para qué es cada uno</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li><strong>Evento:</strong> festivales, convivios, actividades especiales.</li>
+            <li><strong>Suspensión de clases:</strong> un día en el que la guardería no da servicio.</li>
+            <li><strong>Vacaciones:</strong> un periodo completo sin actividades.</li>
+            <li><strong>Junta de padres:</strong> reuniones a las que se convoca a las familias.</li>
+            <li>El tipo solo cambia el color y la etiqueta con la que el papá lo ve; no bloquea asistencias ni pagos automáticamente.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="dia-comedor">Pedidos de comedor</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Avisos especiales de comida</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Aquí ves lo que cada papá avisó sobre las comidas de su hijo en un día específico (por ejemplo, si no va a desayunar en la guardería).</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>Cómo leer la pantalla de comedor</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Arriba tienes el <strong>total por tiempo de comida</strong> del día elegido: cuántos niños desayunan, cuántos comen y cuántos meriendan. Ese es el número con el que la cocina prepara porciones.</li>
+            <li>Abajo, la lista de <strong>excepciones y notas</strong>: solo aparecen las familias que avisaron algo. Cada renglón dice el nombre del niño, qué comida no va a tomar y la nota que escribió el papá.</li>
+            <li>Si dice "Ninguna familia avisó excepciones para este día", todos comen normal.</li>
+            <li>Cambia la fecha arriba para revisar otro día. Conviene checarlo en la mañana, antes de preparar.</li>
+            <li>Esta pantalla es solo de consulta: los avisos los captura el papá desde su portal, el personal no los puede escribir por él.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="dia-encuestas">Encuestas</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Preguntarle algo a todas las familias</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Crea una encuesta con una o varias preguntas y publícala.</li>
+            <li>Consulta los resultados conforme los papás van respondiendo.</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>Cómo se arma una encuesta</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Ponle un título y, si quieres, una descripción que explique de qué se trata.</li>
+            <li>Agrega las preguntas que necesites. Cada una es de uno de dos tipos: <strong>opción múltiple</strong> o <strong>texto libre</strong>.</li>
+            <li>Una pregunta de opción múltiple necesita al menos <strong>dos opciones</strong>; el sistema no te deja publicarla con una sola.</li>
+            <li>Puedes mezclar los dos tipos en la misma encuesta.</li>
+            <li>Al publicarla, a todos los papás con notificaciones activadas les llega el aviso de que hay una encuesta nueva.</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>Ver y entender los resultados</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Entra a la encuesta publicada para ver las respuestas conforme van llegando.</li>
+            <li>Cada papá responde una sola vez y no puede corregir después, así que las respuestas son definitivas.</li>
+            <li>Las preguntas de texto libre se leen una por una; las de opción múltiple se ven agrupadas por opción.</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>Dirigir una encuesta a ciertos grupos</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Funciona igual que en las circulares: al armar la encuesta, abajo está <strong>"¿A quién va dirigida?"</strong> con un botón por grupo.</li>
+            <li>Sin marcar nada va para todas las familias. Marcando grupos, solo la ven y solo la pueden responder las familias con un hijo activo en esos grupos.</li>
+            <li>Sirve para preguntas que no le tocan a todos: una salida de preescolar, el horario de una junta de maternal, la talla del uniforme de un salón.</li>
+            <li>El "X de Y familias" del listado cuenta solo a las familias destinatarias, así que el avance se lee bien aunque la encuesta sea de un solo grupo.</li>
+            <li>En el listado también hay una barra de "Ver:" para quedarte solo con las encuestas de un grupo.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- ================= ADMINISTRACIÓN ================= -->
+    <section class="top-section" id="administracion">
+      <p class="section-kicker">Pantallas</p>
+      <h2>Administración</h2>
+      <p class="section-intro">Reportes, pagos y estadísticas de la guardería. El administrador puede darle acceso a estas pantallas a cuentas de staff específicas.</p>
+
+      <h3 class="cat-title" id="admin-reportes">Reportes</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Historial de asistencia</h4>
+          <div class="pills"><span class="pill">Staff (con permiso)</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Consulta las entradas y salidas de cualquier niño en un rango de fechas.</li>
+            <li>Puedes generar un reporte para compartir con un papá o para tus propios registros.</li>
+            <li>Al imprimirlo o guardarlo como PDF, el encabezado muestra el logo y el nombre de tu guardería junto al rango de fechas — listo para compartir tal cual.</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>Cómo imprimir o guardar el reporte de asistencia en PDF</h4>
+          <div class="pills"><span class="pill">Staff (con permiso)</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Entra a <strong>Reportes</strong> y elige la fecha de inicio y la fecha de fin del periodo que necesitas.</li>
+            <li>Si quieres el reporte de un solo niño, escribe su nombre en el buscador; si lo dejas vacío, salen todos.</li>
+            <li>Toca el botón <strong>"Imprimir Reporte"</strong>. Se abre el cuadro de impresión del navegador.</li>
+            <li>Ahí puedes mandarlo a una impresora, o elegir <strong>"Guardar como PDF"</strong> en el destino para tener el archivo.</li>
+            <li>Al imprimir se ocultan solos los filtros y los botones: en la hoja queda solo el encabezado con el logo y el nombre de la guardería, el rango de fechas y la tabla.</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>Qué trae y qué no trae el reporte de asistencia</h4>
+          <div class="pills"><span class="pill">Staff (con permiso)</span><span class="pill">Admin</span></div>
+          <ul>
+            <li><strong>Sí trae:</strong> las entradas y salidas registradas de cada niño en el rango de fechas que elegiste.</li>
+            <li><strong>No trae:</strong> comidas, siesta, notas ni fotos de la bitácora. Eso es otra pantalla y no se exporta.</li>
+            <li><strong>No trae:</strong> pagos ni estado de cuenta. Para eso están los recibos de la sección Pagos.</li>
+            <li>Si un rango sale vacío, revisa las fechas: se muestran solo los días en los que hubo movimientos registrados.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="admin-pagos">Pagos</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Capturar un pago en efectivo o transferencia</h4>
+          <div class="pills"><span class="pill">Staff (con permiso)</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Registra el pago de colegiatura (o de otro concepto: inscripción, material, etc.) de un niño, con el monto que efectivamente se recibió.</li>
+            <li>Si un papá solo pagó una parte de lo que debía, captura ese monto — el sistema recuerda lo que falta y lo suma como "deuda de meses anteriores" en cuanto cambie el mes.</li>
+            <li>Cada niño muestra su estado: Pagado, Parcial, Pendiente o Vencido.</li>
+            <li>Puedes generar el recibo de cualquier pago capturado.</li>
+          </ul>
+          <p class="manual-note"><b>Pagos con tarjeta:</b> si la guardería lo activa, los papás también pueden pagar su colegiatura con tarjeta directamente desde su portal, eligiendo cuánto quieren pagar. Esos pagos aparecen aquí automáticamente, no hace falta capturarlos.</p>
+        </article>
+
+        <article class="manual">
+          <h4>Cómo capturar un pago, paso a paso</h4>
+          <div class="pills"><span class="pill">Staff (con permiso)</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Entra a <strong>Pagos</strong> y toca al niño al que le vas a registrar el pago.</li>
+            <li>El monto viene sugerido con el saldo que le falta del mes; cámbialo si recibiste una cantidad distinta.</li>
+            <li>Elige el <strong>concepto</strong>: Colegiatura, Inscripción, Material u Otro.</li>
+            <li>Elige la <strong>forma de pago</strong>: efectivo, transferencia, tarjeta u otro.</li>
+            <li>Guarda. El pago aparece de inmediato en el historial del niño y el papá lo ve en su portal.</li>
+            <li>Solo el concepto <strong>Colegiatura</strong> mueve el estado del mes (Pagado / Parcial / Pendiente / Vencido); es el único que tiene un monto esperado configurado. Inscripción, Material y Otro se registran en el historial pero no cambian ese estado.</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>Mandar recordatorios de pago a las familias</h4>
+          <div class="pills"><span class="pill">Staff (con permiso)</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Desde la pantalla de Pagos puedes enviar un recordatorio a todas las familias que tienen la colegiatura del periodo pendiente o vencida, o que arrastran deuda de meses anteriores.</li>
+            <li>Antes de mandarlo, el sistema te dice a cuántos niños les va a llegar, para que confirmes.</li>
+            <li>Llega como notificación push al celular del tutor, siempre que él las tenga activadas.</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>De dónde sale el monto de la colegiatura</h4>
+          <div class="pills"><span class="pill">Staff (con permiso)</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>La colegiatura mensual se configura por niño, en su ficha dentro de <a href="#alumnos-perfiles">Perfiles</a>.</li>
+            <li>Si un niño no tiene colegiatura capturada, su estado de pago no se puede calcular. Captúrala primero en Perfiles.</li>
+            <li>Al cambiar el mes, lo que quedó sin pagar se acumula y aparece como "deuda de meses anteriores" aparte del mes en curso.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="admin-estadisticas">Estadísticas</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Panorama general de la guardería</h4>
+          <div class="pills"><span class="pill">Staff (con permiso)</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Resumen de inscripciones, asistencia y pagos del periodo.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- ================= SISTEMA ================= -->
+    <section class="top-section" id="sistema">
+      <p class="section-kicker">Pantallas</p>
+      <h2>Sistema</h2>
+      <p class="section-intro">Configuración general de la guardería y gestión del personal — exclusivo del administrador, nunca visible para cuentas de staff.</p>
+
+      <h3 class="cat-title" id="sistema-config">Configuración</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Nombre de la guardería</h4>
+          <div class="pills"><span class="pill">Admin</span></div>
+          <ul>
+            <li>Actualiza el nombre de tu guardería desde la primera tarjeta de Configuración, cuando quieras.</li>
+            <li>El cambio se ve al instante en el menú lateral y en el encabezado de los reportes impresos, sin recargar la página.</li>
+          </ul>
+        </article>
+        <article class="manual">
+          <h4>Documentos requeridos</h4>
+          <div class="pills"><span class="pill">Admin</span></div>
+          <ul>
+            <li>Define, una sola vez para toda la guardería, qué documentos se les va a pedir a las familias (acta de nacimiento, CURP, comprobante de domicilio, etc.).</li>
+            <li>Esa lista aplica igual para todos los niños — no hace falta configurarla uno por uno.</li>
+          </ul>
+        </article>
+        <article class="manual">
+          <h4>Aviso de privacidad</h4>
+          <div class="pills"><span class="pill">Admin</span></div>
+          <ul>
+            <li>Escribe el texto del aviso de privacidad, o sube directamente un PDF si ya lo tienes redactado.</li>
+            <li>Los tutores lo tienen que aceptar antes de registrarse en la tablet de la entrada.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="sistema-personal">Personal</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Cuentas de staff</h4>
+          <div class="pills"><span class="pill">Admin</span></div>
+          <ul>
+            <li>Da de alta una cuenta nueva para un maestro o encargado, con su usuario, contraseña y PIN de 4 dígitos.</li>
+            <li>Opcionalmente, dale acceso directo (sin pedirle el PIN) a áreas específicas: Familia, Bitácora, Reportes, Perfiles, Pagos, Estadísticas, Menú Semanal o Circulares.</li>
+            <li>Puedes editar o dar de baja una cuenta cuando haga falta.</li>
+          </ul>
+          <p class="manual-note">Las secciones de este apartado ("Sistema") nunca se le pueden conceder a una cuenta de staff, tenga los permisos que tenga — son exclusivas del administrador.</p>
+        </article>
+
+        <article class="manual">
+          <h4>Las ocho áreas que se le pueden conceder a una cuenta de staff</h4>
+          <div class="pills"><span class="pill">Admin</span></div>
+          <ul>
+            <li>Familia, Bitácora, Reportes, Perfiles, Pagos, Estadísticas, Menú Semanal y Circulares. Esas son todas: no hay más.</li>
+            <li>Al dar de alta o editar una cuenta, marcas las que le tocan. Lo que no marques, no le aparece en el menú.</li>
+            <li>Configuración, Personal y Horarios <strong>nunca</strong> se pueden conceder: son solo del administrador, aunque quisieras dárselas.</li>
+            <li>Recepción y Registro (la tablet), Chat, Ausencias, Calendario, Comedor y Encuestas están disponibles para todo el staff, sin permiso especial.</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>Cuentas con permisos personalizados vs. cuentas genéricas</h4>
+          <div class="pills"><span class="pill">Admin</span></div>
+          <ul>
+            <li>Una cuenta a la que <strong>no</strong> le marcaste áreas funciona "a la antigua": ve todas las pantallas, pero le pide el <a href="#pin">PIN de 4 dígitos</a> para entrar a las protegidas.</li>
+            <li>Una cuenta a la que <strong>sí</strong> le marcaste áreas entra directo a esas, sin PIN, y sencillamente no ve las demás.</li>
+            <li>Es decir: los permisos personalizados sustituyen al PIN, no se suman a él.</li>
+            <li>Si quieres que una maestra solo llene bitácoras, dale nada más el área de Bitácora: no verá pagos, perfiles ni reportes.</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>Restablecer la contraseña o el PIN de alguien del staff</h4>
+          <div class="pills"><span class="pill">Admin</span></div>
+          <ul>
+            <li>Desde <strong>Personal</strong>, busca la cuenta y edítala para asignarle una contraseña nueva o cambiarle el PIN de 4 dígitos.</li>
+            <li>El PIN es siempre de 4 dígitos numéricos.</li>
+            <li>Cuando alguien deja de trabajar en la guardería, da de baja su cuenta desde aquí mismo: es lo que le corta el acceso.</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>Restablecer la contraseña de un papá</h4>
+          <div class="pills"><span class="pill">Staff (con permiso)</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Las contraseñas de los tutores no se restablecen desde Personal (ahí solo está el staff), sino desde <a href="#alumnos-familia">Familia</a>, buscando al tutor y entrando a su ficha.</li>
+            <li>Los papás no tienen forma de recuperar su contraseña solos: no hay correo de recuperación, siempre pasa por ustedes.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="sistema-horarios">Horarios de personal</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Turnos y control de horas</h4>
+          <div class="pills"><span class="pill">Admin</span></div>
+          <ul>
+            <li>Define los turnos semanales de cada miembro del staff.</li>
+            <li>Consulta el registro de horas trabajadas.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- ================= PROBLEMAS COMUNES ================= -->
+    <section class="top-section" id="problemas">
+      <p class="section-kicker">Ayuda</p>
+      <h2>Problemas comunes</h2>
+      <p class="section-intro">Las dudas que más se repiten, con la respuesta corta.</p>
+
+      <h3 class="cat-title" id="problemas-acceso">No puedo entrar</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>El sistema no acepta mi usuario y contraseña</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Revisa que estés en la pestaña <strong>"Personal"</strong> y no en "Papá". Si te equivocas de pestaña, Pasitos te lo dice explícitamente en vez de solo fallar.</li>
+            <li>La contraseña distingue mayúsculas de minúsculas.</li>
+            <li>Si sigue sin entrar, el administrador de tu guardería puede asignarte una contraseña nueva desde <a href="#sistema-personal">Sistema → Personal</a>.</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>Se me cierra la sesión sola</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Es a propósito: las cuentas de staff y administración cierran sesión después de un rato de inactividad, porque manejan datos de menores.</li>
+            <li>No se pierde nada de lo que ya guardaste. Lo que sí se pierde es un formulario a medio llenar, así que guarda la bitácora conforme la vas capturando.</li>
+            <li>En la tablet de Recepción esto es normal al terminar el turno; solo vuelve a entrar.</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>Me pide el PIN todo el tiempo</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>El PIN vale <strong>30 minutos</strong>. Pasado ese rato se vuelve a pedir, aunque no hayas cerrado sesión.</li>
+            <li>Si a alguien le estorba pedirle el PIN a cada rato, la solución no es quitarle el PIN: es que el administrador le conceda directamente las áreas que necesita desde <a href="#sistema-personal">Sistema → Personal</a>. Las cuentas con áreas concedidas no pasan por el PIN.</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>No veo una sección que sí veía antes</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Si a tu cuenta le configuraron áreas específicas, solo ves esas. Pídele al administrador que revise tus permisos.</li>
+            <li>Configuración, Personal y Horarios solo las ve el administrador: si tu cuenta es de staff, nunca van a aparecer.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="problemas-notificaciones">No llegan las notificaciones</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>A un papá no le llegan los avisos</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Las notificaciones las activa cada papá desde su propio portal, con el botón de la pantalla de inicio. Ustedes no pueden activárselas.</li>
+            <li>Tiene que haber respondido <strong>Permitir</strong> cuando el navegador le preguntó. Si le dio "Bloquear", hay que cambiarlo en los ajustes del navegador de su teléfono.</li>
+            <li>En iPhone solo funcionan si el papá <strong>instaló Pasitos en su pantalla de inicio</strong>. Abriéndolo desde Safari normal, iOS no las entrega. Es la causa más común.</li>
+            <li>Se activan por dispositivo: si cambió de teléfono, tiene que activarlas de nuevo.</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>A mí, como staff, no me llegan</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Mismo procedimiento: activa las notificaciones desde el botón del menú lateral y acepta el permiso del navegador.</li>
+            <li>Cuando están activas, el botón dice "Notificaciones activas".</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="problemas-datos">Un dato se ve mal</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Un niño quedó marcado como entrada o salida por error</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Ve a <a href="#dia-bitacora">Bitácora</a>, busca al niño y toca su botón de estado: cambia entre ENTRADA y SALIDA.</li>
+            <li>Sirve igual cuando el reconocimiento facial no funcionó y hay que registrar el movimiento a mano.</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>Un pago no aparece en el portal del papá</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Los pagos en efectivo y transferencia hay que capturarlos a mano en <a href="#admin-pagos">Pagos</a>: no se registran solos.</li>
+            <li>Los pagos con tarjeta hechos desde el portal sí aparecen automáticamente.</li>
+            <li>Si capturaste el pago con un concepto distinto de "Colegiatura", el pago sale en el historial pero el estado del mes no cambia. Ese estado solo lo mueve el concepto Colegiatura.</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>Un niño no tiene estado de pago</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Le falta la colegiatura mensual en su ficha. Captúrala en <a href="#alumnos-perfiles">Perfiles</a> y el estado aparece solo.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="problemas-instalar">Instalar Pasitos en la tablet o el celular</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Dónde aparece el aviso de instalar</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Aparece como una franja azul oscuro que dice "Instala Pasitos en tu teléfono", en la <strong>pantalla de acceso</strong> (antes de iniciar sesión), <strong>arriba del panel</strong> una vez dentro, y en el portal del papá.</li>
+            <li>No está en Google Play ni en la App Store: se instala desde el navegador. No la busques en las tiendas.</li>
+            <li>La franja se esconde sola cuando ya está instalada, cuando el dispositivo no puede instalarla (una computadora de escritorio, por ejemplo), o si la cerraste con la X — en ese caso vuelve a salir la próxima vez que abras Pasitos.</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>Instalarla en la tablet de recepción</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Conviene tenerla instalada: arranca en pantalla completa, sin la barra del navegador, y se abre de un toque desde el ícono.</li>
+            <li>En una tablet Android: toca <strong>"Instalar ahora"</strong> en la franja azul, o entra al menú del navegador (los tres puntitos) y busca <strong>"Instalar aplicación"</strong>.</li>
+            <li>En un iPad: ábrela en <strong>Safari</strong>, toca el ícono de <strong>Compartir</strong> (el cuadrito con la flecha hacia arriba) y luego <strong>"Agregar a inicio"</strong>. En iPad esto solo funciona desde Safari.</li>
+            <li>El botón "Ver cómo (2 pasos)" de la franja te muestra esos mismos pasos con dibujos.</li>
+          </ul>
+        </article>
+
+        <article class="manual">
+          <h4>No me aparece la franja de instalar</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Lo más común es que <strong>ya esté instalada</strong> en ese dispositivo: si Pasitos se abre sin la barra de direcciones del navegador, ya lo está.</li>
+            <li>Desde una <strong>computadora de escritorio</strong> normalmente no aparece, porque la franja está pensada para celular y tablet.</li>
+            <li>Si abriste el link desde <strong>WhatsApp</strong> u otra app, la franja cambia y te ofrece un botón de "Copiar link": hay que abrirlo en Safari o Chrome para poder instalarla.</li>
+            <li>Si la cerraste con la X, se esconde hasta que vuelvas a abrir Pasitos.</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3 class="cat-title" id="problemas-imprimir">Qué se puede imprimir</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>Lo único que Pasitos imprime o exporta</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li><strong>Historial de asistencia</strong>, desde <a href="#admin-reportes">Reportes</a>: entradas y salidas de un rango de fechas. Se manda a la impresora o se guarda como PDF desde el mismo cuadro de impresión del navegador.</li>
+            <li><strong>Recibos de pago</strong>, desde <a href="#admin-pagos">Pagos</a>: uno por cada pago capturado.</li>
+            <li>Todo lo demás se consulta dentro de la aplicación: la bitácora diaria, las circulares, el menú, las encuestas y el expediente <strong>no</strong> tienen botón de imprimir ni de exportar.</li>
+            <li>Si alguien pide "el reporte del niño" en papel, lo que existe es el historial de asistencia.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- ================= AYUDA ================= -->
+    <section class="top-section" id="ayuda">
+      <p class="section-kicker">Ayuda</p>
+      <h2>Ayuda</h2>
+      <p class="section-intro">Cómo pedir ayuda directamente al equipo que mantiene Pasitos.</p>
+
+      <h3 class="cat-title" id="ayuda-soporte">Chat de soporte de Pasitos</h3>
+      <div class="manual-grid">
+        <article class="manual">
+          <h4>No es lo mismo que el Chat con familias</h4>
+          <div class="pills"><span class="pill">Staff</span><span class="pill">Admin</span></div>
+          <ul>
+            <li>Botón flotante con un ícono de salvavidas, visible en cualquier pantalla del sistema — cualquier cuenta de staff o admin lo puede usar, no solo el administrador.</li>
+            <li>Aquí hablas directo con el equipo de Pasitos por dudas o problemas del sistema mismo (algo no funciona, no llegan notificaciones, etc.) — es distinto del <a href="#dia-chat">Chat con familias</a>, que es para hablar con los papás de tu guardería.</li>
+            <li>Es una sola conversación continua con tu cuenta; te avisa por notificación cuando el equipo de Pasitos responde.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <footer class="doc-footer">
+      Manual para administración y personal de Pasitos. ¿Tienes dudas sobre alguna pantalla que no aparece aquí? Pregúntale al equipo de soporte.
+    </footer>
+  </main>
+</div>
+</body>
+</html>

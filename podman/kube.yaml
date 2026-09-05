@@ -1,0 +1,85 @@
+# Para usar con la GUI de Podman Desktop: pestaña "Pods" (o "Containers",
+# según tu versión) → botón "Play Kubernetes YAML" → selecciona este
+# archivo. Es la forma nativa de Podman de levantar varios contenedores
+# juntos sin podman-compose (podman play kube).
+#
+# IMPORTANTE: esto NO construye las imágenes — primero tienes que construir
+# guarderia-backend:local y guarderia-frontend:local desde la pestaña
+# "Images" (Build a new image), apuntando a:
+#   - GuarderiaBiometricBack/Dockerfile   (contexto: carpeta GuarderiaBiometricBack)
+#   - GuarderiaBiometricFront/Dockerfile  (contexto: carpeta GuarderiaBiometricFront,
+#     con el build-arg VITE_API_URL = https://localhost:8099)
+# Ver podman/README.md para el paso a paso completo con capturas de dónde
+# hacer clic.
+#
+# El backend puede reiniciarse una o dos veces solo al arrancar (se cae si
+# Postgres todavía no acepta conexiones) — restartPolicy: Always hace que
+# se vuelva a levantar solo; en unos segundos ya debería quedar arriba.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: guarderia-pod
+spec:
+  restartPolicy: Always
+  containers:
+    - name: guarderia-postgres
+      image: docker.io/library/postgres:16-alpine
+      env:
+        - name: POSTGRES_PASSWORD
+          value: "postgres"
+        - name: POSTGRES_DB
+          value: "guarderia"
+      ports:
+        # hostPort en 5433 (no 5432): para no chocar con un Postgres local
+        # que ya esté corriendo en tu máquina. El backend igual se conecta
+        # por dentro del pod a 127.0.0.1:5432 — eso es tráfico
+        # contenedor-a-contenedor, no pasa por este puerto expuesto al host.
+        - containerPort: 5432
+          hostPort: 5433
+      volumeMounts:
+        - name: pgdata
+          mountPath: /var/lib/postgresql/data
+
+    - name: guarderia-backend
+      image: localhost/guarderia-backend:local
+      env:
+        # Credenciales de AWS falsas: todo lo que NO sea Rekognition/S3
+        # funciona igual (login, paneles de admin, ARCO, etc). Para
+        # Rekognition real, edita estos tres valores y vuelve a jugar el YAML.
+        - name: AWS_ACCESS_KEY_ID
+          value: "dummy"
+        - name: AWS_SECRET_ACCESS_KEY
+          value: "dummy"
+        - name: AWS_REGION
+          value: "us-east-1"
+        - name: JWT_SECRET
+          value: "clave-de-desarrollo-solo-para-podman-local-no-usar-en-produccion"
+        - name: DATABASE_URL
+          value: "postgres://postgres:postgres@127.0.0.1:5432/guarderia?sslmode=disable"
+        - name: DATABASE_URL_AUTH
+          value: "postgres://postgres:postgres@127.0.0.1:5432/guarderia?sslmode=disable"
+        - name: ALLOWED_ORIGINS
+          value: "http://localhost:5173"
+        - name: VAPID_PUBLIC_KEY
+          value: ""
+        - name: VAPID_PRIVATE_KEY
+          value: ""
+        - name: VAPID_SUBJECT
+          value: "mailto:dev@example.com"
+      ports:
+        - containerPort: 8099
+          hostPort: 8099
+
+    - name: guarderia-frontend
+      image: localhost/guarderia-frontend:local
+      ports:
+        - containerPort: 8080
+          hostPort: 5173
+
+  volumes:
+    - name: pgdata
+      # Podman crea/reutiliza solo un volumen con nombre "guarderia-pgdata"
+      # al ver esto — no hace falta un PersistentVolume real, es una
+      # convención propia de "podman play kube" para volúmenes con nombre.
+      persistentVolumeClaim:
+        claimName: guarderia-pgdata

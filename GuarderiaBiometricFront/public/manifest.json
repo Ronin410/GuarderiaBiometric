@@ -1,11 +1,16 @@
 {
-  "short_name": "Guardería",
-  "name": "Sistema Biométrico Guardería",
+  "short_name": "Pasitos",
+  "name": "Pasitos",
   "icons": [
     {
-      "src": "favicon.ico",
-      "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
+      "src": "favicon.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    },
+    {
+      "src": "apple-touch-icon.png",
+      "type": "image/png",
+      "sizes": "180x180"
     },
     {
       "src": "logo192.png",
@@ -15,12 +20,13 @@
     {
       "src": "logo512.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any maskable"
     }
   ],
   "start_url": "/.",
   "display": "standalone",
-  "theme_color": "#7c3aed",
-  "background_color": "#ffffff",
+  "theme_color": "#084850",
+  "background_color": "#f8fcfc",
   "orientation": "portrait"
 }
