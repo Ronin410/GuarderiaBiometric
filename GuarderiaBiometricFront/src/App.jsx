@@ -9,7 +9,7 @@ import {
   Lock, LogOut, CheckCircle, KeyRound, RefreshCw, X, Send, Clock, LogOut as LogOutIcon,
   User, IdCard, Wallet, BarChart3, ShieldCheck as ShieldCheckIcon, UserCog, UtensilsCrossed,
   CalendarDays, LayoutDashboard, Settings, Megaphone, MessageCircle, CalendarOff, Soup, ClipboardCheck,
-  BookOpen, Menu, BellRing
+  BookOpen, Menu, BellRing, ChevronDown
 } from 'lucide-react';
 
 // Componentes secundarios
@@ -71,6 +71,35 @@ const videoConstraints = {
 // igual que la sesión misma (ver pinVerificadoEn más abajo).
 const DURACION_PIN_MS = 30 * 60 * 1000;
 
+// Qué grupos del menú lateral dejó abiertos esta persona. Se recuerda por
+// dispositivo: quien vive en Bitácora no tiene por qué volver a abrir ese
+// grupo cada vez que entra.
+const CLAVE_SECCIONES_MENU = 'pasitos_menu_secciones';
+
+// Los nombres de los grupos del menú viven aquí y no escritos a mano en cada
+// lado: seccionesNav los usa como etiqueta y SECCION_DE_TAB dice a qué grupo
+// pertenece cada pestaña. Ese mapa tiene que existir fuera del componente
+// porque el efecto que despliega el grupo del apartado abierto va con el
+// resto de los hooks, arriba de los `return` tempranos -- y para entonces
+// seccionesNav todavía no está construido. Mismo patrón que AREA_DE_TAB.
+const SECCIONES = {
+  alumnos: 'Alumnos',
+  dia: 'Día a día',
+  administracion: 'Administración',
+  sistema: 'Sistema',
+};
+
+const SECCION_DE_TAB = {
+  admin: SECCIONES.alumnos, perfiles: SECCIONES.alumnos,
+  bitacora: SECCIONES.dia, menu: SECCIONES.dia, circulares: SECCIONES.dia,
+  chat: SECCIONES.dia, ausencias: SECCIONES.dia, calendario: SECCIONES.dia,
+  comedor: SECCIONES.dia, encuestas: SECCIONES.dia,
+  reportes: SECCIONES.administracion, pagos: SECCIONES.administracion,
+  estadisticas: SECCIONES.administracion,
+  configuracion: SECCIONES.sistema, personal: SECCIONES.sistema,
+  horarios: SECCIONES.sistema,
+};
+
 // Mapea cada pestaña protegida a la clave de área que usa el backend
 // (RequireArea) -- "admin" (nombre heredado de la URL, la pestaña se ve
 // como "Familia" en el menú) es la única que no comparte literal con su
@@ -94,6 +123,34 @@ const AREA_DE_TAB = {
   menu: 'menu', circulares: 'circulares',
 };
 const TABS_PROTEGIDAS = Object.keys(AREA_DE_TAB);
+
+// BotonBarraInferior -- los dos accesos laterales de la barra de abajo
+// (Bitácora y Chat). El del centro (Recepción) se escribe aparte porque es
+// el elevado y no comparte estilos con estos.
+const BotonBarraInferior = (props) => {
+  // Se extrae como variable y no en los argumentos a propósito: la regla
+  // no-unused-vars de este proyecto ignora nombres en mayúscula solo para
+  // variables (varsIgnorePattern), no para parámetros, y no reconoce que
+  // <Icon /> lo usa.
+  const { Icon, etiqueta, activo, onClick, badge = 0 } = props;
+  return (
+    <button
+      onClick={onClick}
+      className={`relative flex flex-col items-center justify-center gap-1 w-20 py-1.5 rounded-xl transition-colors ${
+        activo ? 'text-brand-600' : 'text-slate-400 hover:text-slate-600'
+      }`}
+      title={etiqueta}
+    >
+      <Icon size={22} strokeWidth={activo ? 2.4 : 2} />
+      <span className="text-[10px] font-black uppercase tracking-wide">{etiqueta}</span>
+      {badge > 0 && (
+        <span className="absolute top-0 right-3 bg-rose-500 text-white text-[9px] font-black min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center border-2 border-white">
+          {badge > 9 ? '9+' : badge}
+        </span>
+      )}
+    </button>
+  );
+};
 
 // --- TODO TU CÓDIGO ACTUAL SE MANTIENE AQUÍ DENTRO ---
 function MainApp() {
@@ -121,6 +178,16 @@ function MainApp() {
   // Solo controla el drawer del menú lateral en pantallas angostas -- en
   // md+ el sidebar siempre está visible y este estado no se usa.
   const [sidebarAbierto, setSidebarAbierto] = useState(false);
+  // Qué secciones del menú lateral están desplegadas. Con todas abiertas la
+  // lista quedaba larguísima y había que buscar entre 18 renglones; ahora
+  // cada grupo se abre al tocarlo y la elección se recuerda entre sesiones.
+  const [seccionesAbiertas, setSeccionesAbiertas] = useState(() => {
+    try {
+      const guardado = JSON.parse(localStorage.getItem(CLAVE_SECCIONES_MENU));
+      if (Array.isArray(guardado)) return guardado;
+    } catch { /* nada guardado todavía, o quedó corrupto */ }
+    return [];
+  });
   // "Si llega un mensaje a la guardería, el botón del menú de los mensajes
   // aparecerá un icono de cuántos chats han llegado sin leer" -- chats
   // (no mensajes sueltos) pendientes, se refresca por polling igual que el
@@ -178,6 +245,25 @@ function MainApp() {
     () => pinVerificadoEn !== null && (Date.now() - pinVerificadoEn < DURACION_PIN_MS),
     [pinVerificadoEn]
   );
+
+  // El grupo del apartado en el que estás se abre solo: si llegas a Pagos
+  // desde una URL o desde la barra de abajo, el menú no se queda mostrando
+  // un grupo cerrado sin señal de dónde estás parado.
+  useEffect(() => {
+    const etiqueta = SECCION_DE_TAB[tab];
+    if (!etiqueta) return;
+    setSeccionesAbiertas((prev) => (prev.includes(etiqueta) ? prev : [...prev, etiqueta]));
+  }, [tab]);
+
+  const alternarSeccion = (etiqueta) => {
+    setSeccionesAbiertas((prev) => {
+      const siguiente = prev.includes(etiqueta) ? prev.filter((e) => e !== etiqueta) : [...prev, etiqueta];
+      try {
+        localStorage.setItem(CLAVE_SECCIONES_MENU, JSON.stringify(siguiente));
+      } catch { /* navegador en modo privado: no pasa nada, solo no se recuerda */ }
+      return siguiente;
+    });
+  };
 
   const avisoExpiracionMostrado = useRef(false);
   const webcamRef = useRef(null);
@@ -749,7 +835,7 @@ function MainApp() {
       ],
     },
     {
-      label: 'Alumnos',
+      label: SECCIONES.alumnos,
       acento: ACENTOS.verde.claro,
       items: filtrarProtegidos([
         { tab: 'admin', label: 'Familia', Icon: Users },
@@ -757,7 +843,7 @@ function MainApp() {
       ]),
     },
     {
-      label: 'Día a día',
+      label: SECCIONES.dia,
       acento: ACENTOS.naranja.claro,
       items: filtrarProtegidos([
         { tab: 'bitacora', label: 'Bitácora', Icon: ClipboardList },
@@ -771,7 +857,7 @@ function MainApp() {
       ]),
     },
     {
-      label: 'Administración',
+      label: SECCIONES.administracion,
       acento: ACENTOS.amarillo.claro,
       items: filtrarProtegidos([
         { tab: 'reportes', label: 'Reportes', Icon: TrendingUp },
@@ -780,7 +866,7 @@ function MainApp() {
       ]),
     },
     {
-      label: 'Sistema',
+      label: SECCIONES.sistema,
       acento: ACENTOS.morado.claro,
       // Exclusivo del admin -- el staff no debe ver ni entrar aquí nunca,
       // ni siquiera con permisos personalizados (ver el comentario largo de
@@ -810,21 +896,44 @@ function MainApp() {
       </div>
 
       <div className="flex-1 overflow-y-auto flex flex-col gap-5 mt-6 pr-1 custom-scrollbar-dark">
-        {seccionesNav.map((seccion, i) => (
-          <div key={i} className="space-y-1">
-            {seccion.label && (
-              <p className={`text-[10px] font-black uppercase tracking-widest px-3.5 mb-1.5 ${seccion.acento || 'text-white/40'}`}>{seccion.label}</p>
-            )}
-            {seccion.items.map(({ tab: t, label, Icon }) => (
-              <button key={t} onClick={() => { cambiarTab(t); setSidebarAbierto(false); }} className={claseItemNav(tab === t)}>
-                <Icon size={17} className={claseIconoNav(tab === t, seccion.acento)} /> {label}
-                {t === 'chat' && chatNoLeidos > 0 && (
-                  <span className="ml-auto bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shrink-0">{chatNoLeidos}</span>
-                )}
-              </button>
-            ))}
-          </div>
-        ))}
+        {seccionesNav.map((seccion, i) => {
+          // El primer grupo (Recepción y Registro) no tiene título, así que
+          // no hay nada que tocar para plegarlo: se queda siempre visible.
+          const plegable = !!seccion.label;
+          const abierta = !plegable || seccionesAbiertas.includes(seccion.label);
+          // Con el grupo cerrado, un mensaje sin leer del chat quedaría
+          // escondido; el contador sube al encabezado para que se note.
+          const noLeidosOcultos = !abierta && seccion.items.some((it) => it.tab === 'chat') ? chatNoLeidos : 0;
+
+          return (
+            <div key={i} className="space-y-1">
+              {plegable && (
+                <button
+                  onClick={() => alternarSeccion(seccion.label)}
+                  aria-expanded={abierta}
+                  className="w-full flex items-center gap-2 px-3.5 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
+                >
+                  <span className={`text-[10px] font-black uppercase tracking-widest ${seccion.acento || 'text-white/40'}`}>{seccion.label}</span>
+                  {noLeidosOcultos > 0 && (
+                    <span className="bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{noLeidosOcultos}</span>
+                  )}
+                  <ChevronDown
+                    size={14}
+                    className={`ml-auto shrink-0 text-white/40 transition-transform duration-200 ${abierta ? '' : '-rotate-90'}`}
+                  />
+                </button>
+              )}
+              {abierta && seccion.items.map(({ tab: t, label, Icon }) => (
+                <button key={t} onClick={() => { cambiarTab(t); setSidebarAbierto(false); }} className={claseItemNav(tab === t)}>
+                  <Icon size={17} className={claseIconoNav(tab === t, seccion.acento)} /> {label}
+                  {t === 'chat' && chatNoLeidos > 0 && (
+                    <span className="ml-auto bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shrink-0">{chatNoLeidos}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          );
+        })}
       </div>
 
       <div className="mt-4 space-y-2 shrink-0">
@@ -888,7 +997,10 @@ function MainApp() {
           <button onClick={cerrarSesion} className="p-1 text-rose-500" title="Cerrar sesión"><LogOut size={20} /></button>
         </div>
 
-        <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6 lg:pb-8 pt-8 sm:pt-10 lg:pt-12">
+        {/* pb-28 deja libre el alto de la barra inferior para que el último
+            renglón de cualquier pantalla no quede tapado; en escritorio,
+            donde no hay barra, vuelve al respiro de siempre. */}
+        <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-28 md:landscape:pb-8 pt-8 sm:pt-10 lg:pt-12">
         {/* La franja de instalar se ve en cualquier pestaña del panel: la
             tablet de recepción es justo donde más conviene tener Pasitos
             instalado, y esa cuenta nunca entra al portal del papá, que era
@@ -1100,6 +1212,51 @@ function MainApp() {
           </div>
         )}
       </main>
+
+        {/* BARRA INFERIOR -- mismo criterio md:landscape: que la barra de
+            arriba: se ve en celular y en tablet vertical (el kiosco real),
+            no en escritorio. Son los tres accesos del día a día: entrar a
+            registrar en Recepción, llenar la bitácora y contestarle a un
+            papá. El resto del menú sigue en el cajón del botón de arriba.
+            cambiarTab es el mismo de siempre, así que Bitácora respeta el
+            PIN y los permisos igual que desde el menú lateral. */}
+        <nav className="md:landscape:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t border-slate-200 shadow-[0_-4px_16px_-8px_rgba(13,42,46,0.25)]">
+          <div className="max-w-md mx-auto h-[72px] flex items-end justify-around px-6 pb-2" style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}>
+            <BotonBarraInferior
+              Icon={ClipboardList}
+              etiqueta="Bitácora"
+              activo={tab === 'bitacora'}
+              onClick={() => cambiarTab('bitacora')}
+            />
+
+            {/* Recepción va al centro y elevado: es la acción que más se
+                repite en el día y la que se hace con la tablet en la mano.
+                La etiqueta va DEBAJO del círculo y no adentro -- "Recepción"
+                no cabe en 64px y se salía por los lados. */}
+            <div className="shrink-0 flex flex-col items-center -mt-7">
+              <button
+                onClick={() => cambiarTab('identificar')}
+                className={`w-16 h-16 rounded-full flex items-center justify-center border-4 border-white shadow-lg transition-all active:scale-95 ${
+                  tab === 'identificar' ? 'bg-forest text-white' : 'bg-brand-600 text-white hover:bg-brand-700'
+                }`}
+                title="Recepción"
+              >
+                <ScanEye size={26} />
+              </button>
+              <span className={`text-[10px] font-black uppercase tracking-wide mt-1 ${tab === 'identificar' ? 'text-forest' : 'text-brand-600'}`}>
+                Recepción
+              </span>
+            </div>
+
+            <BotonBarraInferior
+              Icon={MessageCircle}
+              etiqueta="Chat"
+              activo={tab === 'chat'}
+              onClick={() => cambiarTab('chat')}
+              badge={chatNoLeidos}
+            />
+          </div>
+        </nav>
       </div>
 
       {mostrarModalGestion && padreSeleccionado && (
