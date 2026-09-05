@@ -5,7 +5,7 @@ import api, { setCsrfToken } from './axiosConfig';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useParams, Link } from 'react-router-dom';
 import {
   UserPlus, ScanEye, Baby, AlertCircle, Users, Search,
-  ClipboardList, TrendingUp, ShieldCheck, ArrowRightCircle,
+  ClipboardList, TrendingUp, ArrowRightCircle,
   Lock, LogOut, CheckCircle, KeyRound, RefreshCw, X, Send, Clock, LogOut as LogOutIcon,
   User, IdCard, Wallet, BarChart3, ShieldCheck as ShieldCheckIcon, UserCog, UtensilsCrossed,
   CalendarDays, LayoutDashboard, Settings, Megaphone, MessageCircle, CalendarOff, Soup, ClipboardCheck,
@@ -688,10 +688,8 @@ function MainApp() {
     return (
       <div className="min-h-screen bg-paper flex items-center justify-center p-4">
         <div className="bg-white border border-slate-200 p-8 rounded-[2.5rem] w-full max-w-md shadow-xl text-center">
-          <div className="inline-block bg-brand-600 p-4 rounded-3xl shadow-lg mb-6">
-            <ShieldCheck size={40} className="text-white" />
-          </div>
-          <h1 className="text-3xl font-black text-slate-900 uppercase mb-2">Pasitos</h1>
+          <img src="/dinos/logo-pasitos.png" alt="Pasitos" className="h-20 w-auto mx-auto mb-4" />
+          <h1 className="text-3xl font-black text-ink uppercase mb-2">Pasitos</h1>
           <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest mb-6">Selecciona tu perfil</p>
           
           <div className="flex bg-slate-100 p-1.5 rounded-2xl mb-8 border border-slate-200">
@@ -794,9 +792,7 @@ function MainApp() {
   const contenidoSidebar = (
     <>
       <div className="flex items-center gap-2.5 px-1 shrink-0">
-        <div className="bg-brand-600 w-9 h-9 rounded-xl flex items-center justify-center shadow-md shrink-0">
-          <ShieldCheck size={18} className="text-white" />
-        </div>
+        <img src="/dinos/logo-pasitos.png" alt="" className="h-9 w-auto shrink-0" />
         <span className="text-white font-black uppercase tracking-tight text-base">Pasitos</span>
       </div>
 

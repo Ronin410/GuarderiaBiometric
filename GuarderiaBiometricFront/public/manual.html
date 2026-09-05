@@ -6,16 +6,16 @@
 <title>Pasitos — Manual para Administración y Personal</title>
 <style>
   :root {
-    --bg: #faf8f5;
+    --bg: #f8fcfc;
     --surface: #ffffff;
-    --surface-alt: #f2eefb;
-    --text: #201d2b;
-    --text-muted: #6d6880;
-    --border: #e4e0ee;
-    --border-strong: #cfc9e2;
-    --accent: #5539e0;
-    --accent-soft: #ece6fc;
-    --accent-ink: #3d269e;
+    --surface-alt: #eefafa;
+    --text: #0d2a2e;
+    --text-muted: #5c7377;
+    --border: #d7eaea;
+    --border-strong: #b3dcdd;
+    --accent: #0f9294;
+    --accent-soft: #d3f2f2;
+    --accent-ink: #0a5f66;
     --good: #187a55;
     --good-soft: #e3f5ec;
     --warn: #a6650a;
@@ -26,16 +26,16 @@
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #15131e;
-      --surface: #1d1a29;
-      --surface-alt: #241f36;
-      --text: #ece9f7;
-      --text-muted: #a49dbe;
-      --border: #322c46;
-      --border-strong: #423a5c;
-      --accent: #a690ff;
-      --accent-soft: #2c2547;
-      --accent-ink: #d9cfff;
+      --bg: #0a1618;
+      --surface: #102225;
+      --surface-alt: #163035;
+      --text: #e6f4f4;
+      --text-muted: #93b3b5;
+      --border: #1e4147;
+      --border-strong: #2a565e;
+      --accent: #3cc0c3;
+      --accent-soft: #103a3d;
+      --accent-ink: #a9e6e7;
       --good: #4cc38a;
       --good-soft: #163227;
       --warn: #e0a542;
@@ -46,16 +46,16 @@
     }
   }
   :root[data-theme="dark"] {
-    --bg: #15131e;
-    --surface: #1d1a29;
-    --surface-alt: #241f36;
-    --text: #ece9f7;
-    --text-muted: #a49dbe;
-    --border: #322c46;
-    --border-strong: #423a5c;
-    --accent: #a690ff;
-    --accent-soft: #2c2547;
-    --accent-ink: #d9cfff;
+    --bg: #0a1618;
+    --surface: #102225;
+    --surface-alt: #163035;
+    --text: #e6f4f4;
+    --text-muted: #93b3b5;
+    --border: #1e4147;
+    --border-strong: #2a565e;
+    --accent: #3cc0c3;
+    --accent-soft: #103a3d;
+    --accent-ink: #a9e6e7;
     --good: #4cc38a;
     --good-soft: #163227;
     --warn: #e0a542;
@@ -111,9 +111,7 @@
     margin-bottom: 0.15rem;
   }
   .brand-mark {
-    width: 1.15rem; height: 1.15rem;
-    border-radius: 0.4rem;
-    background: var(--accent);
+    height: 1.75rem; width: auto;
     display: inline-block;
     flex-shrink: 0;
   }
@@ -314,7 +312,7 @@
 
 <div class="shell">
   <nav class="sidebar" aria-label="Índice del manual">
-    <div class="brand"><span class="brand-mark" aria-hidden="true"></span><h1 class="font-display">Pasitos</h1></div>
+    <div class="brand"><img class="brand-mark" src="dinos/logo-pasitos.png" alt="" aria-hidden="true"><h1 class="font-display">Pasitos</h1></div>
     <p class="brand-sub">Manual para administración y personal</p>
     <div class="switch-audience">
       <strong>¿Eres papá o mamá?</strong>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ShieldCheck, ArrowLeft, Mail, Phone, MapPin } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, MapPin } from 'lucide-react';
 
 // TerminosCondiciones -- "agrega mi archivo de términos y condiciones":
 // versión en vivo, dentro de la app, del borrador legal que ya vive también
@@ -351,9 +351,7 @@ const TerminosCondiciones = () => (
     <header className="sticky top-0 z-30 bg-paper/90 backdrop-blur-sm border-b border-slate-200">
       <div className="max-w-3xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2.5">
-          <div className="bg-brand-600 w-8 h-8 rounded-xl flex items-center justify-center shrink-0">
-            <ShieldCheck size={17} className="text-white" />
-          </div>
+          <img src="/dinos/logo-pasitos.png" alt="" className="h-8 w-auto shrink-0" />
           <span className="font-black uppercase text-sm tracking-tight">Pasitos</span>
         </Link>
         <Link to="/" className="flex items-center gap-1.5 text-slate-400 hover:text-brand-600 font-bold text-xs uppercase tracking-widest transition-colors">

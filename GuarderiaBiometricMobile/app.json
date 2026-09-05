@@ -7,7 +7,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "backgroundColor": "#fbf8f3",
+    "backgroundColor": "#f8fcfc",
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.pasitos.familia",
@@ -20,7 +20,7 @@
       "softwareKeyboardLayoutMode": "resize",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "backgroundColor": "#22332b",
+        "backgroundColor": "#f8fcfc",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -41,14 +41,14 @@
           "image": "./assets/splash-icon.png",
           "imageWidth": 220,
           "resizeMode": "contain",
-          "backgroundColor": "#fbf8f3"
+          "backgroundColor": "#f8fcfc"
         }
       ],
       [
         "expo-notifications",
         {
           "icon": "./assets/android-icon-monochrome.png",
-          "color": "#b5502c"
+          "color": "#0f9294"
         }
       ]
     ]

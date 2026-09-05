@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import api from './axiosConfig';
 import {
   Download, Clock, User, CheckCircle, ShieldAlert,
-  ShieldCheck, ChevronUp, ChevronDown, ArrowUpDown, Moon
+  ChevronUp, ChevronDown, ArrowUpDown, Moon
 } from 'lucide-react';
 import { hoyLocal } from './utils/fecha';
 import { mostrarAviso } from './utils/alertas';
@@ -62,7 +62,7 @@ const PanelReportes = ({ guarderiaInfo }) => {
   }, [reportes, busquedaNombre, sortConfig]);
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] p-4 md:p-8 font-sans flex flex-col items-center">
+    <div className="min-h-screen bg-paper p-4 md:p-8 font-sans flex flex-col items-center">
       
       <style>{`
         @media print {
@@ -97,9 +97,7 @@ const PanelReportes = ({ guarderiaInfo }) => {
           también para impresión sin importar el viewport. */}
       <div className="print-container w-full max-w-[1400px] mb-6 flex flex-col md:flex-row print:flex-row justify-between items-center px-4">
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-brand-600 rounded-2xl text-white shadow-lg shrink-0">
-            <ShieldCheck size={32} />
-          </div>
+          <img src="/dinos/logo-pasitos.png" alt="" className="h-14 w-auto shrink-0" />
           <div>
             <h1 className="text-2xl font-black text-slate-900 tracking-tighter uppercase leading-none">{guarderiaInfo?.nombre || 'PASITOS'}</h1>
             <p className="text-[10px] font-bold text-brand-600 uppercase tracking-[0.2em] mt-1">Pasitos · Sistema de Control Diario</p>

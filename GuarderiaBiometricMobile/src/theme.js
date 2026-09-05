@@ -5,22 +5,33 @@
 // lee el CSS del proyecto web, pero son los mismos valores exactos para
 // que la app se vea como la misma marca.
 export const color = {
-  brand50: '#fcf2eb',
-  brand100: '#f7e4d6',
-  brand200: '#efceb9',
-  brand300: '#dfa689',
-  brand400: '#ce8058',
-  brand500: '#c16339',
-  brand600: '#b5502c',
-  brand700: '#8e3e22',
-  brand800: '#6e301a',
-  brand900: '#4c2012',
+  brand50: '#eefafa',
+  brand100: '#d3f2f2',
+  brand200: '#a9e6e7',
+  brand300: '#74d5d7',
+  brand400: '#3cc0c3',
+  brand500: '#18a8a8',
+  brand600: '#0f9294',
+  brand700: '#0c777b',
+  brand800: '#0a5f66',
+  brand900: '#084850',
 
-  forest: '#22332b',
-  forestLight: '#33453a',
-  forestDark: '#1a2721',
-  paper: '#fbf8f3',
-  ink: '#23201b',
+  forest: '#084850',
+  forestLight: '#0c5a63',
+  forestDark: '#05323a',
+  paper: '#f8fcfc',
+  ink: '#0d2a2e',
+
+  // Acentos de los dinosaurios de la marca (mismos valores que
+  // --color-dino-* en GuarderiaBiometricFront/src/index.css).
+  dinoVerde: '#6f9134',
+  dinoVerdeSuave: '#f2faf0',
+  dinoNaranja: '#d47a0b',
+  dinoNaranjaSuave: '#fff6ea',
+  dinoMorado: '#6f6486',
+  dinoMoradoSuave: '#f6f3fb',
+  dinoAmarillo: '#c79511',
+  dinoAmarilloSuave: '#fff9e6',
 
   slate50: '#f8fafc',
   slate100: '#f1f5f9',

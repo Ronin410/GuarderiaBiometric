@@ -20,7 +20,7 @@ export default defineConfig({
       // en false evita registrarlo una segunda vez desde un <script>
       // inyectado aparte.
       injectRegister: false,
-      includeAssets: ['favicon.png', 'logo192.png', 'logo512.png'],
+      includeAssets: ['favicon.png', 'logo192.png', 'logo512.png', 'apple-touch-icon.png'],
       // El manifest se sirve de forma estática desde public/manifest.json y se
       // enlaza explícitamente en index.html. Desactivamos la generación/inyección
       // propia del plugin para no terminar con dos <link rel="manifest"> distintos.

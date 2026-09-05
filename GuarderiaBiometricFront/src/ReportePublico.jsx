@@ -61,7 +61,7 @@ const ReportePublico = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] pb-20 animate-in fade-in duration-500">
+    <div className="min-h-screen bg-paper pb-20 animate-in fade-in duration-500">
       
       {/* MODAL FOTO GRANDE */}
       {fotoSeleccionada && (

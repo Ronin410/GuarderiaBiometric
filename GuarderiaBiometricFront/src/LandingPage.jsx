@@ -21,6 +21,8 @@ import SoporteChat from './SoporteChat';
 const FUNCIONES = [
   {
     key: 'dia',
+    dino: '/dinos/dino-verde.png',
+    tono: 'verde',
     label: 'Día a día',
     items: [
       { Icon: ScanEye, titulo: 'Reconocimiento facial', texto: 'Entradas y salidas del tutor en segundos, sin listas en papel ni tarjetas que se pierden.' },
@@ -30,6 +32,8 @@ const FUNCIONES = [
   },
   {
     key: 'comunicacion',
+    dino: '/dinos/dino-naranja.png',
+    tono: 'naranja',
     label: 'Comunicación',
     items: [
       { Icon: MessageCircle, titulo: 'Chat directo', texto: 'Cada familia habla directo con la maestra o el administrador que le corresponde, sin grupos de WhatsApp.' },
@@ -39,6 +43,8 @@ const FUNCIONES = [
   },
   {
     key: 'organizacion',
+    dino: '/dinos/dino-morado.png',
+    tono: 'morado',
     label: 'Organización',
     items: [
       { Icon: CalendarDays, titulo: 'Calendario escolar', texto: 'Eventos, días festivos y actividades especiales, siempre visibles para las familias.' },
@@ -48,6 +54,8 @@ const FUNCIONES = [
   },
   {
     key: 'administracion',
+    dino: '/dinos/dino-amarillo.png',
+    tono: 'amarillo',
     label: 'Administración',
     items: [
       { Icon: Wallet, titulo: 'Pagos y colegiaturas', texto: 'Estado de cuenta claro para cada familia y control de pagos para la dirección.' },
@@ -57,16 +65,24 @@ const FUNCIONES = [
   },
 ];
 
+const TONOS_DINO = {
+  verde:    { fondo: 'bg-dino-verde-suave',    borde: 'border-dino-verde/25',    texto: 'text-dino-verde' },
+  naranja:  { fondo: 'bg-dino-naranja-suave',  borde: 'border-dino-naranja/25',  texto: 'text-dino-naranja' },
+  morado:   { fondo: 'bg-dino-morado-suave',   borde: 'border-dino-morado/25',   texto: 'text-dino-morado' },
+  amarillo: { fondo: 'bg-dino-amarillo-suave', borde: 'border-dino-amarillo/30', texto: 'text-dino-amarillo' },
+};
+
 const BENEFICIOS = [
   { n: '01', bg: 'bg-brand-100', color: 'text-brand-600', titulo: 'Evita el ruido de los grupos', texto: 'La comunicación con cada familia pasa por un canal directo con el staff que le corresponde, no por un grupo donde se mezclan los avisos de todos los niños.' },
-  { n: '02', bg: 'bg-blue-100', color: 'text-blue-600', titulo: 'Nada se pierde ni se olvida', texto: 'Bitácora, mensajes y avisos quedan guardados con fecha y hora -- no dependen del cuaderno de una sola maestra.' },
-  { n: '03', bg: 'bg-rose-100', color: 'text-rose-600', titulo: 'Menos tiempo administrativo', texto: 'El equipo deja de repetir el mismo aviso por WhatsApp, de pasar lista a mano o de buscar una foto que alguien pidió hace días.' },
-  { n: '04', bg: 'bg-purple-100', color: 'text-purple-600', titulo: 'El acceso, solo para quien debe verlo', texto: 'Cada cuenta del staff ve solo lo que le corresponde, y la dirección decide qué áreas puede tocar cada quien.' },
+  { n: '02', bg: 'bg-dino-verde-suave', color: 'text-dino-verde', titulo: 'Nada se pierde ni se olvida', texto: 'Bitácora, mensajes y avisos quedan guardados con fecha y hora -- no dependen del cuaderno de una sola maestra.' },
+  { n: '03', bg: 'bg-dino-naranja-suave', color: 'text-dino-naranja', titulo: 'Menos tiempo administrativo', texto: 'El equipo deja de repetir el mismo aviso por WhatsApp, de pasar lista a mano o de buscar una foto que alguien pidió hace días.' },
+  { n: '04', bg: 'bg-dino-morado-suave', color: 'text-dino-morado', titulo: 'El acceso, solo para quien debe verlo', texto: 'Cada cuenta del staff ve solo lo que le corresponde, y la dirección decide qué áreas puede tocar cada quien.' },
 ];
 
 const LandingPage = () => {
   const [tabActiva, setTabActiva] = useState('dia');
   const funcionesActivas = FUNCIONES.find((f) => f.key === tabActiva) ?? FUNCIONES[0];
+  const tono = TONOS_DINO[funcionesActivas.tono];
 
   return (
     <>
@@ -75,10 +91,11 @@ const LandingPage = () => {
       <header className="sticky top-0 z-30 bg-paper/90 backdrop-blur-sm border-b border-slate-200">
         <div className="max-w-6xl mx-auto px-5 sm:px-8 h-[76px] flex items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
-            <div className="bg-brand-600 w-9 h-9 rounded-xl flex items-center justify-center shadow-md shrink-0">
-              <ShieldCheck size={18} className="text-white" />
+            <img src="/dinos/logo-pasitos.png" alt="" className="h-11 w-auto shrink-0" />
+            <div className="leading-none">
+              <span className="block font-black uppercase tracking-tight text-lg text-brand-900">Pasitos</span>
+              <span className="hidden sm:block text-[9.5px] font-bold text-brand-600 mt-0.5">Gestión para guarderías</span>
             </div>
-            <span className="font-black uppercase tracking-tight text-lg text-ink">Pasitos</span>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
             <Link
@@ -127,29 +144,28 @@ const LandingPage = () => {
             </div>
           </div>
 
+          {/* La escena del hero: el dino que saluda al centro y sus compañeros
+              de la familia asomando, sobre el mismo degradado suave de las
+              tarjetas de funciones. Cada aviso flotante usa el dino de la
+              sección que representa (verde=asistencia, morado=chat). */}
           <div className="relative h-[420px] hidden sm:block">
-            <div className="absolute inset-6 rounded-[40px] bg-gradient-to-br from-brand-100 via-brand-50 to-paper border border-brand-100" />
-            <div className="absolute top-[10%] left-[4%] w-[240px] bg-white rounded-2xl shadow-xl p-4 flex items-center gap-3 -rotate-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
-                <Check size={20} className="text-emerald-600" />
-              </div>
+            <div className="absolute inset-6 rounded-[40px] bg-gradient-to-br from-brand-50 via-white to-dino-amarillo-suave border border-brand-100" />
+            <img src="/dinos/dino-verde-saludo.png" alt="" className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[240px] w-auto drop-shadow-sm" />
+            <img src="/dinos/dino-amarillo.png" alt="" className="absolute left-[8%] bottom-[12%] h-[86px] w-auto" />
+            <img src="/dinos/dino-naranja.png" alt="" className="absolute right-[6%] top-[10%] h-[84px] w-auto" />
+            <div className="absolute top-[4%] -left-4 w-[240px] bg-white rounded-2xl shadow-xl p-3 flex items-center gap-3 -rotate-3">
+              <img src="/dinos/dino-verde.png" alt="" className="h-10 w-auto shrink-0" />
               <div className="min-w-0">
-                <p className="text-[13px] font-black text-ink truncate">🟢 Entrada registrada</p>
-                <p className="text-[11px] text-slate-400 truncate">Ryan llegó a la guardería · 8:02 am</p>
+                <p className="text-[13px] font-black text-ink truncate">Entrada registrada</p>
+                <p className="text-[11px] text-slate-400 truncate">Ryan llegó · 8:02 am</p>
               </div>
             </div>
-            <div className="absolute top-[44%] right-0 w-[230px] bg-white rounded-2xl shadow-xl p-4 flex items-center gap-3 rotate-3">
-              <div className="w-10 h-10 rounded-xl bg-brand-100 flex items-center justify-center shrink-0">
-                <MessageCircle size={19} className="text-brand-600" />
-              </div>
+            <div className="absolute bottom-[4%] -right-3 w-[236px] bg-white rounded-2xl shadow-xl p-3 flex items-center gap-3 rotate-3">
+              <img src="/dinos/dino-morado.png" alt="" className="h-10 w-auto shrink-0" />
               <div className="min-w-0">
-                <p className="text-[13px] font-black text-ink truncate">💬 Nuevo mensaje</p>
+                <p className="text-[13px] font-black text-ink truncate">Nuevo mensaje</p>
                 <p className="text-[11px] text-slate-400 truncate">La maestra de Ryan te escribió</p>
               </div>
-            </div>
-            <div className="absolute bottom-[6%] left-[14%] w-[220px] bg-forest text-white rounded-2xl shadow-xl p-4 -rotate-2">
-              <p className="text-[13px] font-black">📋 Bitácora actualizada</p>
-              <p className="text-[11px] text-white/70 mt-1">Ryan: comió todo y durmió siesta completa.</p>
             </div>
           </div>
         </div>
@@ -220,7 +236,7 @@ const LandingPage = () => {
       </section>
 
       {/* FUNCIONES */}
-      <section id="funciones" className="bg-slate-50 py-16 sm:py-20 scroll-mt-4">
+      <section id="funciones" className="bg-brand-50/50 py-16 sm:py-20 scroll-mt-4">
         <div className="max-w-6xl mx-auto px-5 sm:px-8">
           <div className="max-w-xl mb-10">
             <p className="text-[11px] font-black text-brand-600 uppercase tracking-[0.14em] mb-4">Todo lo importante, en un solo lugar</p>
@@ -235,7 +251,7 @@ const LandingPage = () => {
                 key={f.key}
                 onClick={() => setTabActiva(f.key)}
                 className={`text-[11px] font-black uppercase tracking-widest px-5 py-3 rounded-xl transition-all ${
-                  tabActiva === f.key ? 'bg-forest text-white' : 'bg-white text-slate-500 border border-slate-200 hover:border-slate-300'
+                  tabActiva === f.key ? 'bg-forest text-white shadow-sm' : 'bg-white text-slate-500 border border-slate-200 hover:border-brand-300 hover:text-brand-700'
                 }`}
               >
                 {f.label}
@@ -244,11 +260,26 @@ const LandingPage = () => {
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {funcionesActivas.items.map((item) => (
-              <div key={item.titulo} className="bg-white border border-slate-200 rounded-[1.75rem] p-7">
-                <item.Icon size={26} strokeWidth={1.8} className="text-brand-600" />
+            {funcionesActivas.items.map((item, i) => (
+              <div
+                key={item.titulo}
+                className={`relative overflow-hidden border rounded-[1.75rem] p-7 ${tono.fondo} ${tono.borde}`}
+              >
+                {/* El dino de la sección acompaña solo a la primera tarjeta para
+                    dar color sin repetir el mismo personaje tres veces. */}
+                {i === 0 && (
+                  <img
+                    src={funcionesActivas.dino}
+                    alt=""
+                    aria-hidden="true"
+                    className="pointer-events-none select-none absolute top-3 right-4 h-[74px] w-auto"
+                  />
+                )}
+                <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-sm">
+                  <item.Icon size={24} strokeWidth={1.8} className={tono.texto} />
+                </div>
                 <h3 className="mt-4 text-[17px] font-bold text-ink">{item.titulo}</h3>
-                <p className="mt-2 text-sm text-slate-500 leading-relaxed">{item.texto}</p>
+                <p className="mt-2 text-sm text-slate-600 leading-relaxed relative z-[1]">{item.texto}</p>
               </div>
             ))}
           </div>
@@ -305,10 +336,8 @@ const LandingPage = () => {
       {/* FOOTER */}
       <footer className="max-w-6xl mx-auto px-5 sm:px-8 py-9 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2.5">
-          <div className="bg-brand-600 w-7 h-7 rounded-lg flex items-center justify-center shrink-0">
-            <ShieldCheck size={15} className="text-white" />
-          </div>
-          <span className="font-black uppercase text-sm text-ink">Pasitos</span>
+          <img src="/dinos/logo-pasitos.png" alt="" className="h-8 w-auto shrink-0" />
+          <span className="font-black uppercase text-sm text-brand-900">Pasitos</span>
         </div>
         <div className="flex items-center gap-5">
           <Link to="/terminos" className="text-xs font-bold text-slate-500 hover:text-brand-600 transition-colors">
