@@ -6,6 +6,14 @@ import { mostrarError } from './utils/alertas';
 import { fechaLocal, separadorFecha } from './utils/fecha';
 
 const INTERVALO_POLLING_MS = 8000;
+// Mientras se espera la respuesta del asistente se consulta más seguido: con
+// el intervalo normal los puntitos de "escribiendo" se podían quedar hasta 8
+// segundos después de que la respuesta ya estaba guardada.
+const INTERVALO_ESPERANDO_IA_MS = 2000;
+// Tope de seguridad: si la respuesta automática nunca llega (el asistente
+// falló y el mensaje se escaló a un humano), los puntitos no se quedan
+// animando para siempre.
+const ESPERA_MAXIMA_IA_MS = 60000;
 const TOKEN_PROSPECTO_KEY = 'pasitos_soporte_token';
 
 // SoporteChat -- burbuja flotante de "chat de soporte" con el dueño de la
@@ -26,7 +34,14 @@ const SoporteChat = ({ modo }) => {
   const [texto, setTexto] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [noLeidos, setNoLeidos] = useState(0);
-  const finRef = useRef(null);
+  // esperandoIA -- el backend contestó que va a intentar una respuesta
+  // automática (ver RAGSoporteHabilitado en el servidor), así que mientras
+  // llega se muestran los puntitos de "está escribiendo".
+  const [esperandoIA, setEsperandoIA] = useState(false);
+  const hiloRef = useRef(null);
+  // Si el usuario subió a leer un mensaje viejo, no hay que arrastrarlo de
+  // vuelta al final cada vez que el polling trae datos.
+  const pegadoAlFinalRef = useRef(true);
 
   // Solo aplica al modo público -- null hasta que el prospecto llena el
   // formulario inicial (o si ya lo llenó antes, se recupera de localStorage).
@@ -76,17 +91,54 @@ const SoporteChat = ({ modo }) => {
   useEffect(() => {
     if (!abierto || !listoParaChatear) return undefined;
     cargarMensajes(true);
-    const intervalo = setInterval(() => cargarMensajes(false), INTERVALO_POLLING_MS);
+    const cada = esperandoIA ? INTERVALO_ESPERANDO_IA_MS : INTERVALO_POLLING_MS;
+    const intervalo = setInterval(() => cargarMensajes(false), cada);
     return () => clearInterval(intervalo);
-  }, [abierto, listoParaChatear, cargarMensajes]);
+  }, [abierto, listoParaChatear, cargarMensajes, esperandoIA]);
 
   useEffect(() => {
     if (abierto) setNoLeidos(0);
   }, [abierto, mensajes]);
 
+  // Bajar al final solo cuando de verdad hay algo nuevo. Antes esto corría
+  // con [mensajes], y como el polling llama a setMensajes cada 8 segundos con
+  // un arreglo nuevo (aunque el contenido sea idéntico), el efecto se
+  // disparaba solo y te bajaba al final justo mientras estabas leyendo
+  // hacia arriba. Ahora depende de una firma del contenido, no de la
+  // identidad del arreglo, y además respeta que hayas subido a leer.
+  const firmaHilo = mensajes.length > 0 ? `${mensajes.length}:${mensajes[mensajes.length - 1].id}` : '0';
+  const ultimoEsMio = mensajes.length > 0 && mensajes[mensajes.length - 1].es_mio;
+
+  // Se mueve el scroll del propio hilo en vez de usar scrollIntoView: ese
+  // método arrastra también a los contenedores de arriba, y como el widget
+  // flota encima de la página, terminaba moviendo la página de atrás.
+  const bajarAlFinal = (suave) => {
+    const el = hiloRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: suave ? 'smooth' : 'auto' });
+  };
+
   useEffect(() => {
-    finRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [mensajes]);
+    if (!abierto) return;
+    // Tu propio mensaje sí baja siempre -- acabas de escribirlo, esperas verlo.
+    if (pegadoAlFinalRef.current || ultimoEsMio) bajarAlFinal(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firmaHilo, esperandoIA, abierto]);
+
+  // Al abrir el panel siempre se arranca hasta abajo, sin animación.
+  useEffect(() => {
+    if (!abierto) return;
+    pegadoAlFinalRef.current = true;
+    bajarAlFinal(false);
+  }, [abierto, cargando]);
+
+  const alHacerScroll = () => {
+    const el = hiloRef.current;
+    if (!el) return;
+    // 60px de tolerancia: basta con estar "casi" hasta abajo para que los
+    // mensajes nuevos sigan bajando solos.
+    pegadoAlFinalRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+  };
 
   const iniciarConversacionProspecto = async (e) => {
     e.preventDefault();
@@ -115,9 +167,14 @@ const SoporteChat = ({ modo }) => {
     if (!contenido) return;
     setEnviando(true);
     try {
-      await api.post(rutaMensajes, { contenido });
+      const res = await api.post(rutaMensajes, { contenido });
       setTexto('');
+      pegadoAlFinalRef.current = true;
       await cargarMensajes(false);
+      // El backend avisa si el asistente va a intentar contestar solo; si no
+      // (chat de prospectos, o las llaves de IA sin configurar) no se muestra
+      // nada, para no prometer una respuesta que no viene en camino.
+      if (res.data?.respuesta_automatica) setEsperandoIA(true);
     } catch (err) {
       console.error('Error al enviar el mensaje de soporte:', err);
       mostrarError(err.response?.data?.error || 'No se pudo enviar el mensaje');
@@ -125,6 +182,19 @@ const SoporteChat = ({ modo }) => {
       setEnviando(false);
     }
   };
+
+  // Llegó algo que no escribí yo: la respuesta ya está, se apagan los puntitos.
+  useEffect(() => {
+    if (esperandoIA && mensajes.length > 0 && !mensajes[mensajes.length - 1].es_mio) {
+      setEsperandoIA(false);
+    }
+  }, [esperandoIA, mensajes]);
+
+  useEffect(() => {
+    if (!esperandoIA) return undefined;
+    const t = setTimeout(() => setEsperandoIA(false), ESPERA_MAXIMA_IA_MS);
+    return () => clearTimeout(t);
+  }, [esperandoIA]);
 
   const alPresionarTecla = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -205,7 +275,7 @@ const SoporteChat = ({ modo }) => {
           ) : (
             <>
               {/* HILO DE MENSAJES */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
+              <div ref={hiloRef} onScroll={alHacerScroll} className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
                 {cargando ? (
                   <div className="py-10 text-center text-slate-400 font-black uppercase tracking-widest text-xs">Cargando...</div>
                 ) : mensajes.length === 0 ? (
@@ -239,7 +309,22 @@ const SoporteChat = ({ modo }) => {
                     </React.Fragment>
                   ))
                 )}
-                <div ref={finRef} />
+                {/* "Le preguntas pero no se ve que te estén respondiendo":
+                    mientras el asistente arma la respuesta se deja una
+                    burbuja con los puntitos, en el mismo lugar donde va a
+                    aparecer el mensaje real. */}
+                {esperandoIA && (
+                  <div className="flex flex-col items-start animate-in fade-in duration-300">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-forest/70 mb-0.5 ml-1">
+                      🤖 Está escribiendo
+                    </span>
+                    <div className="bg-white border border-slate-200 rounded-2xl rounded-bl-md shadow-sm px-4 py-3.5 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-brand-300 animate-bounce" />
+                      <span className="w-2 h-2 rounded-full bg-brand-500 animate-bounce [animation-delay:0.15s]" />
+                      <span className="w-2 h-2 rounded-full bg-brand-700 animate-bounce [animation-delay:0.3s]" />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* COMPOSER */}

@@ -366,7 +366,13 @@ func (s *Server) handleEnviarMensajeSoporte(c *gin.Context) {
 		go s.notificarPlataformaNuevoMensajeSoporteDeConversacion(convID, etiquetaRol)
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "Mensaje enviado"})
+	// respuesta_automatica le dice al widget si vale la pena mostrar los
+	// puntitos de "está escribiendo": sin las llaves de IA configuradas no
+	// viene ninguna respuesta en camino y sería prometer algo que no pasa.
+	c.JSON(http.StatusCreated, gin.H{
+		"message":              "Mensaje enviado",
+		"respuesta_automatica": s.RAGSoporteHabilitado(),
+	})
 }
 
 // handleContarNoLeidosSoporte -- badge del botón de soporte para un papá o

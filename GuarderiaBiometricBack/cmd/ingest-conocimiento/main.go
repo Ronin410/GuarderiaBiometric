@@ -97,6 +97,18 @@ func extraerFragmentos(rutaArchivo string) ([]fragmentoParaIngestar, error) {
 					partesFuente = append(partesFuente, p)
 				}
 			}
+			// El contenido guardado (y sobre el que se calcula el
+			// embedding) lleva por delante la ruta de la sección. Sin eso,
+			// una tarjeta como "Se me cerró la sesión sola" es un texto
+			// suelto que no menciona ni el manual ni el apartado del que
+			// viene, y la búsqueda por similitud tiene menos de dónde
+			// agarrarse; con el encabezado, la misma tarjeta ya trae en el
+			// texto las palabras de su sección.
+			encabezado := strings.Join(partesFuente[1:], " › ")
+			if encabezado != "" {
+				contenido = encabezado + ". " + contenido
+			}
+
 			fragmentos = append(fragmentos, fragmentoParaIngestar{
 				Contenido: contenido,
 				Fuente:    strings.Join(partesFuente, " › "),
