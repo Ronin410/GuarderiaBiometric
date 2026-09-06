@@ -159,12 +159,16 @@ func TestMensajesProspecto(t *testing.T) {
 		if w.Code != http.StatusOK {
 			t.Fatalf("código = %d; esperado 200 (body: %s)", w.Code, w.Body.String())
 		}
-		var mensajes []MensajeSoporte
-		if err := json.Unmarshal(w.Body.Bytes(), &mensajes); err != nil {
+		var hilo HiloSoporte
+		if err := json.Unmarshal(w.Body.Bytes(), &hilo); err != nil {
 			t.Fatalf("respuesta no es JSON válido: %v", err)
 		}
-		if len(mensajes) != 2 || mensajes[0].EsMio != true || mensajes[1].EsMio != false {
-			t.Errorf("es_mio incorrecto para el lector prospecto: %+v", mensajes)
+		if len(hilo.Mensajes) != 2 || hilo.Mensajes[0].EsMio != true || hilo.Mensajes[1].EsMio != false {
+			t.Errorf("es_mio incorrecto para el lector prospecto: %+v", hilo.Mensajes)
+		}
+		// A un prospecto nunca le contesta el asistente.
+		if !hilo.AtendidaPorHumano {
+			t.Error("la conversación de un prospecto siempre la atiende una persona")
 		}
 	})
 }
@@ -254,12 +258,12 @@ func TestObtenerMisMensajesSoporteSinConversacion(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("código = %d; esperado 200 (body: %s)", w.Code, w.Body.String())
 	}
-	var mensajes []MensajeSoporte
-	if err := json.Unmarshal(w.Body.Bytes(), &mensajes); err != nil {
+	var hilo HiloSoporte
+	if err := json.Unmarshal(w.Body.Bytes(), &hilo); err != nil {
 		t.Fatalf("respuesta no es JSON válido: %v", err)
 	}
-	if len(mensajes) != 0 {
-		t.Errorf("se esperaba un hilo vacío, se recibió: %+v", mensajes)
+	if len(hilo.Mensajes) != 0 {
+		t.Errorf("se esperaba un hilo vacío, se recibió: %+v", hilo.Mensajes)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("se ejecutó alguna query inesperada (¿se creó la conversación en el GET?): %v", err)

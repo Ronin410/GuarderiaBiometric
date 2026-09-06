@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api from './axiosConfig';
-import { LifeBuoy, X, Send, Loader2, ChevronDown, UserRound } from 'lucide-react';
+import { LifeBuoy, X, Send, Loader2, ChevronDown, UserRound, Sparkles } from 'lucide-react';
 import { mostrarError } from './utils/alertas';
 import { fechaLocal, separadorFecha } from './utils/fecha';
 
@@ -63,13 +63,20 @@ const SoporteChat = ({ modo, sobreBarraInferior = false }) => {
 
   const rutaMensajes = modo === 'autenticado' ? '/soporte/mis-mensajes' : `/soporte/prospecto/${token}/mensajes`;
   const rutaHumano = modo === 'autenticado' ? '/soporte/mis-mensajes/humano' : `/soporte/prospecto/${token}/humano`;
+  // Volver al asistente solo existe para cuentas: a un prospecto nunca le
+  // contesta el asistente, así que no hay a qué volver.
+  const rutaAsistente = '/soporte/mis-mensajes/asistente';
 
   const cargarMensajes = useCallback(async (mostrarLoading) => {
     if (!listoParaChatear) return;
     if (mostrarLoading) setCargando(true);
     try {
       const res = await api.get(rutaMensajes);
-      setMensajes(Array.isArray(res.data) ? res.data : []);
+      // El backend responde { mensajes, atendida_por_humano }. Antes era el
+      // arreglo pelón y el estado de "te contesta una persona" solo vivía en
+      // memoria: al recargar la página se perdía.
+      setMensajes(Array.isArray(res.data?.mensajes) ? res.data.mensajes : []);
+      setConHumano(!!res.data?.atendida_por_humano);
     } catch (err) {
       console.error('Error al cargar el chat de soporte:', err);
       // Un token de prospecto que ya no existe (ej. limpiado en el backend)
@@ -185,10 +192,10 @@ const SoporteChat = ({ modo, sobreBarraInferior = false }) => {
       // El backend avisa si el asistente va a intentar contestar solo; si no
       // (chat de prospectos, o las llaves de IA sin configurar) no se muestra
       // nada, para no prometer una respuesta que no viene en camino.
+      // El estado de quién contesta lo manda el propio GET de mensajes, así
+      // que aquí solo se prenden los puntitos cuando sí viene una respuesta
+      // automática en camino.
       if (res.data?.respuesta_automatica) setEsperandoIA(true);
-      // Sin respuesta automática en camino, del otro lado solo hay personas:
-      // el botón de pedir una deja de tener sentido.
-      else setConHumano(true);
     } catch (err) {
       console.error('Error al enviar el mensaje de soporte:', err);
       mostrarError(err.response?.data?.error || 'No se pudo enviar el mensaje');
@@ -223,6 +230,21 @@ const SoporteChat = ({ modo, sobreBarraInferior = false }) => {
     } catch (err) {
       console.error('Error al pedir hablar con una persona:', err);
       mostrarError(err.response?.data?.error || 'No se pudo avisarle al equipo, intenta de nuevo');
+    } finally {
+      setPidiendoHumano(false);
+    }
+  };
+
+  const volverAlAsistente = async () => {
+    setPidiendoHumano(true);
+    try {
+      await api.post(rutaAsistente);
+      setConHumano(false);
+      pegadoAlFinalRef.current = true;
+      await cargarMensajes(false);
+    } catch (err) {
+      console.error('Error al volver al asistente:', err);
+      mostrarError(err.response?.data?.error || 'No se pudo volver al asistente, intenta de nuevo');
     } finally {
       setPidiendoHumano(false);
     }
@@ -369,7 +391,26 @@ const SoporteChat = ({ modo, sobreBarraInferior = false }) => {
                   o alguien de soporte no le conteste la IA". Desaparece en
                   cuanto la conversación ya la lleva una persona: repetirlo no
                   haría nada y solo confundiría. */}
-              {!conHumano && (
+              {/* El botón cambia de sentido según quién esté contestando, para
+                  que pedir una persona no sea un camino de una sola dirección:
+                  quien lo tocó por una duda puntual puede volver al asistente
+                  cuando quiera preguntar algo que se resuelve al instante. En
+                  el chat de prospectos no se ofrece volver, porque ahí nunca
+                  contesta el asistente. */}
+              {conHumano ? (
+                modo === 'autenticado' && (
+                  <div className="px-3 pt-2 bg-white shrink-0">
+                    <button
+                      onClick={volverAlAsistente}
+                      disabled={pidiendoHumano}
+                      className="w-full flex items-center justify-center gap-2 text-[11px] font-black uppercase tracking-wide text-slate-500 bg-slate-50 hover:bg-slate-100 border border-slate-200 disabled:opacity-50 py-2.5 rounded-xl transition-all active:scale-[0.98]"
+                    >
+                      {pidiendoHumano ? <Loader2 className="animate-spin" size={14} /> : <Sparkles size={14} />}
+                      Volver al asistente automático
+                    </button>
+                  </div>
+                )
+              ) : (
                 <div className="px-3 pt-2 bg-white shrink-0">
                   <button
                     onClick={pedirHumano}

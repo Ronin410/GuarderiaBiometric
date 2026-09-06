@@ -45,6 +45,18 @@ type ConversacionSoporte struct {
 // contestó sola el asistente de IA (ver ia_soporte.go) de una que escribió
 // el dueño de la plataforma en persona -- ambas quedan con
 // autor_rol = "plataforma".
+// HiloSoporte es lo que devuelven los GET del chat: los mensajes MÁS quién
+// está contestando. Antes era el arreglo pelón, y el widget solo se enteraba
+// del cambio a "te contesta una persona" en la misma sesión en que se tocaba
+// el botón: al recargar la página volvía a ofrecerlo como si nada hubiera
+// pasado, y a mostrar los puntitos de una respuesta automática que no venía.
+type HiloSoporte struct {
+	Mensajes []MensajeSoporte `json:"mensajes"`
+	// AtendidaPorHumano: el asistente ya no contesta en esta conversación,
+	// porque lo pidieron con el botón o porque ya respondió una persona.
+	AtendidaPorHumano bool `json:"atendida_por_humano"`
+}
+
 type MensajeSoporte struct {
 	ID            int    `json:"id"`
 	AutorRol      string `json:"autor_rol"`
@@ -71,6 +83,7 @@ func (s *Server) registrarRutasSoporte(r *gin.Engine) {
 	r.GET("/soporte/mis-mensajes", auth, s.handleObtenerMisMensajesSoporte)
 	r.POST("/soporte/mis-mensajes", auth, s.handleEnviarMensajeSoporte)
 	r.POST("/soporte/mis-mensajes/humano", auth, s.handlePedirHumanoSoporte)
+	r.POST("/soporte/mis-mensajes/asistente", auth, s.handleVolverAlAsistenteSoporte)
 	r.GET("/soporte/no-leidos", auth, s.handleContarNoLeidosSoporte)
 
 	// Dueño de la plataforma -- ve y responde TODAS las conversaciones.
@@ -200,7 +213,9 @@ func (s *Server) handleObtenerMensajesProspecto(c *gin.Context) {
 
 	s.DB.Exec(`UPDATE mensajes_soporte SET leido = true WHERE conversacion_id = $1 AND autor_rol = 'plataforma' AND NOT leido`, convID)
 
-	c.JSON(http.StatusOK, mensajes)
+	// Un prospecto nunca pasa por el asistente (ver ia_soporte.go), así que
+	// para él siempre contesta una persona.
+	c.JSON(http.StatusOK, HiloSoporte{Mensajes: mensajes, AtendidaPorHumano: true})
 }
 
 func (s *Server) handleEnviarMensajeProspecto(c *gin.Context) {
@@ -312,7 +327,7 @@ func (s *Server) handleObtenerMisMensajesSoporte(c *gin.Context) {
 	}
 	if !existe {
 		// Todavía no ha escrito nada -- hilo vacío, sin crear la fila.
-		c.JSON(http.StatusOK, []MensajeSoporte{})
+		c.JSON(http.StatusOK, HiloSoporte{Mensajes: []MensajeSoporte{}})
 		return
 	}
 
@@ -325,7 +340,7 @@ func (s *Server) handleObtenerMisMensajesSoporte(c *gin.Context) {
 
 	s.DB.Exec(`UPDATE mensajes_soporte SET leido = true WHERE conversacion_id = $1 AND autor_rol = 'plataforma' AND NOT leido`, convID)
 
-	c.JSON(http.StatusOK, mensajes)
+	c.JSON(http.StatusOK, HiloSoporte{Mensajes: mensajes, AtendidaPorHumano: s.conversacionAtendidaPorHumano(convID)})
 }
 
 func (s *Server) handleEnviarMensajeSoporte(c *gin.Context) {
@@ -702,6 +717,44 @@ func (s *Server) handlePedirHumanoSoporte(c *gin.Context) {
 	}
 	s.pedirHumano(c, convID, etiquetaRol)
 }
+
+// handleVolverAlAsistenteSoporte deshace el botón de "quiero hablar con una
+// persona". Sin esto, pedir una persona era un camino de una sola dirección:
+// quien lo tocaba por una duda puntual se quedaba para siempre esperando a
+// que alguien contestara a mano, aunque después solo quisiera preguntar algo
+// que el asistente resuelve al instante.
+//
+// No borra ni oculta nada de lo ya escrito: los mensajes del hilo siguen
+// ahí y el dueño de la plataforma los sigue viendo. Lo único que cambia es
+// quién contesta primero de aquí en adelante.
+func (s *Server) handleVolverAlAsistenteSoporte(c *gin.Context) {
+	gID, _ := c.Get("guarderia_id")
+	userID, _ := c.Get("user_id")
+	rol, _ := c.Get("rol")
+
+	convID, err := s.obtenerOCrearConversacionPropia(gID, userID, fmtRol(rol))
+	if err != nil {
+		s.logError(c, "Error al obtener la conversación de soporte", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al obtener la conversación"})
+		return
+	}
+
+	if _, err := s.DB.Exec(
+		`UPDATE conversaciones_soporte SET atendida_por_humano = false WHERE id = $1`, convID,
+	); err != nil {
+		s.logError(c, "No se pudo devolver la conversación al asistente", err, "conversacion_id", convID)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo volver al asistente automático"})
+		return
+	}
+
+	if err := s.insertarMensajeSoporteIA(convID, mensajeVolvioAlAsistente); err != nil {
+		s.logError(c, "No se pudo confirmar el regreso al asistente", err, "conversacion_id", convID)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Vuelve a contestar el asistente"})
+}
+
+const mensajeVolvioAlAsistente = "Listo, vuelvo a contestarte yo. Si en cualquier momento prefieres una persona, toca el botón de abajo otra vez."
 
 func (s *Server) handlePedirHumanoProspecto(c *gin.Context) {
 	token := c.Param("token")
