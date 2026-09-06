@@ -27,7 +27,12 @@ const TOKEN_PROSPECTO_KEY = 'pasitos_soporte_token';
 //     en localStorage para poder seguir la MISMA conversación en visitas
 //     futuras sin necesidad de crear una cuenta.
 // Las respuestas de Alejandro se ven desde /plataforma (ver PanelPlataforma).
-const SoporteChat = ({ modo }) => {
+// sobreBarraInferior: en el panel de staff hay una barra fija abajo (ver
+// App.jsx) que en celular y tablet vertical se encima con la burbuja. Con
+// esta bandera, la burbuja y el panel suben lo suficiente para no taparla;
+// en la página de presentación y en el portal del papá, donde esa barra no
+// existe, todo se queda pegado abajo como siempre.
+const SoporteChat = ({ modo, sobreBarraInferior = false }) => {
   const [abierto, setAbierto] = useState(false);
   const [mensajes, setMensajes] = useState([]);
   const [cargando, setCargando] = useState(false);
@@ -216,7 +221,9 @@ const SoporteChat = ({ modo }) => {
       {/* BURBUJA FLOTANTE */}
       <button
         onClick={() => setAbierto((v) => !v)}
-        className="fixed bottom-5 right-5 z-[310] bg-forest hover:bg-forest-light text-white p-4 rounded-full shadow-xl shadow-forest/30 transition-all active:scale-95 flex items-center justify-center"
+        className={`fixed right-5 z-[310] bg-forest hover:bg-forest-light text-white p-4 rounded-full shadow-xl shadow-forest/30 transition-all active:scale-95 flex items-center justify-center ${
+          sobreBarraInferior ? 'bottom-[calc(6rem+env(safe-area-inset-bottom))] md:landscape:bottom-5' : 'bottom-5'
+        }`}
         title="Soporte"
       >
         {abierto ? <ChevronDown size={24} /> : <LifeBuoy size={24} />}
@@ -229,7 +236,9 @@ const SoporteChat = ({ modo }) => {
 
       {/* PANEL */}
       {abierto && (
-        <div className="fixed bottom-24 right-5 z-[310] w-[calc(100vw-2.5rem)] max-w-sm h-[min(32rem,70vh)] bg-white rounded-[2rem] shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className={`fixed right-5 z-[310] w-[calc(100vw-2.5rem)] max-w-sm h-[min(32rem,70vh)] bg-white rounded-[2rem] shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300 ${
+          sobreBarraInferior ? 'bottom-[calc(11rem+env(safe-area-inset-bottom))] md:landscape:bottom-24' : 'bottom-24'
+        }`}>
           {/* HEADER */}
           <div className="bg-forest p-5 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-3 min-w-0">

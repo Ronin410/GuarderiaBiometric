@@ -123,10 +123,22 @@ html, body, #root {
   --safe-bottom: env(safe-area-inset-bottom);
 }
 
-/* Aplicar el área segura al contenedor principal para que no se corte el contenido */
-main {
-  padding-top: var(--safe-top);
-  padding-bottom: var(--safe-bottom);
+/* Área segura del notch para el contenedor principal.
+   Va dentro de @layer base y no suelto: las utilidades de Tailwind viven en
+   @layer utilities, y en la cascada CUALQUIER regla sin capa le gana a una
+   con capa, sin importar la especificidad. Este `main` desnudo estaba
+   ganándole a las clases pt-*/pb-* del propio <main>, así que el
+   "pt-8 sm:pt-10 lg:pt-12 pb-4..." que se leía en el JSX nunca se aplicaba:
+   en un dispositivo sin notch (env(...) = 0px) el contenido quedaba con
+   padding vertical CERO, pegado a la barra de arriba y, desde que existe la
+   barra inferior, tapado por ella sin forma de scrollear más.
+   En @layer base pasa a ser lo que siempre debió ser: un valor por default
+   que las clases del JSX pueden sobreescribir. */
+@layer base {
+  main {
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
+  }
 }
 
 /* 2. ESTILOS DE IMPRESIÓN (Mantenemos tu configuración original) */

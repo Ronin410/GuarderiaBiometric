@@ -991,16 +991,20 @@ function MainApp() {
       <div className="flex-1 min-w-0 flex flex-col">
         {/* BARRA SUPERIOR — se ve siempre que el sidebar de escritorio esté
             oculto (mismo criterio md:landscape: de arriba). */}
-        <div className="md:landscape:hidden flex items-center justify-between px-4 py-3.5 bg-white border-b border-slate-200 sticky top-0 z-20">
+        <div className="md:landscape:hidden flex items-center justify-between px-4 pb-3.5 pt-[calc(0.875rem+env(safe-area-inset-top))] bg-white border-b border-slate-200 sticky top-0 z-20">
           <button onClick={() => setSidebarAbierto(true)} className="p-1 text-ink" title="Abrir menú"><Menu size={22} /></button>
           <span className="font-black uppercase text-sm text-ink">Pasitos</span>
           <button onClick={cerrarSesion} className="p-1 text-rose-500" title="Cerrar sesión"><LogOut size={20} /></button>
         </div>
 
-        {/* pb-28 deja libre el alto de la barra inferior para que el último
-            renglón de cualquier pantalla no quede tapado; en escritorio,
-            donde no hay barra, vuelve al respiro de siempre. */}
-        <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-28 md:landscape:pb-8 pt-8 sm:pt-10 lg:pt-12">
+        {/* El padding de abajo deja libre el alto de la barra inferior MÁS el
+            área segura del dispositivo (la franja de gestos de iOS, la barra
+            de navegación de Android), para que el último renglón de cualquier
+            pantalla se pueda alcanzar scrolleando. Se suma aquí en vez de
+            confiar en la regla `main` de index.css porque esa es un default
+            de @layer base y estas clases la sobreescriben. En escritorio,
+            donde no hay barra inferior, vuelve al respiro de siempre. */}
+        <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-10 lg:pt-12 pb-[calc(7rem+env(safe-area-inset-bottom))] md:landscape:pb-[calc(2rem+env(safe-area-inset-bottom))]">
         {/* La franja de instalar se ve en cualquier pestaña del panel: la
             tablet de recepción es justo donde más conviene tener Pasitos
             instalado, y esa cuenta nunca entra al portal del papá, que era
@@ -1294,7 +1298,7 @@ function MainApp() {
         </div>
       )}
 
-      <SoporteChat modo="autenticado" />
+      <SoporteChat modo="autenticado" sobreBarraInferior />
     </div>
   );
 }
