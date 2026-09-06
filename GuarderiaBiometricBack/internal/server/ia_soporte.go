@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -51,9 +52,17 @@ const mensajeSinContextoIA = "No tengo información suficiente sobre eso en la d
 
 const sistemaIASoporte = `Eres el asistente de soporte de Pasitos, una plataforma de administración de guarderías (reconocimiento facial para entrada/salida, bitácora diaria, pagos, menú semanal, encuestas y chat entre guardería y familias).
 
-Tu única función es responder dudas de USO de la plataforma (a papás, maestras o directoras) usando EXCLUSIVAMENTE los fragmentos de documentación que te comparte el usuario a continuación -- nunca inventes pantallas, botones o pasos que no aparezcan ahí.
+Respondes dos tipos de cosas:
 
-Si los fragmentos no traen la respuesta, dilo con claridad en vez de adivinar o improvisar.
+1. Dudas de USO de la plataforma (a papás, maestras o directoras), usando EXCLUSIVAMENTE los fragmentos de documentación que te comparte el usuario -- nunca inventes pantallas, botones o pasos que no aparezcan ahí. Si los fragmentos no traen la respuesta, dilo con claridad en vez de adivinar o improvisar.
+
+2. Cuando quien te escribe es un papá y pregunta por SU HIJO -- cómo le fue, qué comió, si durmió, a qué hora llegó o salió, si trae algún golpe -- usa la herramienta consultar_bitacora y contéstale con lo que de verdad dice la bitácora de ese día. NO le expliques dónde mirarlo: quiere saber cómo le fue, no cómo consultarlo. Si además le sirve saber dónde verlo, dilo en una línea al final, no como respuesta principal.
+
+Al contar el día de un niño, ve al grano y en orden natural: cómo comió, si durmió, cualquier nota de la maestra, y las horas de entrada y salida. Menciona SIEMPRE un golpe reportado, aunque no te lo hayan preguntado. Lo que la bitácora marque como "sin capturar todavía" repórtalo como que la maestra todavía no lo llena, nunca como que el niño no comió.
+
+Si la herramienta no devuelve datos de ese día, dilo tal cual (que todavía no llenan la bitácora o que no registra entrada) y sugiere preguntarle directamente a la guardería por el chat. Nunca inventes cómo estuvo un niño.
+
+No tienes acceso a nada más de la guardería: ni pagos, ni expedientes, ni datos de otros niños. Si te preguntan por algo así, dilo y remite a la guardería.
 
 Responde en español de México, breve y directo (2 a 5 líneas), como si le explicaras a alguien sin conocimientos técnicos.
 
@@ -72,7 +81,16 @@ type fragmentoConocimiento struct {
 // aviso normal a la plataforma -- "sin intervención humana" no debe
 // significar "el mensaje se pierde si la IA truena": el dueño de la
 // plataforma siempre se entera cuando el asistente no pudo responder.
-func (s *Server) intentarRespuestaAutomaticaSoporte(convID int, pregunta, etiquetaRol string) {
+// autorSoporte identifica a quien escribió, para saber si se le puede
+// ofrecer al modelo la herramienta de bitácora. PadreID es no-nil solo
+// cuando quien escribe es un papá con cuenta: es la única audiencia a la que
+// se le consultan datos de niños, y siempre los suyos (ver ia_bitacora.go).
+type autorSoporte struct {
+	PadreID     any
+	GuarderiaID any
+}
+
+func (s *Server) intentarRespuestaAutomaticaSoporte(convID int, pregunta, etiquetaRol string, autor autorSoporte) {
 	fragmentos, err := s.buscarFragmentosRelevantes(pregunta)
 	if err != nil {
 		s.logError(nil, "intentarRespuestaAutomaticaSoporte: error buscando contexto", err, "conversacion_id", convID)
@@ -80,15 +98,22 @@ func (s *Server) intentarRespuestaAutomaticaSoporte(convID int, pregunta, etique
 		return
 	}
 
+	// Sin contexto relevante en los manuales se escala a un humano... salvo
+	// que quien escribe sea un papá: su pregunta puede no estar en ningún
+	// manual y aun así tener respuesta en la bitácora de su hijo ("¿comió
+	// bien hoy?"), que el modelo puede consultar con la herramienta.
 	if len(fragmentos) == 0 || fragmentos[0].Similitud < umbralSimilitudIA {
-		if err := s.insertarMensajeSoporteIA(convID, mensajeSinContextoIA); err != nil {
-			s.logError(nil, "intentarRespuestaAutomaticaSoporte: no se pudo guardar el aviso de 'sin contexto'", err, "conversacion_id", convID)
+		if autor.PadreID == nil {
+			if err := s.insertarMensajeSoporteIA(convID, mensajeSinContextoIA); err != nil {
+				s.logError(nil, "intentarRespuestaAutomaticaSoporte: no se pudo guardar el aviso de 'sin contexto'", err, "conversacion_id", convID)
+			}
+			s.notificarPlataformaNuevoMensajeSoporteDeConversacion(convID, etiquetaRol)
+			return
 		}
-		s.notificarPlataformaNuevoMensajeSoporteDeConversacion(convID, etiquetaRol)
-		return
+		fragmentos = nil
 	}
 
-	respuesta, err := s.generarRespuestaIA(pregunta, fragmentos)
+	respuesta, err := s.generarRespuestaIA(pregunta, fragmentos, autor)
 	if err != nil {
 		s.logError(nil, "intentarRespuestaAutomaticaSoporte: error generando la respuesta", err, "conversacion_id", convID)
 		s.notificarPlataformaNuevoMensajeSoporteDeConversacion(convID, etiquetaRol)
@@ -142,27 +167,115 @@ func (s *Server) buscarFragmentosRelevantes(pregunta string) ([]fragmentoConocim
 }
 
 // generarRespuestaIA le pasa los fragmentos recuperados + la pregunta a
-// Claude y regresa el texto de la respuesta.
-func (s *Server) generarRespuestaIA(pregunta string, fragmentos []fragmentoConocimiento) (string, error) {
+// Claude y regresa el texto de la respuesta. Cuando quien escribe es un papá
+// se le ofrece además la herramienta de bitácora: el modelo decide si la
+// pregunta la necesita, así que un "¿cómo instalo la app?" nunca provoca que
+// salgan datos de un niño hacia la API.
+func (s *Server) generarRespuestaIA(pregunta string, fragmentos []fragmentoConocimiento, autor autorSoporte) (string, error) {
 	var contexto strings.Builder
 	for i, f := range fragmentos {
 		fmt.Fprintf(&contexto, "[%d] (fuente: %s)\n%s\n\n", i+1, f.Fuente, f.Contenido)
 	}
 
-	mensaje := fmt.Sprintf("Fragmentos de documentación relevantes:\n\n%sPregunta del usuario: %s", contexto.String(), pregunta)
+	mensaje := "Pregunta del usuario: " + pregunta
+	if contexto.Len() > 0 {
+		mensaje = fmt.Sprintf("Fragmentos de documentación relevantes:\n\n%s%s", contexto.String(), mensaje)
+	}
 
-	resp, err := s.AnthropicClient.Messages.New(context.Background(), anthropic.MessageNewParams{
+	params := anthropic.MessageNewParams{
 		Model:     modeloIASoporte,
 		MaxTokens: 500,
 		System:    []anthropic.TextBlockParam{{Text: sistemaIASoporte}},
 		Messages: []anthropic.MessageParam{
 			anthropic.NewUserMessage(anthropic.NewTextBlock(mensaje)),
 		},
-	})
+	}
+
+	if autor.PadreID != nil {
+		params.Tools = []anthropic.ToolUnionParam{{OfTool: &anthropic.ToolParam{
+			Name:        nombreHerramientaBitacora,
+			Description: anthropic.String(descripcionHerramientaBitacora),
+			InputSchema: anthropic.ToolInputSchemaParam{
+				Properties: map[string]any{
+					"fecha": map[string]any{
+						"type":        "string",
+						"description": "Día a consultar en formato YYYY-MM-DD. Omítelo para el día de hoy.",
+					},
+				},
+			},
+		}}}
+	}
+
+	resp, err := s.AnthropicClient.Messages.New(context.Background(), params)
 	if err != nil {
 		return "", err
 	}
 
+	// Una sola vuelta de herramienta: la consulta devuelve el día completo de
+	// todos los hijos de esa cuenta, así que no hay nada que encadenar. Si el
+	// modelo pidiera una segunda, se queda con lo que ya tiene en vez de
+	// alargar la espera de alguien mirando los puntitos del chat.
+	if resp.StopReason == anthropic.StopReasonToolUse {
+		resp, err = s.responderConBitacora(params, resp, autor)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return textoDeRespuesta(resp)
+}
+
+// responderConBitacora ejecuta la herramienta que pidió el modelo y le manda
+// el resultado de vuelta para que redacte la respuesta final.
+func (s *Server) responderConBitacora(params anthropic.MessageNewParams, resp *anthropic.Message, autor autorSoporte) (*anthropic.Message, error) {
+	bloquesAsistente := []anthropic.ContentBlockParamUnion{}
+	resultados := []anthropic.ContentBlockParamUnion{}
+
+	for _, bloque := range resp.Content {
+		switch b := bloque.AsAny().(type) {
+		case anthropic.TextBlock:
+			if strings.TrimSpace(b.Text) != "" {
+				bloquesAsistente = append(bloquesAsistente, anthropic.NewTextBlock(b.Text))
+			}
+		case anthropic.ToolUseBlock:
+			bloquesAsistente = append(bloquesAsistente, anthropic.NewToolUseBlock(b.ID, b.Input, b.Name))
+
+			if b.Name != nombreHerramientaBitacora {
+				// No debería pasar (es la única herramienta que se ofrece),
+				// pero el protocolo exige un resultado por cada tool_use: sin
+				// él la siguiente llamada falla con un 400.
+				resultados = append(resultados, anthropic.NewToolResultBlock(b.ID, "Herramienta desconocida.", true))
+				continue
+			}
+
+			var entrada struct {
+				Fecha string `json:"fecha"`
+			}
+			// Un JSON que no parsea no es motivo para tumbar la respuesta:
+			// se consulta el día de hoy, que es lo que se pregunta el 99% de
+			// las veces.
+			if err := json.Unmarshal(b.Input, &entrada); err != nil {
+				s.logError(nil, "generarRespuestaIA: no se pudo leer la fecha que pidió el modelo", err)
+			}
+
+			texto, err := s.bitacoraDeHijosDePapa(autor.PadreID, autor.GuarderiaID, entrada.Fecha)
+			if err != nil {
+				s.logError(nil, "generarRespuestaIA: no se pudo consultar la bitácora", err)
+				resultados = append(resultados, anthropic.NewToolResultBlock(b.ID, "No se pudo consultar la bitácora en este momento.", true))
+				continue
+			}
+			resultados = append(resultados, anthropic.NewToolResultBlock(b.ID, texto, false))
+		}
+	}
+
+	params.Messages = append(params.Messages,
+		anthropic.NewAssistantMessage(bloquesAsistente...),
+		anthropic.NewUserMessage(resultados...),
+	)
+	return s.AnthropicClient.Messages.New(context.Background(), params)
+}
+
+func textoDeRespuesta(resp *anthropic.Message) (string, error) {
 	var texto strings.Builder
 	for _, block := range resp.Content {
 		if b, ok := block.AsAny().(anthropic.TextBlock); ok {

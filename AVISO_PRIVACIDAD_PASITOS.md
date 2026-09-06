@@ -2,7 +2,7 @@
 
 ### Para prospectos y usuarios del chat de soporte
 
-Fecha de versión: 30/08/2026 | Versión: 1.0
+Fecha de versión: 06/09/2026 | Versión: 1.1
 
 > Borrador nuevo (no viene del representante legal), redactado a partir de
 > la cláusula **9 Bis** de `TERMINOS_Y_CONDICIONES.md` -- ver la Nota de
@@ -64,6 +64,10 @@ Si no deseas que tratemos tus datos para la finalidad secundaria, puedes decírn
 ## 5. Transferencias y proveedores tecnológicos
 
 No vendemos ni compartimos tus datos con terceros para fines de publicidad ajenos a Pasitos. Para operar el chat de soporte usamos los mismos proveedores tecnológicos que el resto de la Plataforma (ver Anexo A de los Términos y Condiciones de Servicio): hosting (Render) y base de datos (PostgreSQL, alojada en Render, Oregon (US West)). Cuando el envío de un mensaje genera una notificación push hacia el dispositivo de Pasitos, se usa el mismo mecanismo Web Push/VAPID que el resto de la app, sin un proveedor externo de notificaciones.
+
+**Asistente automático del chat de soporte.** Las primeras respuestas del chat de soporte las genera un asistente automático. Para eso, el mensaje que escribes se envía a dos proveedores en Estados Unidos: **Voyage AI**, que lo convierte en una representación numérica para buscar en nuestros manuales de usuario, y **Anthropic** (modelo Claude), que redacta la respuesta. Junto con tu mensaje se les envían los fragmentos de manual relevantes.
+
+**Consulta de la bitácora por el asistente.** Cuando quien escribe es un papá o tutor con cuenta y su pregunta es sobre el día de su hijo (qué comió, si durmió, a qué hora entró o salió, si se reportó un golpe), el asistente consulta esa bitácora y **envía esos datos a Anthropic** para poder redactar la respuesta. Esto ocurre únicamente con los datos de los hijos ligados a la propia cuenta de quien pregunta, únicamente cuando la pregunta lo requiere, y nunca con datos de otros niños, pagos ni expedientes. Quien prefiera que no ocurra puede usar el botón **"Quiero hablar con una persona"** del chat: a partir de ese momento responde una persona del equipo y el asistente automático deja de intervenir en esa conversación.
 
 ## 6. Conservación
 

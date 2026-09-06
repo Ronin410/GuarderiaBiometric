@@ -31,7 +31,7 @@ const AvisoPrivacidadPasitos = () => (
         Aviso de Privacidad de Pasitos
       </h1>
       <p className="text-xs text-slate-400 font-bold mb-2">Para prospectos y usuarios del chat de soporte</p>
-      <p className="text-xs text-slate-400 font-bold mb-6">Fecha de versión: 30/08/2026 &nbsp;|&nbsp; Versión: 1.0</p>
+      <p className="text-xs text-slate-400 font-bold mb-6">Fecha de versión: 06/09/2026 &nbsp;|&nbsp; Versión: 1.1</p>
 
       <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-10">
         <p className="text-sm text-amber-900 leading-relaxed">
@@ -85,6 +85,12 @@ const AvisoPrivacidadPasitos = () => (
         <h2 className="text-lg font-black text-slate-900 mb-3">5. Transferencias y proveedores tecnológicos</h2>
         <p className="text-sm text-slate-600 leading-relaxed">
           No vendemos ni compartimos tus datos con terceros para fines de publicidad ajenos a Pasitos. Para operar el chat de soporte usamos los mismos proveedores tecnológicos que el resto de la plataforma: hosting (Render) y base de datos (PostgreSQL, alojada en Render, Oregon (US West)). Las notificaciones que recibimos cuando escribes usan el mismo mecanismo Web Push/VAPID que el resto de la app, sin un proveedor externo de notificaciones.
+        </p>
+        <p className="text-sm text-slate-600 leading-relaxed mt-3">
+          <strong>Asistente automático del chat de soporte.</strong> Las primeras respuestas del chat de soporte las genera un asistente automático. Para eso, el mensaje que escribes se envía a dos proveedores en Estados Unidos: <strong>Voyage AI</strong>, que lo convierte en una representación numérica para buscar en nuestros manuales, y <strong>Anthropic</strong> (modelo Claude), que redacta la respuesta. Junto con tu mensaje se les envían los fragmentos de manual relevantes.
+        </p>
+        <p className="text-sm text-slate-600 leading-relaxed mt-3">
+          <strong>Consulta de la bitácora por el asistente.</strong> Cuando quien escribe es un papá o tutor con cuenta y su pregunta es sobre el día de su hijo (qué comió, si durmió, a qué hora entró o salió, si se reportó un golpe), el asistente consulta esa bitácora y <strong>envía esos datos a Anthropic</strong> para poder redactar la respuesta. Solo ocurre con los datos de los hijos ligados a tu propia cuenta, solo cuando la pregunta lo requiere, y nunca con datos de otros niños, pagos ni expedientes. Si prefieres que no pase, usa el botón <strong>"Quiero hablar con una persona"</strong> del chat: a partir de ahí te responde una persona del equipo y el asistente automático deja de intervenir en esa conversación.
         </p>
       </section>
 

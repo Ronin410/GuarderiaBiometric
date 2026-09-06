@@ -367,7 +367,14 @@ func (s *Server) handleEnviarMensajeSoporte(c *gin.Context) {
 	// la plataforma ya contestó. Contestar encima de una conversación humana
 	// es peor que no contestar.
 	if s.RAGSoporteHabilitado() && !s.conversacionAtendidaPorHumano(convID) {
-		go s.intentarRespuestaAutomaticaSoporte(convID, contenido, etiquetaRol)
+		// Solo a un papá se le pasa su identidad: es la única audiencia a
+		// la que el asistente puede consultarle datos de niños, y siempre
+		// los suyos (ver ia_bitacora.go).
+		var autor autorSoporte
+		if fmtRol(rol) == "papa" {
+			autor = autorSoporte{PadreID: userID, GuarderiaID: gID}
+		}
+		go s.intentarRespuestaAutomaticaSoporte(convID, contenido, etiquetaRol, autor)
 	} else {
 		go s.notificarPlataformaNuevoMensajeSoporteDeConversacion(convID, etiquetaRol)
 	}
