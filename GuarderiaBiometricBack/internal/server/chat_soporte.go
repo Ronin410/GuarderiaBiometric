@@ -64,11 +64,13 @@ func (s *Server) registrarRutasSoporte(r *gin.Engine) {
 	r.POST("/soporte/prospecto", s.soporteLimiter.Middleware(), s.handleCrearConversacionProspecto)
 	r.GET("/soporte/prospecto/:token/mensajes", s.handleObtenerMensajesProspecto)
 	r.POST("/soporte/prospecto/:token/mensajes", s.soporteLimiter.Middleware(), s.handleEnviarMensajeProspecto)
+	r.POST("/soporte/prospecto/:token/humano", s.soporteLimiter.Middleware(), s.handlePedirHumanoProspecto)
 
 	// Papá / staff / admin ya autenticados -- una sola conversación
 	// continua con la plataforma por cuenta (no un hilo nuevo cada vez).
 	r.GET("/soporte/mis-mensajes", auth, s.handleObtenerMisMensajesSoporte)
 	r.POST("/soporte/mis-mensajes", auth, s.handleEnviarMensajeSoporte)
+	r.POST("/soporte/mis-mensajes/humano", auth, s.handlePedirHumanoSoporte)
 	r.GET("/soporte/no-leidos", auth, s.handleContarNoLeidosSoporte)
 
 	// Dueño de la plataforma -- ve y responde TODAS las conversaciones.
@@ -360,7 +362,11 @@ func (s *Server) handleEnviarMensajeSoporte(c *gin.Context) {
 	// vuelta a este mismo aviso si no puede. Sin las claves configuradas
 	// (RAGSoporteHabilitado() false), el comportamiento es EXACTAMENTE el
 	// de siempre: avisar de inmediato.
-	if s.RAGSoporteHabilitado() {
+	// El asistente se hace a un lado en cuanto la conversación pasó a manos
+	// de una persona -- porque lo pidieron con el botón, o porque el dueño de
+	// la plataforma ya contestó. Contestar encima de una conversación humana
+	// es peor que no contestar.
+	if s.RAGSoporteHabilitado() && !s.conversacionAtendidaPorHumano(convID) {
 		go s.intentarRespuestaAutomaticaSoporte(convID, contenido, etiquetaRol)
 	} else {
 		go s.notificarPlataformaNuevoMensajeSoporteDeConversacion(convID, etiquetaRol)
@@ -371,7 +377,7 @@ func (s *Server) handleEnviarMensajeSoporte(c *gin.Context) {
 	// viene ninguna respuesta en camino y sería prometer algo que no pasa.
 	c.JSON(http.StatusCreated, gin.H{
 		"message":              "Mensaje enviado",
-		"respuesta_automatica": s.RAGSoporteHabilitado(),
+		"respuesta_automatica": s.RAGSoporteHabilitado() && !s.conversacionAtendidaPorHumano(convID),
 	})
 }
 
@@ -526,6 +532,10 @@ func (s *Server) handleResponderSoportePlataforma(c *gin.Context) {
 		return
 	}
 
+	// A partir de aquí contesta una persona: el asistente deja de meterse en
+	// esta conversación aunque le sigan escribiendo.
+	s.marcarConversacionAtendidaPorHumano(convID)
+
 	c.JSON(http.StatusCreated, gin.H{"message": "Respuesta enviada"})
 }
 
@@ -619,6 +629,86 @@ func (s *Server) leerMensajeSoporte(c *gin.Context) (string, bool) {
 		return "", false
 	}
 	return contenido, true
+}
+
+// conversacionAtendidaPorHumano -- si falla la consulta se responde true, o
+// sea "no contestes con IA". Ante la duda es mejor que conteste una persona
+// de más a que el asistente se meta en una conversación que ya era humana.
+func (s *Server) conversacionAtendidaPorHumano(convID any) bool {
+	var atendida bool
+	if err := s.DB.QueryRow(
+		`SELECT atendida_por_humano FROM conversaciones_soporte WHERE id = $1`, convID,
+	).Scan(&atendida); err != nil {
+		s.logError(nil, "No se pudo consultar si la conversación de soporte ya la atiende una persona", err, "conversacion_id", convID)
+		return true
+	}
+	return atendida
+}
+
+func (s *Server) marcarConversacionAtendidaPorHumano(convID any) {
+	if _, err := s.DB.Exec(
+		`UPDATE conversaciones_soporte SET atendida_por_humano = true WHERE id = $1`, convID,
+	); err != nil {
+		s.logError(nil, "No se pudo marcar la conversación de soporte como atendida por una persona", err, "conversacion_id", convID)
+	}
+}
+
+// pedirHumano es el cuerpo compartido de los dos endpoints del botón (el de
+// una cuenta autenticada y el de un prospecto): apaga al asistente para esa
+// conversación, deja constancia en el hilo y avisa a la plataforma.
+func (s *Server) pedirHumano(c *gin.Context, convID any, etiquetaRol string) {
+	s.marcarConversacionAtendidaPorHumano(convID)
+
+	if err := s.insertarMensajeSoporteIA(convID, mensajeAtenderaHumano); err != nil {
+		s.logError(c, "No se pudo confirmar la petición de hablar con una persona", err, "conversacion_id", convID)
+	}
+
+	go s.notificarPlataformaNuevoMensajeSoporteDeConversacion(convID, etiquetaRol+" pide hablar con una persona")
+
+	c.JSON(http.StatusOK, gin.H{"message": "Le avisamos al equipo"})
+}
+
+// mensajeAtenderaHumano se escribe en el hilo como respuesta al botón, y no
+// solo se cambia la bandera: así el dueño de la plataforma ve en la propia
+// conversación por qué le llegó, y quien tocó el botón tiene confirmación en
+// pantalla de que su petición se registró. Va marcado como generado por IA
+// (insertarMensajeSoporteIA) porque no lo escribió nadie -- es un acuse
+// automático, y la etiqueta de "respuesta automática" del chat evita que se
+// lea como si ya hubiera contestado una persona.
+const mensajeAtenderaHumano = "Listo, le avisé al equipo. A partir de ahora te contesta una persona por aquí -- el asistente automático ya no va a responder en esta conversación."
+
+func (s *Server) handlePedirHumanoSoporte(c *gin.Context) {
+	gID, _ := c.Get("guarderia_id")
+	userID, _ := c.Get("user_id")
+	rol, _ := c.Get("rol")
+
+	convID, err := s.obtenerOCrearConversacionPropia(gID, userID, fmtRol(rol))
+	if err != nil {
+		s.logError(c, "Error al obtener la conversación de soporte", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al obtener la conversación"})
+		return
+	}
+
+	etiquetaRol := "Staff/Admin"
+	if fmtRol(rol) == "papa" {
+		etiquetaRol = "Papá"
+	}
+	s.pedirHumano(c, convID, etiquetaRol)
+}
+
+func (s *Server) handlePedirHumanoProspecto(c *gin.Context) {
+	token := c.Param("token")
+	convID, existe, err := s.conversacionProspectoPorToken(token)
+	if err != nil {
+		s.logError(c, "Error al buscar la conversación del prospecto", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al obtener la conversación"})
+		return
+	}
+	if !existe {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Conversación no encontrada"})
+		return
+	}
+	s.pedirHumano(c, convID, "Prospecto")
 }
 
 func (s *Server) insertarMensajeSoporte(convID any, autorRol, contenido string) error {

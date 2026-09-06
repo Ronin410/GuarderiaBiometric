@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api from './axiosConfig';
-import { LifeBuoy, X, Send, Loader2, ChevronDown } from 'lucide-react';
+import { LifeBuoy, X, Send, Loader2, ChevronDown, UserRound } from 'lucide-react';
 import { mostrarError } from './utils/alertas';
 import { fechaLocal, separadorFecha } from './utils/fecha';
 
@@ -43,6 +43,11 @@ const SoporteChat = ({ modo, sobreBarraInferior = false }) => {
   // automática (ver RAGSoporteHabilitado en el servidor), así que mientras
   // llega se muestran los puntitos de "está escribiendo".
   const [esperandoIA, setEsperandoIA] = useState(false);
+  // Cuando la conversación ya la lleva una persona, el botón de "hablar con
+  // una persona" desaparece y no se vuelven a mostrar los puntitos: no viene
+  // ninguna respuesta automática en camino.
+  const [conHumano, setConHumano] = useState(false);
+  const [pidiendoHumano, setPidiendoHumano] = useState(false);
   const hiloRef = useRef(null);
   // Si el usuario subió a leer un mensaje viejo, no hay que arrastrarlo de
   // vuelta al final cada vez que el polling trae datos.
@@ -57,6 +62,7 @@ const SoporteChat = ({ modo, sobreBarraInferior = false }) => {
   const listoParaChatear = modo === 'autenticado' || !!token;
 
   const rutaMensajes = modo === 'autenticado' ? '/soporte/mis-mensajes' : `/soporte/prospecto/${token}/mensajes`;
+  const rutaHumano = modo === 'autenticado' ? '/soporte/mis-mensajes/humano' : `/soporte/prospecto/${token}/humano`;
 
   const cargarMensajes = useCallback(async (mostrarLoading) => {
     if (!listoParaChatear) return;
@@ -180,6 +186,9 @@ const SoporteChat = ({ modo, sobreBarraInferior = false }) => {
       // (chat de prospectos, o las llaves de IA sin configurar) no se muestra
       // nada, para no prometer una respuesta que no viene en camino.
       if (res.data?.respuesta_automatica) setEsperandoIA(true);
+      // Sin respuesta automática en camino, del otro lado solo hay personas:
+      // el botón de pedir una deja de tener sentido.
+      else setConHumano(true);
     } catch (err) {
       console.error('Error al enviar el mensaje de soporte:', err);
       mostrarError(err.response?.data?.error || 'No se pudo enviar el mensaje');
@@ -200,6 +209,24 @@ const SoporteChat = ({ modo, sobreBarraInferior = false }) => {
     const t = setTimeout(() => setEsperandoIA(false), ESPERA_MAXIMA_IA_MS);
     return () => clearTimeout(t);
   }, [esperandoIA]);
+
+  const pedirHumano = async () => {
+    setPidiendoHumano(true);
+    try {
+      await api.post(rutaHumano);
+      // Se apaga la espera aunque hubiera un mensaje en vuelo: a partir de
+      // aquí no va a llegar ninguna respuesta automática.
+      setEsperandoIA(false);
+      setConHumano(true);
+      pegadoAlFinalRef.current = true;
+      await cargarMensajes(false);
+    } catch (err) {
+      console.error('Error al pedir hablar con una persona:', err);
+      mostrarError(err.response?.data?.error || 'No se pudo avisarle al equipo, intenta de nuevo');
+    } finally {
+      setPidiendoHumano(false);
+    }
+  };
 
   const alPresionarTecla = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -245,7 +272,9 @@ const SoporteChat = ({ modo, sobreBarraInferior = false }) => {
               <div className="bg-white/15 p-2 rounded-xl shrink-0"><LifeBuoy size={18} className="text-white" /></div>
               <div className="min-w-0">
                 <p className="text-white font-black uppercase text-sm leading-tight">Soporte</p>
-                <p className="text-white/60 text-[10px] font-bold">Te respondemos por aquí</p>
+                <p className="text-white/60 text-[10px] font-bold">
+                  {conHumano ? 'Te contesta una persona del equipo' : 'Te respondemos por aquí'}
+                </p>
               </div>
             </div>
             <button onClick={() => setAbierto(false)} className="text-white/70 hover:text-white p-1 shrink-0"><X size={20} /></button>
@@ -335,6 +364,23 @@ const SoporteChat = ({ modo, sobreBarraInferior = false }) => {
                   </div>
                 )}
               </div>
+
+              {/* "Un botón para que quien quiera hablar con un administrador
+                  o alguien de soporte no le conteste la IA". Desaparece en
+                  cuanto la conversación ya la lleva una persona: repetirlo no
+                  haría nada y solo confundiría. */}
+              {!conHumano && (
+                <div className="px-3 pt-2 bg-white shrink-0">
+                  <button
+                    onClick={pedirHumano}
+                    disabled={pidiendoHumano}
+                    className="w-full flex items-center justify-center gap-2 text-[11px] font-black uppercase tracking-wide text-forest bg-brand-50 hover:bg-brand-100 border border-brand-200 disabled:opacity-50 py-2.5 rounded-xl transition-all active:scale-[0.98]"
+                  >
+                    {pidiendoHumano ? <Loader2 className="animate-spin" size={14} /> : <UserRound size={14} />}
+                    Quiero hablar con una persona
+                  </button>
+                </div>
+              )}
 
               {/* COMPOSER */}
               <div className="p-3 border-t border-slate-100 bg-white shrink-0">
