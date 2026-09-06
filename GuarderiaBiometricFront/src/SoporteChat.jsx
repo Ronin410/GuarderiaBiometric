@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api from './axiosConfig';
-import { LifeBuoy, X, Send, Loader2, ChevronDown, UserRound, Sparkles } from 'lucide-react';
+import { LifeBuoy, X, Send, Loader2, ChevronDown, UserRound, Sparkles, Maximize2, Minimize2 } from 'lucide-react';
 import { mostrarError } from './utils/alertas';
 import { fechaLocal, separadorFecha } from './utils/fecha';
 
@@ -15,6 +15,9 @@ const INTERVALO_ESPERANDO_IA_MS = 2000;
 // animando para siempre.
 const ESPERA_MAXIMA_IA_MS = 60000;
 const TOKEN_PROSPECTO_KEY = 'pasitos_soporte_token';
+// Si alguien agrandó el chat es porque le quedaba chico: se recuerda para no
+// obligarlo a agrandarlo cada vez que lo abre.
+const CLAVE_CHAT_GRANDE = 'pasitos_soporte_grande';
 
 // SoporteChat -- burbuja flotante de "chat de soporte" con el dueño de la
 // plataforma (Alejandro), disponible en dos modos:
@@ -48,6 +51,13 @@ const SoporteChat = ({ modo, sobreBarraInferior = false }) => {
   // ninguna respuesta automática en camino.
   const [conHumano, setConHumano] = useState(false);
   const [pidiendoHumano, setPidiendoHumano] = useState(false);
+  const [grande, setGrande] = useState(() => {
+    try {
+      return localStorage.getItem(CLAVE_CHAT_GRANDE) === '1';
+    } catch {
+      return false; // navegador en modo privado
+    }
+  });
   const hiloRef = useRef(null);
   // Si el usuario subió a leer un mensaje viejo, no hay que arrastrarlo de
   // vuelta al final cada vez que el polling trae datos.
@@ -250,6 +260,19 @@ const SoporteChat = ({ modo, sobreBarraInferior = false }) => {
     }
   };
 
+  const alternarTamano = () => {
+    setGrande((v) => {
+      const siguiente = !v;
+      try {
+        localStorage.setItem(CLAVE_CHAT_GRANDE, siguiente ? '1' : '0');
+      } catch { /* modo privado: solo no se recuerda */ }
+      // Al cambiar de tamaño cambia el alto del hilo; si estabas al final,
+      // hay que volver a bajar o se queda mirando a media conversación.
+      if (pegadoAlFinalRef.current) setTimeout(() => bajarAlFinal(false), 0);
+      return siguiente;
+    });
+  };
+
   const alPresionarTecla = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -285,7 +308,12 @@ const SoporteChat = ({ modo, sobreBarraInferior = false }) => {
 
       {/* PANEL */}
       {abierto && (
-        <div className={`fixed right-5 z-[310] w-[calc(100vw-2.5rem)] max-w-sm h-[min(32rem,70vh)] bg-white rounded-[2rem] shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300 ${
+        <div className={`fixed right-5 z-[310] w-[calc(100vw-2.5rem)] bg-white rounded-[2rem] shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300 transition-[max-width,height] ${
+          // Agrandado no llega a pantalla completa a propósito: se sigue viendo
+          // el borde de lo que hay detrás, para que quede claro que es un
+          // panel encima de la app y no otra pantalla.
+          grande ? 'max-w-2xl h-[min(48rem,calc(100dvh-9rem))]' : 'max-w-sm h-[min(32rem,70vh)]'
+        } ${
           sobreBarraInferior ? 'bottom-[calc(11rem+env(safe-area-inset-bottom))] md:landscape:bottom-24' : 'bottom-24'
         }`}>
           {/* HEADER */}
@@ -299,7 +327,17 @@ const SoporteChat = ({ modo, sobreBarraInferior = false }) => {
                 </p>
               </div>
             </div>
-            <button onClick={() => setAbierto(false)} className="text-white/70 hover:text-white p-1 shrink-0"><X size={20} /></button>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={alternarTamano}
+                className="text-white/70 hover:text-white p-1"
+                title={grande ? 'Hacer el chat más chico' : 'Hacer el chat más grande'}
+                aria-label={grande ? 'Hacer el chat más chico' : 'Hacer el chat más grande'}
+              >
+                {grande ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+              </button>
+              <button onClick={() => setAbierto(false)} className="text-white/70 hover:text-white p-1" title="Cerrar"><X size={20} /></button>
+            </div>
           </div>
 
           {!listoParaChatear ? (
