@@ -5,15 +5,36 @@
     <link rel="icon" type="image/png" href="/favicon.png" />
     
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    
+
     <title>Pasitos</title>
+
+    <!-- Sin esto Google no tiene con qué decidir que esta página es
+         relevante para una búsqueda -- el <title> solo no basta. También es
+         lo que se muestra en el resultado de búsqueda, debajo del título. -->
+    <meta name="description" content="Pasitos: portal para guarderías, papás y personal. Registro de niños, control de acceso biométrico, bitácora del día a día, circulares, encuestas y chat de soporte con IA." />
+
+    <!-- Open Graph / redes sociales: sin esto, compartir el link en
+         WhatsApp o Facebook muestra solo texto pelón en vez de una tarjeta
+         con imagen, título y descripción. og:image/og:url necesitan ruta
+         absoluta -- quien lee estas etiquetas es el servidor de WhatsApp/
+         Facebook, no el navegador de quien comparte, así que una ruta
+         relativa no resuelve a nada. Si la URL del sitio cambia (ver el
+         comentario sobre el sufijo que le puso Render en ../render.yaml),
+         hay que actualizar las dos de aquí abajo también. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Pasitos" />
+    <meta property="og:description" content="Portal para guarderías, papás y personal: registro, control de acceso biométrico, bitácora, circulares, encuestas y chat de soporte con IA." />
+    <meta property="og:image" content="https://pasitos-frontend.onrender.com/logo512.png" />
+    <meta property="og:url" content="https://pasitos-frontend.onrender.com/" />
+    <meta property="og:locale" content="es_MX" />
+    <link rel="canonical" href="https://pasitos-frontend.onrender.com/" />
 
     <meta name="theme-color" content="#084850" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    
+
     <link rel="manifest" href="/manifest.json" />
-    
+
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
     <style>
