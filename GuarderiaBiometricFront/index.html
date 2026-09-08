@@ -6,12 +6,22 @@
     
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 
-    <title>Pasitos</title>
+    <!-- Este es el título/descripción que ve cualquier bot que NO ejecute
+         JavaScript (algunas herramientas de SEO, el primer barrido de un
+         crawler) y lo que se ve en la pestaña una fracción de segundo antes
+         de que cargue React -- por eso ya lleva las palabras que
+         de verdad busca una guardería ("software", "control de acceso
+         biométrico"), no solo la marca. src/hooks/usePaginaSEO.js
+         sobreescribe esto por ruta una vez que React monta (Google sí
+         ejecuta JS antes de indexar, así que alcanza a leer el título que
+         corresponde a cada página) -- si cambias el mensaje de "/" aquí,
+         cambia también el de LandingPage.jsx para que no queden distintos. -->
+    <title>Pasitos · Software de gestión y control de acceso biométrico para guarderías</title>
 
     <!-- Sin esto Google no tiene con qué decidir que esta página es
          relevante para una búsqueda -- el <title> solo no basta. También es
          lo que se muestra en el resultado de búsqueda, debajo del título. -->
-    <meta name="description" content="Pasitos: portal para guarderías, papás y personal. Registro de niños, control de acceso biométrico, bitácora del día a día, circulares, encuestas y chat de soporte con IA." />
+    <meta name="description" content="Software para guarderías y centros infantiles: control de acceso biométrico, bitácora digital, circulares, encuestas, pagos y chat de soporte con IA. Reemplaza el cuaderno y el grupo de WhatsApp." />
 
     <!-- Open Graph / redes sociales: sin esto, compartir el link en
          WhatsApp o Facebook muestra solo texto pelón en vez de una tarjeta
@@ -36,6 +46,29 @@
     <link rel="manifest" href="/manifest.json" />
 
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- Datos estructurados (schema.org): le dan a Google una descripción
+         del producto en un formato que puede leer sin adivinar a partir
+         del texto de la página -- de dónde puede salir, por ejemplo, un
+         resultado de búsqueda más rico (con nombre y descripción propios
+         en vez de solo el título/snippet genérico). Es información fija de
+         marca, así que vive aquí (una sola vez) y no por ruta. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Pasitos",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web",
+        "description": "Plataforma de gestión para guarderías y centros infantiles: control de acceso biométrico, bitácora digital, circulares, encuestas, pagos y chat de soporte con IA.",
+        "url": "https://pasitos-frontend.onrender.com/",
+        "inLanguage": "es-MX",
+        "audience": {
+          "@type": "BusinessAudience",
+          "audienceType": "Guarderías y centros de cuidado infantil"
+        }
+      }
+    </script>
 
     <style>
       html, body {

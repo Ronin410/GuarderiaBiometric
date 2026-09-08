@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Mail, Phone, MapPin } from 'lucide-react';
+import { usePaginaSEO } from './hooks/usePaginaSEO';
 
 // AvisoPrivacidadPasitos -- "¿se necesitará cambiar o agregar algo a los
 // términos y condiciones?" por el chat de soporte: los papás/staff con
@@ -11,7 +12,14 @@ import { ArrowLeft, Mail, Phone, MapPin } from 'lucide-react';
 // (ver la cláusula 9 Bis en TerminosCondiciones.jsx / TERMINOS_Y_
 // CONDICIONES.md). Misma redacción que AVISO_PRIVACIDAD_PASITOS.md en la
 // raíz del repo -- si el texto cambia ahí, debe actualizarse aquí también.
-const AvisoPrivacidadPasitos = () => (
+const AvisoPrivacidadPasitos = () => {
+  usePaginaSEO({
+    titulo: 'Aviso de privacidad · Pasitos',
+    descripcion: 'Aviso de privacidad de Pasitos: qué datos recaba la plataforma de gestión para guarderías (reconocimiento facial, bitácora, pagos) y cómo los protege.',
+    ruta: '/aviso-privacidad-pasitos',
+  });
+
+  return (
   <div className="min-h-screen bg-paper text-ink">
     <header className="sticky top-0 z-30 bg-paper/90 backdrop-blur-sm border-b border-slate-200">
       <div className="max-w-3xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
@@ -122,6 +130,7 @@ const AvisoPrivacidadPasitos = () => (
       <p className="text-xs font-bold text-slate-500 flex items-center gap-2"><MapPin size={13} className="text-brand-500 shrink-0" /> Culiacán Rosales, Sinaloa, México</p>
     </footer>
   </div>
-);
+  );
+};
 
 export default AvisoPrivacidadPasitos;

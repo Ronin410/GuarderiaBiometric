@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { Building2, ShieldCheck, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { usePaginaSEO } from './hooks/usePaginaSEO';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://guarderiabiometricback.onrender.com';
 
@@ -20,6 +21,12 @@ const CAMPO_VACIO = {
 // solicitudes.go en el backend): solo manda una solicitud que queda
 // pendiente hasta que el dueño de la plataforma la aprueba desde /plataforma.
 const RegistroGuarderia = () => {
+  usePaginaSEO({
+    titulo: 'Solicita acceso para tu guardería · Pasitos',
+    descripcion: 'Da de alta tu guardería en Pasitos: control de acceso biométrico, bitácora digital, circulares, encuestas y chat con las familias. Solicita tu acceso, sin instalar nada.',
+    ruta: '/registro-guarderia',
+  });
+
   const [form, setForm] = useState(CAMPO_VACIO);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState('');

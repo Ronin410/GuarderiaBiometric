@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Mail, Phone, MapPin } from 'lucide-react';
+import { usePaginaSEO } from './hooks/usePaginaSEO';
 
 // TerminosCondiciones -- "agrega mi archivo de términos y condiciones":
 // versión en vivo, dentro de la app, del borrador legal que ya vive también
@@ -346,7 +347,14 @@ const Seccion = ({ seccion }) => (
   </section>
 );
 
-const TerminosCondiciones = () => (
+const TerminosCondiciones = () => {
+  usePaginaSEO({
+    titulo: 'Términos y condiciones · Pasitos',
+    descripcion: 'Términos y condiciones de uso de Pasitos, la plataforma de gestión para guarderías y centros infantiles.',
+    ruta: '/terminos',
+  });
+
+  return (
   <div className="min-h-screen bg-paper text-ink">
     <header className="sticky top-0 z-30 bg-paper/90 backdrop-blur-sm border-b border-slate-200">
       <div className="max-w-3xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
@@ -441,6 +449,7 @@ const TerminosCondiciones = () => (
       <p className="text-xs font-bold text-slate-500 flex items-center gap-2"><MapPin size={13} className="text-brand-500 shrink-0" /> Culiacán Rosales, Sinaloa, México</p>
     </footer>
   </div>
-);
+  );
+};
 
 export default TerminosCondiciones;

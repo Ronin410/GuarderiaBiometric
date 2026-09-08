@@ -6,6 +6,7 @@ import {
   UtensilsCrossed, Wallet, UserCog, BarChart3, Lock, Clock3,
 } from 'lucide-react';
 import SoporteChat from './SoporteChat';
+import { usePaginaSEO } from './hooks/usePaginaSEO';
 
 // LandingPage -- "pon como main page la página de presentación, me gustó,
 // ponla como mi página principal". Antes "/" mandaba directo al login;
@@ -90,6 +91,12 @@ const BENEFICIOS = [
 ];
 
 const LandingPage = () => {
+  usePaginaSEO({
+    titulo: 'Pasitos · Software de gestión y control de acceso biométrico para guarderías',
+    descripcion: 'Software para guarderías y centros infantiles: control de acceso biométrico, bitácora digital, circulares, encuestas, pagos y chat de soporte con IA. Reemplaza el cuaderno y el grupo de WhatsApp.',
+    ruta: '/',
+  });
+
   const [tabActiva, setTabActiva] = useState('dia');
   const funcionesActivas = FUNCIONES.find((f) => f.key === tabActiva) ?? FUNCIONES[0];
 
