@@ -1,0 +1,135 @@
+# Blueprint de Render para correr Pasitos en producción (piloto de un mes
+# con la primera guardería). Crea 2 recursos: el backend (Docker, el mismo
+# Dockerfile que ya usan podman/docker localmente) y el frontend (Static
+# Site nativo de Render -- sin Docker/nginx, así queda siempre gratis y sin
+# el "duerme tras 15 min" que sí tiene el backend en el plan free).
+#
+# NO hay un recurso `databases:` aquí a propósito: en vez de una Postgres
+# propia (que tendría su propio costo), este piloto reutiliza una base de
+# datos que ya vive en otra instancia de Postgres que la empresa ya paga
+# (una base nueva, con su propio usuario, dentro de esa misma instancia --
+# ver el hilo donde se armó con pgAdmin). Por eso DATABASE_URL/
+# DATABASE_URL_AUTH abajo son "sync: false": Render las deja en blanco tras
+# el primer deploy y hay que pegarles a mano, desde el dashboard, la cadena
+# de conexión a esa base ya creada.
+#
+# Cómo usarlo: en el dashboard de Render, "New +" -> "Blueprint" -> conecta
+# este repo -> Render detecta este archivo solo. Después del primer deploy
+# hay que rellenar a mano las variables marcadas "sync: false" (DATABASE_URL/
+# DATABASE_URL_AUTH, credenciales de AWS, etc.) -- ver podman/README.md para
+# instrucciones detalladas paso a paso.
+#
+# Los nombres de los servicios (pasitos-backend, pasitos-frontend) deciden la
+# URL final (https://pasitos-backend.onrender.com, etc.) -- si Render les
+# agrega un sufijo porque el nombre ya estaba tomado (le pasó al backend de
+# este piloto: quedó en pasitos-backend-f411), hay que actualizar
+# ALLOWED_ORIGINS/FRONTEND_URL (abajo, en el backend) y VITE_API_URL (abajo,
+# en el frontend) con la URL real que te dé Render -- y volver a desplegar
+# el frontend después, porque VITE_API_URL se hornea en el build.
+services:
+  - type: web
+    name: pasitos-backend
+    runtime: docker
+    # Se queda en free por ahora -- se duerme tras 15 min sin uso (tarda
+    # ~30-60s en despertar la siguiente petición), pero para las primeras
+    # pruebas antes de pasarle la guardería de verdad no hace falta pagarlo
+    # todavía. Subir esto a un plan pago (ej. "starter") es el pendiente
+    # antes de que la guardería piloto empiece a usarlo a diario.
+    plan: free
+    dockerfilePath: ./GuarderiaBiometricBack/Dockerfile
+    dockerContext: ./GuarderiaBiometricBack
+    healthCheckPath: /health
+    envVars:
+      # Cadena de conexión a la base "pasitos" creada a mano dentro de la
+      # instancia de Postgres compartida (no la genera Render, por eso
+      # sync: false en vez de fromDatabase) -- pueden ser idénticas, ver el
+      # comentario en GuarderiaBiometricBack/README.md.
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_URL_AUTH
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      # El Dockerfile hornea un certificado autofirmado y estas dos
+      # variables para servir HTTPS él solo -- necesario en local (Podman/
+      # Docker, sin nada delante) pero NO en Render, que ya termina TLS por
+      # su cuenta y espera hablarle en HTTP plano al contenedor. Vacías
+      # aquí sobreescriben el default de la imagen.
+      - key: TLS_CERT_FILE
+        value: ""
+      - key: TLS_KEY_FILE
+        value: ""
+      # Actualiza esto si Render le puso un sufijo distinto al nombre del
+      # servicio del frontend.
+      - key: ALLOWED_ORIGINS
+        value: https://pasitos-frontend.onrender.com
+      - key: FRONTEND_URL
+        value: https://pasitos-frontend.onrender.com
+      # Secretos reales -- Render los deja en blanco tras el primer deploy
+      # (sync: false) para que los llenes a mano desde el dashboard, nunca
+      # desde este archivo versionado en git.
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_REGION
+        sync: false
+      # Opcionales -- la app arranca igual sin ellas, cada función queda
+      # deshabilitada nada más (ver comentarios en internal/config/config.go).
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false
+      - key: PLATFORM_ADMIN_KEY
+        sync: false
+      # Chat de soporte con IA (RAG) -- ambas opcionales, igual que las de
+      # arriba: sin las dos, el chat de soporte se comporta exactamente
+      # como sin esta función (siempre avisa de inmediato al dueño de la
+      # plataforma). Hacen falta las dos para que quede activo: Voyage
+      # busca contexto en los manuales ya indexados (ver
+      # cmd/ingest-conocimiento) y Anthropic redacta la respuesta. Ver
+      # Server.RAGSoporteHabilitado() e internal/server/ia_soporte.go.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: VOYAGE_API_KEY
+        sync: false
+
+  - type: web
+    name: pasitos-frontend
+    runtime: static
+    buildCommand: cd GuarderiaBiometricFront && npm ci && npm run build
+    staticPublishPath: ./GuarderiaBiometricFront/dist
+    envVars:
+      # Se hornea en el bundle en tiempo de build (Vite reemplaza
+      # import.meta.env.* de forma estática) -- si cambia, hay que volver a
+      # desplegar el frontend, no basta con reiniciarlo.
+      #
+      # "pasitos-backend" ya estaba tomado en el namespace global de
+      # *.onrender.com cuando se desplegó por primera vez, así que Render le
+      # puso el sufijo "-f411" solo (URL real: pasitos-backend-f411, aunque
+      # el recurso se siga llamando "pasitos-backend" aquí abajo y en el
+      # dashboard) -- si algún día se vuelve a crear este Blueprint desde
+      # cero, revisa la URL real que te dé Render y actualiza esto si
+      # cambia otra vez.
+      - key: VITE_API_URL
+        value: https://pasitos-backend-f411.onrender.com
+      # La llave PÚBLICA del mismo par VAPID que se genera para el backend
+      # (ver VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY arriba) -- el frontend la
+      # necesita para pedirle permiso de notificaciones al navegador
+      # (pushManager.subscribe), aunque nunca vea la privada. Sin esto,
+      # "Activar notificaciones" en el portal del papá siempre falla con
+      # "No se pudieron activar las notificaciones", incluso con el resto
+      # bien configurado -- ver el comentario largo en utils/push.js.
+      - key: VITE_VAPID_PUBLIC_KEY
+        sync: false
+    routes:
+      # Sin esto, recargar la página en /panel/identificar (o cualquier
+      # ruta que no sea la raíz) da 404 -- es una SPA con rutas del lado
+      # del cliente (react-router-dom), el servidor estático necesita
+      # regresar siempre index.html y dejar que React decida qué mostrar
+      # (mismo criterio que el try_files de nginx.conf en local).
+      - type: rewrite
+        source: /*
+        destination: /index.html

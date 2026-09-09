@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Solo las páginas que tiene sentido que alguien encuentre buscando en
+     Google: la landing, el registro de una guardería nueva y los legales.
+     No incluye /plataforma (panel del dueño del sistema) ni /panel/:tab
+     (detrás de login) ni /seguimiento/:token (páginas de un solo niño) --
+     ninguna de esas es algo que un desconocido deba encontrar buscando. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://pasitos-frontend.onrender.com/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://pasitos-frontend.onrender.com/registro-guarderia</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://pasitos-frontend.onrender.com/terminos</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://pasitos-frontend.onrender.com/aviso-privacidad-pasitos</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+</urlset>

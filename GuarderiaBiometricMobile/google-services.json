@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "23645170495",
+    "project_id": "pasitos-17b8d",
+    "storage_bucket": "pasitos-17b8d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:23645170495:android:3c263d794da6ee49c3818a",
+        "android_client_info": {
+          "package_name": "com.pasitos.familia"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDmH2GQdSRuHzoefDDuGcrUagy1MG7b7l4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

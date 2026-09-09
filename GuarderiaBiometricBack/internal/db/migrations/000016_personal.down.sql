@@ -1,0 +1,2 @@
+ALTER TABLE usuarios DROP COLUMN IF EXISTS activo;
+ALTER TABLE usuarios DROP COLUMN IF EXISTS nombre;

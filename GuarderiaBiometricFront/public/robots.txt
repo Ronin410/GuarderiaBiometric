@@ -1,0 +1,7 @@
+# Sin este archivo Google asume igual que puede rastrear todo, pero
+# tenerlo explícito ayuda a que lo indexe más rápido y le dice dónde está
+# el mapa del sitio.
+User-agent: *
+Allow: /
+
+Sitemap: https://pasitos-frontend.onrender.com/sitemap.xml

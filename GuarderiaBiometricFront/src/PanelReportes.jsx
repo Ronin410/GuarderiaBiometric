@@ -1,39 +1,42 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import api from './axiosConfig'; 
-import { 
-  Download, Clock, User, CheckCircle, ShieldAlert, 
-  ShieldCheck, ChevronUp, ChevronDown, ArrowUpDown, Moon
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import api from './axiosConfig';
+import {
+  Download, Clock, User, CheckCircle, ShieldAlert,
+  ChevronUp, ChevronDown, ArrowUpDown, Moon
 } from 'lucide-react';
+import { hoyLocal } from './utils/fecha';
+import { mostrarAviso } from './utils/alertas';
 
-const PanelReportes = () => {
+const PanelReportes = ({ guarderiaInfo }) => {
   const [reportes, setReportes] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // CORRECCIÓN DE FECHA: Usamos toLocaleDateString para evitar desfases de horario UTC
-  const hoyLocal = new Date().toLocaleDateString('en-CA'); 
-
-  const [fechaInicio, setFechaInicio] = useState(hoyLocal);
-  const [fechaFin, setFechaFin] = useState(hoyLocal);
+  const [fechaInicio, setFechaInicio] = useState(hoyLocal());
+  const [fechaFin, setFechaFin] = useState(hoyLocal());
   const [busquedaNombre, setBusquedaNombre] = useState(""); 
   const [sortConfig, setSortConfig] = useState({ key: 'fecha', direction: 'desc' });
 
-  const obtenerReportes = async () => {
+  const obtenerReportes = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get('/reportes-asistencia', {
         params: { inicio: fechaInicio, fin: fechaFin }
       });
       setReportes(Array.isArray(res.data) ? res.data : []);
-    } catch (error) { 
-      console.error("Error al obtener reportes:", error); 
-    } finally { 
-      setLoading(false); 
+    } catch (error) {
+      console.error("Error al obtener reportes:", error);
+    } finally {
+      setLoading(false);
     }
-  };
-
-  useEffect(() => { 
-    obtenerReportes(); 
   }, [fechaInicio, fechaFin]);
+
+  useEffect(() => {
+    if (fechaInicio > fechaFin) {
+      mostrarAviso('La fecha de inicio no puede ser posterior a la fecha de fin.', 'Rango de fechas inválido');
+      return;
+    }
+    obtenerReportes();
+  }, [fechaInicio, fechaFin, obtenerReportes]);
 
   const handleSort = (key) => {
     let direction = 'asc';
@@ -44,8 +47,8 @@ const PanelReportes = () => {
   };
 
   const reportesProcesados = useMemo(() => {
-    let items = [...reportes].filter(reg => 
-      reg.hijo_nombre.toLowerCase().includes(busquedaNombre.toLowerCase())
+    let items = [...reportes].filter(reg =>
+      (reg.hijo_nombre || '').toLowerCase().includes(busquedaNombre.toLowerCase())
     );
 
     items.sort((a, b) => {
@@ -59,7 +62,7 @@ const PanelReportes = () => {
   }, [reportes, busquedaNombre, sortConfig]);
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] p-4 md:p-8 font-sans flex flex-col items-center">
+    <div className="min-h-screen bg-paper p-4 md:p-8 font-sans flex flex-col items-center">
       
       <style>{`
         @media print {
@@ -81,20 +84,28 @@ const PanelReportes = () => {
         }
       `}</style>
 
-      {/* CABECERA */}
-      <div className="print-container w-full max-w-[1400px] mb-6 flex flex-col md:flex-row justify-between items-center px-4">
+      {/* CABECERA -- "el logo de pasitos en la izquierda junto con el nombre
+          de la guardería, y a la derecha la fecha del reporte": una sola
+          fila, sin la franja aparte que se probó antes (no le gustó tener
+          nombre/slug separados arriba del logo). El nombre de LA GUARDERÍA
+          es el título principal junto al logo -- Pasitos queda como
+          etiqueta secundaria abajo, "con permiso de" en vez de protagonista.
+          print:flex-row en vez de depender de md:flex-row -- ese breakpoint
+          por ancho de pantalla no se aplica de forma confiable al imprimir
+          (algunos motores de impresión de Chrome no recalculan el ancho de
+          página contra los breakpoints), así que aquí se fuerza la fila
+          también para impresión sin importar el viewport. */}
+      <div className="print-container w-full max-w-[1400px] mb-6 flex flex-col md:flex-row print:flex-row justify-between items-center px-4">
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-violet-600 rounded-2xl text-white shadow-lg">
-            <ShieldCheck size={32} />
-          </div>
+          <img src="/dinos/logo-pasitos.png" alt="" className="h-14 w-auto shrink-0" />
           <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tighter uppercase leading-none">BIOSAFE</h1>
-            <p className="text-[10px] font-bold text-violet-600 uppercase tracking-[0.2em] mt-1">SISTEMA DE CONTROL DIARIO</p>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tighter uppercase leading-none">{guarderiaInfo?.nombre || 'PASITOS'}</h1>
+            <p className="text-[10px] font-bold text-brand-600 uppercase tracking-[0.2em] mt-1">Pasitos · Sistema de Control Diario</p>
           </div>
         </div>
-        <div className="bg-white px-6 py-3 rounded-2xl border border-slate-200 shadow-sm text-right mt-4 md:mt-0">
+        <div className="bg-white px-6 py-3 rounded-2xl border border-slate-200 shadow-sm text-right mt-4 md:mt-0 print:mt-0">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Reporte de Asistencia</p>
-          <div className="text-sm font-black text-slate-800">{fechaInicio} <span className="text-violet-400">/</span> {fechaFin}</div>
+          <div className="text-sm font-black text-slate-800">{fechaInicio} <span className="text-brand-400">/</span> {fechaFin}</div>
         </div>
       </div>
 
@@ -103,17 +114,17 @@ const PanelReportes = () => {
         <div className="bg-white p-4 rounded-[2rem] shadow-sm flex flex-wrap lg:flex-nowrap items-end gap-4 border border-slate-200/60">
           <div className="flex-1 min-w-[140px]">
             <label className="text-[10px] font-black text-slate-400 uppercase ml-2 block mb-1">Inicio</label>
-            <input type="date" value={fechaInicio} onChange={(e)=>setFechaInicio(e.target.value)} className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl font-bold text-sm outline-none focus:border-violet-400 transition-colors" />
+            <input type="date" value={fechaInicio} onChange={(e)=>setFechaInicio(e.target.value)} className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl font-bold text-sm outline-none focus:border-brand-400 transition-colors" />
           </div>
           <div className="flex-1 min-w-[140px]">
             <label className="text-[10px] font-black text-slate-400 uppercase ml-2 block mb-1">Fin</label>
-            <input type="date" value={fechaFin} onChange={(e)=>setFechaFin(e.target.value)} className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl font-bold text-sm outline-none focus:border-violet-400 transition-colors" />
+            <input type="date" value={fechaFin} onChange={(e)=>setFechaFin(e.target.value)} className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl font-bold text-sm outline-none focus:border-brand-400 transition-colors" />
           </div>
           <div className="flex-[2] min-w-[200px]">
             <label className="text-[10px] font-black text-slate-400 uppercase ml-2 block mb-1">Filtrar Alumno</label>
-            <input type="text" placeholder="BUSCAR POR NOMBRE..." value={busquedaNombre} onChange={(e)=>setBusquedaNombre(e.target.value)} className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl font-bold text-sm outline-none focus:border-violet-400 transition-colors uppercase" />
+            <input type="text" placeholder="BUSCAR POR NOMBRE..." value={busquedaNombre} onChange={(e)=>setBusquedaNombre(e.target.value)} className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl font-bold text-sm outline-none focus:border-brand-400 transition-colors uppercase" />
           </div>
-          <button onClick={() => window.print()} className="bg-violet-600 hover:bg-violet-700 text-white font-black px-6 py-3 rounded-xl flex items-center gap-2 shadow-lg text-xs uppercase transition-all active:scale-95">
+          <button onClick={() => window.print()} className="bg-brand-600 hover:bg-brand-700 text-white font-black px-6 py-3 rounded-xl flex items-center gap-2 shadow-lg text-xs uppercase transition-all active:scale-95">
             <Download size={18}/> Imprimir Reporte
           </button>
         </div>
@@ -141,7 +152,19 @@ const PanelReportes = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {reportesProcesados.map((reg, i) => {
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="p-10 text-center text-slate-400 font-black uppercase tracking-widest text-xs">
+                    Cargando reportes...
+                  </td>
+                </tr>
+              ) : reportesProcesados.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="p-10 text-center text-slate-400 font-black uppercase tracking-widest text-xs">
+                    Sin registros para este rango
+                  </td>
+                </tr>
+              ) : reportesProcesados.map((reg, i) => {
                 const esSalida = reg.tipo === 'SALIDA';
                 const b = reg.bitacora || {};
                 return (
@@ -149,12 +172,12 @@ const PanelReportes = () => {
                     <td className="p-4 border-r border-slate-50 align-top">
                       <div className="text-[10px] font-bold text-slate-400">{reg.fecha.split(' ')[0]}</div>
                       <div className="text-[11px] font-black text-slate-800 mt-1 flex items-center gap-1">
-                        <Clock size={12} className="text-violet-500"/> {reg.fecha.split(' ')[1]}
+                        <Clock size={12} className="text-brand-500"/> {reg.fecha.split(' ')[1]}
                       </div>
                     </td>
                     <td className="p-4 border-r border-slate-50 align-top">
                       <div className="font-black text-slate-900 uppercase text-[11px] leading-tight mb-1">{reg.hijo_nombre}</div>
-                      <div className="text-[9px] text-violet-500 font-bold uppercase flex items-center gap-1">
+                      <div className="text-[9px] text-brand-500 font-bold uppercase flex items-center gap-1">
                         <User size={10} className="opacity-70"/>{reg.tutor_nombre}
                       </div>
                     </td>
@@ -208,8 +231,8 @@ const PanelReportes = () => {
                           )}
                         </div>
                       ) : (
-                        <div className="bg-violet-50/40 p-3 rounded-xl border border-violet-100 border-dashed">
-                          <span className="text-[8px] font-black text-violet-600 block mb-1 uppercase tracking-widest">Nota de Ingreso</span>
+                        <div className="bg-brand-50/40 p-3 rounded-xl border border-brand-100 border-dashed">
+                          <span className="text-[8px] font-black text-brand-600 block mb-1 uppercase tracking-widest">Nota de Ingreso</span>
                           <p className="text-[11px] font-bold text-slate-600 italic">
                             "{reg.obs_asistencia || "Sin novedades reportadas."}"
                           </p>
