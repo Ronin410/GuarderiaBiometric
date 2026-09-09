@@ -31,6 +31,7 @@ import { hoyLocal } from './utils/fecha';
 import InstalarApp from './components/InstalarApp';
 import { mostrarExito, mostrarAviso } from './utils/alertas';
 import DinoDecorativo from './components/DinoDecorativo';
+import AvisoPrivacidadModal from './AvisoPrivacidadModal';
 
 const formatoFechaEvento = (iso) => {
   try {
@@ -71,6 +72,15 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
   const [circulares, setCirculares] = useState([]);
   const [eventos, setEventos] = useState([]);
   const [notifEstado, setNotifEstado] = useState('default');
+  // "El papá debería poder volver a ver el aviso de privacidad después de
+  // aceptarlo, por si quiere revisarlo con calma" -- se acepta una sola vez,
+  // al enrolar el rostro en el kiosco, sin tiempo de leerlo con calma ahí
+  // parado. avisoInfo se pide la primera vez que toca el link (no en el
+  // cargarTodo() de arriba, que ya hace suficientes peticiones al abrir el
+  // dashboard) y se guarda para no volver a pedirlo si lo abre otra vez.
+  const [avisoInfo, setAvisoInfo] = useState(null);
+  const [mostrarModalAviso, setMostrarModalAviso] = useState(false);
+  const [cargandoAviso, setCargandoAviso] = useState(false);
 
   // Stripe redirige aquí (a la raíz de la app) con ?pago_colegiatura=exito
   // o =cancelado tras el Checkout -- ver success_url/cancel_url en
@@ -206,6 +216,27 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
       alCerrarSesion();
     } else {
       window.location.href = '/';
+    }
+  };
+
+  const verAvisoPrivacidad = async () => {
+    if (avisoInfo) {
+      setMostrarModalAviso(true);
+      return;
+    }
+    setCargandoAviso(true);
+    try {
+      const res = await api.get('/aviso-privacidad');
+      if (!res.data.configurado) {
+        mostrarAviso('Esta guardería todavía no tiene un Aviso de Privacidad configurado.', 'Sin aviso disponible');
+        return;
+      }
+      setAvisoInfo(res.data);
+      setMostrarModalAviso(true);
+    } catch {
+      mostrarAviso('No se pudo cargar el Aviso de Privacidad. Intenta de nuevo.', 'Error');
+    } finally {
+      setCargandoAviso(false);
     }
   };
 
@@ -538,10 +569,27 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
         </div>
 
         {/* FOOTER */}
-        <div className="text-center pt-8">
+        <div className="text-center pt-8 space-y-3">
+            <button
+              onClick={verAvisoPrivacidad}
+              disabled={cargandoAviso}
+              className="text-[9px] font-black text-slate-400 hover:text-brand-600 uppercase tracking-widest underline underline-offset-2 disabled:opacity-50 transition-colors"
+            >
+              {cargandoAviso ? 'Cargando...' : 'Ver Aviso de Privacidad'}
+            </button>
             <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.4em]">Protegido por Pasitos</p>
         </div>
       </div>
+
+      {mostrarModalAviso && avisoInfo && (
+        <AvisoPrivacidadModal
+          texto={avisoInfo.texto}
+          pdfUrl={avisoInfo.pdf_url}
+          version={avisoInfo.version}
+          soloLectura
+          onCancelar={() => setMostrarModalAviso(false)}
+        />
+      )}
     </div>
   );
 };

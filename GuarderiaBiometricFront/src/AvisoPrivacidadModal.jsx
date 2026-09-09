@@ -6,7 +6,13 @@ import { ShieldCheck, X, Check } from 'lucide-react';
 // biométricos y de menores (LFPDPPP). El texto lo escribe el admin desde el
 // panel de Configuración — este componente solo lo presenta y captura la
 // aceptación.
-const AvisoPrivacidadModal = ({ texto, pdfUrl, version, onAceptar, onCancelar }) => {
+//
+// soloLectura -- "el papá debería poder volver a ver el aviso después de
+// aceptarlo, por si quiere revisarlo con calma": mismo componente, pero sin
+// el botón de aceptar (nada que firmar de nuevo) ni el texto que asume que
+// hay un tutor presente frente al kiosco. Lo usa DashboardPadre.jsx para
+// consultarlo en cualquier momento, ya logueado.
+const AvisoPrivacidadModal = ({ texto, pdfUrl, version, onAceptar, onCancelar, soloLectura = false }) => {
   return (
     <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
       <div className="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl flex flex-col max-h-[85vh] overflow-hidden">
@@ -15,7 +21,7 @@ const AvisoPrivacidadModal = ({ texto, pdfUrl, version, onAceptar, onCancelar })
           <div>
             <h2 className="text-lg font-black uppercase text-slate-900 leading-tight">Aviso de Privacidad</h2>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-              Versión {version} · Léelo con el tutor antes de continuar
+              Versión {version} · {soloLectura ? 'Puedes consultarlo cuando quieras' : 'Léelo con el tutor antes de continuar'}
             </p>
           </div>
           <button onClick={onCancelar} className="ml-auto text-slate-400 hover:text-slate-600 p-1"><X size={24} /></button>
@@ -33,17 +39,25 @@ const AvisoPrivacidadModal = ({ texto, pdfUrl, version, onAceptar, onCancelar })
         )}
 
         <div className="p-6 sm:p-8 pt-4 border-t border-slate-100 space-y-3">
-          <p className="text-[10px] text-slate-400 text-center">
-            Al aceptar, confirmas que el tutor presente leyó este aviso y está de acuerdo.
-          </p>
-          <div className="flex gap-3">
-            <button onClick={onCancelar} className="flex-1 py-4 text-slate-500 font-bold uppercase text-xs rounded-2xl hover:bg-slate-50">
-              Cancelar
+          {soloLectura ? (
+            <button onClick={onCancelar} className="w-full py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black uppercase text-xs rounded-2xl transition-all active:scale-95">
+              Cerrar
             </button>
-            <button onClick={onAceptar} className="flex-1 flex items-center justify-center gap-2 py-4 bg-brand-600 hover:bg-brand-700 text-white font-black uppercase text-xs rounded-2xl shadow-lg active:scale-95 transition-all">
-              <Check size={18} /> Acepto en nombre del tutor presente
-            </button>
-          </div>
+          ) : (
+            <>
+              <p className="text-[10px] text-slate-400 text-center">
+                Al aceptar, confirmas que el tutor presente leyó este aviso y está de acuerdo.
+              </p>
+              <div className="flex gap-3">
+                <button onClick={onCancelar} className="flex-1 py-4 text-slate-500 font-bold uppercase text-xs rounded-2xl hover:bg-slate-50">
+                  Cancelar
+                </button>
+                <button onClick={onAceptar} className="flex-1 flex items-center justify-center gap-2 py-4 bg-brand-600 hover:bg-brand-700 text-white font-black uppercase text-xs rounded-2xl shadow-lg active:scale-95 transition-all">
+                  <Check size={18} /> Acepto en nombre del tutor presente
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
