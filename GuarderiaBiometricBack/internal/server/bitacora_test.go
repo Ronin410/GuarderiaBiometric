@@ -1,6 +1,9 @@
 package server
 
 import (
+	"bytes"
+	"database/sql"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -9,6 +12,27 @@ import (
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 )
+
+// formularioSeguimientoDePrueba arma el mismo multipart/form-data que manda
+// el frontend a /seguimiento (soporta subir fotos junto con el texto, ver
+// handleGuardarSeguimiento) -- sin campo "fotos", así que
+// form.File["fotos"] sale vacío y el ciclo de subida a S3 no corre.
+func formularioSeguimientoDePrueba(t *testing.T, campos map[string]string) *http.Request {
+	t.Helper()
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	for campo, valor := range campos {
+		if err := w.WriteField(campo, valor); err != nil {
+			t.Fatalf("no se pudo escribir el campo %q del formulario: %v", campo, err)
+		}
+	}
+	if err := w.Close(); err != nil {
+		t.Fatalf("no se pudo cerrar el formulario multipart: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/seguimiento", &buf)
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	return req
+}
 
 // TestObtenerSeguimientoIncluyeAsistencia cubre "acá no aparece que el niño
 // entró o ya salió" -- /seguimiento/:hijo_id ahora también trae la hora de
@@ -73,4 +97,44 @@ func TestObtenerSeguimientoIncluyeAsistencia(t *testing.T) {
 			t.Errorf("body debería traer hora_entrada/hora_salida en null: %s", body)
 		}
 	})
+}
+
+// TestGuardarSeguimientoRegistraHistorial cubre lo que antes no dejaba
+// rastro: guardar la bitácora de un niño dos veces el mismo día (una
+// corrección) debe dejar attribuido quién guardó cada versión -- no solo
+// pisar el valor anterior en seguimiento_diario, sino además dejar una
+// fila nueva en seguimiento_diario_historial por cada guardado.
+func TestGuardarSeguimientoRegistraHistorial(t *testing.T) {
+	srv, mock := nuevoServidorDePruebaConDB(t)
+
+	mock.ExpectQuery("INSERT INTO seguimiento_diario(.|\n)*ON CONFLICT(.|\n)*RETURNING id").
+		WithArgs("5", 1, sqlmock.AnyArg(), "Todo", "Poco", "Nada", "Seco", "Sin novedad", true, 1, sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(10))
+	mock.ExpectExec("INSERT INTO seguimiento_diario_historial").
+		WithArgs(10, "5", 1, sqlmock.AnyArg(), "Todo", "Poco", "Nada", "Seco", "Sin novedad", true, 1).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery("SELECT p.id, p.celular(.|\n)*FROM padres").
+		WithArgs("5").
+		WillReturnError(sql.ErrNoRows)
+
+	r := nuevoRouterDePrueba(srv)
+	req := formularioSeguimientoDePrueba(t, map[string]string{
+		"hijo_id":       "5",
+		"desayuno":      "Todo",
+		"comida":        "Poco",
+		"merienda":      "Nada",
+		"esfinter":      "Seco",
+		"observaciones": "Sin novedad",
+		"durmio":        "true",
+	})
+	autenticarRequestPrueba(t, req, srv.JWTKey, "staff", time.Hour)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("código = %d; esperado 200 (body: %s)", w.Code, w.Body.String())
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("expectativas de sqlmock no cumplidas -- ¿no se guardó el historial? %v", err)
+	}
 }

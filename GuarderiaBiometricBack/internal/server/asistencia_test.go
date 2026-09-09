@@ -43,7 +43,7 @@ func TestConfirmarAsistencia(t *testing.T) {
 			WithArgs(42, 1).
 			WillReturnError(sql.ErrNoRows)
 		mock.ExpectExec("INSERT INTO asistencia").
-			WithArgs(1, 42, true, false, "", "ENTRADA", 1).
+			WithArgs(1, 42, true, false, "", "ENTRADA", 1, 1).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 
 		r := nuevoRouterDePrueba(srv)
@@ -75,7 +75,7 @@ func TestConfirmarAsistencia(t *testing.T) {
 			WithArgs(42, 1).
 			WillReturnRows(sqlmock.NewRows([]string{"tipo_movimiento"}).AddRow("ENTRADA"))
 		mock.ExpectExec("INSERT INTO asistencia").
-			WithArgs(1, 42, true, false, "", "SALIDA", 1).
+			WithArgs(1, 42, true, false, "", "SALIDA", 1, 1).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 
 		r := nuevoRouterDePrueba(srv)
@@ -129,6 +129,80 @@ func TestConfirmarAsistencia(t *testing.T) {
 
 		if w.Code != http.StatusUnauthorized {
 			t.Errorf("código = %d; esperado 401 (body: %s)", w.Code, w.Body.String())
+		}
+	})
+}
+
+// TestForzarEstatusRequiereAdmin cubre el punto que antes no se probaba en
+// absoluto: "/admin/forzar-estatus" salta la verificación biométrica, así
+// que solo debe poder llamarlo la cuenta admin de la guardería -- antes
+// bastaba con estar logueado, con CUALQUIER rol (incluido "papa").
+func TestForzarEstatusRequiereAdmin(t *testing.T) {
+	forzarEstatusRequest := func(t *testing.T, jwtKey []byte, rol string) *http.Request {
+		t.Helper()
+		body, _ := json.Marshal(map[string]any{"hijo_id": 42, "tipo_movimiento": "ENTRADA"})
+		req := httptest.NewRequest(http.MethodPost, "/admin/forzar-estatus", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		autenticarRequestPrueba(t, req, jwtKey, rol, time.Hour)
+		return req
+	}
+
+	for _, rol := range []string{"staff", "papa"} {
+		t.Run(rol+" -> 403, no llega a tocar la base de datos", func(t *testing.T) {
+			mockDB, _, err := sqlmock.New()
+			if err != nil {
+				t.Fatalf("sqlmock: %v", err)
+			}
+			defer mockDB.Close()
+			srv := nuevoServerDePrueba(mockDB)
+
+			r := nuevoRouterDePrueba(srv)
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, forzarEstatusRequest(t, srv.JWTKey, rol))
+
+			if w.Code != http.StatusForbidden {
+				t.Fatalf("código = %d; esperado 403 (body: %s)", w.Code, w.Body.String())
+			}
+		})
+	}
+
+	t.Run("admin -> 200, y el registro queda atribuido a esa cuenta", func(t *testing.T) {
+		mockDB, mock, err := sqlmock.New()
+		if err != nil {
+			t.Fatalf("sqlmock: %v", err)
+		}
+		defer mockDB.Close()
+		mockDBAuth, mockAuth, err := sqlmock.New()
+		if err != nil {
+			t.Fatalf("sqlmock (auth): %v", err)
+		}
+		defer mockDBAuth.Close()
+
+		srv := nuevoServerDePrueba(mockDB)
+		srv.DBAuth = mockDBAuth
+
+		mock.ExpectQuery("SELECT padre_id(.|\n)*FROM asistencia").
+			WithArgs(42).
+			WillReturnRows(sqlmock.NewRows([]string{"padre_id"}).AddRow(7))
+		mockAuth.ExpectQuery("SELECT username FROM usuarios").
+			WithArgs(1).
+			WillReturnRows(sqlmock.NewRows([]string{"username"}).AddRow("directora_ana"))
+		mock.ExpectExec("INSERT INTO asistencia").
+			WithArgs(42, 7, 1, "ENTRADA", sqlmock.AnyArg(), sqlmock.AnyArg(), 1).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+
+		r := nuevoRouterDePrueba(srv)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, forzarEstatusRequest(t, srv.JWTKey, "admin"))
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("código = %d; esperado 200 (body: %s)", w.Code, w.Body.String())
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("expectativas de sqlmock (DB) no cumplidas: %v", err)
+		}
+		if err := mockAuth.ExpectationsWereMet(); err != nil {
+			t.Errorf("expectativas de sqlmock (DBAuth) no cumplidas: %v", err)
 		}
 	})
 }

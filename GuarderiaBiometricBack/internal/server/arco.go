@@ -130,7 +130,7 @@ func obtenerPagosDeHijo(db *sql.DB, hijoID int, guarderiaID any) []Pago {
 	pagos := []Pago{}
 	rows, err := db.Query(`
         SELECT id, hijo_id, monto, concepto, periodo, fecha_pago, metodo_pago, COALESCE(observaciones, '')
-        FROM pagos WHERE hijo_id = $1 AND guarderia_id = $2 ORDER BY fecha_pago DESC`, hijoID, guarderiaID)
+        FROM pagos WHERE hijo_id = $1 AND guarderia_id = $2 AND eliminado_en IS NULL ORDER BY fecha_pago DESC`, hijoID, guarderiaID)
 	if err != nil {
 		return pagos
 	}

@@ -63,7 +63,7 @@ const sqlDeudaAcumulada = `(
         FROM (
             SELECT p2.periodo, COALESCE(SUM(p2.monto) FILTER (WHERE p2.concepto = 'Colegiatura'), 0) as pagado
             FROM pagos p2
-            WHERE p2.hijo_id = h.id AND p2.periodo < %s
+            WHERE p2.hijo_id = h.id AND p2.periodo < %s AND p2.eliminado_en IS NULL
             GROUP BY p2.periodo
         ) meses
     )`
@@ -138,6 +138,7 @@ func (s *Server) registrarRutasPagos(r *gin.Engine) {
         WHERE guarderia_id = $1
           AND ($2 = '' OR hijo_id::text = $2)
           AND ($3 = '' OR periodo = $3)
+          AND eliminado_en IS NULL
         ORDER BY fecha_pago DESC, id DESC`
 
 		rows, err := s.DB.Query(query, gID, hijoID, periodo)
@@ -179,7 +180,7 @@ func (s *Server) registrarRutasPagos(r *gin.Engine) {
                COALESCE(SUM(p.monto) FILTER (WHERE p.concepto = 'Otro'), 0) as total_otro,
                %s as deuda_acumulada
         FROM hijos h
-        LEFT JOIN pagos p ON p.hijo_id = h.id AND p.periodo = $2
+        LEFT JOIN pagos p ON p.hijo_id = h.id AND p.periodo = $2 AND p.eliminado_en IS NULL
         WHERE h.guarderia_id = $1 AND h.activo = true
         GROUP BY h.id, h.nombre_niño, h.colegiatura_mensual
         ORDER BY h.nombre_niño ASC`, fmt.Sprintf(sqlDeudaAcumulada, "$2"))
@@ -208,11 +209,23 @@ func (s *Server) registrarRutasPagos(r *gin.Engine) {
 	})
 
 	// --- ELIMINAR UN PAGO (corrección de captura) ---
+	// Borrado suave, no DELETE: un registro financiero que desaparece sin
+	// dejar rastro es justo lo contrario de lo que se le puede pedir a una
+	// guardería que demuestre. Se marca eliminado_en/eliminado_por en vez de
+	// borrar la fila -- toda consulta de saldos/historiales/recibos filtra
+	// eliminado_en IS NULL (ver sqlDeudaAcumulada y las demás queries de
+	// este archivo), así que para cualquier pantalla de la app esto se
+	// comporta exactamente igual que el DELETE de antes; la fila solo sigue
+	// existiendo en la base por si algún día hay que revisar qué pasó.
 	r.DELETE("/pagos/:id", auth, staff, func(c *gin.Context) {
 		gID, _ := c.Get("guarderia_id")
+		userID, _ := c.Get("user_id")
 		pagoID := c.Param("id")
 
-		result, err := s.DB.Exec("DELETE FROM pagos WHERE id = $1 AND guarderia_id = $2", pagoID, gID)
+		result, err := s.DB.Exec(
+			"UPDATE pagos SET eliminado_en = NOW(), eliminado_por = $1 WHERE id = $2 AND guarderia_id = $3 AND eliminado_en IS NULL",
+			userID, pagoID, gID,
+		)
 		if err != nil {
 			s.logError(c, "No se pudo eliminar el pago", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo eliminar el pago"})
@@ -251,7 +264,7 @@ func (s *Server) registrarRutasPagos(r *gin.Engine) {
                %s as deuda_acumulada
         FROM hijos h
         INNER JOIN tutor_hijos th ON th.hijo_id = h.id
-        LEFT JOIN pagos p ON p.hijo_id = h.id AND p.periodo = $3
+        LEFT JOIN pagos p ON p.hijo_id = h.id AND p.periodo = $3 AND p.eliminado_en IS NULL
         WHERE th.padre_id = $1 AND h.guarderia_id = $2 AND h.activo = true
         GROUP BY h.id, h.nombre_niño, h.colegiatura_mensual
         ORDER BY h.nombre_niño ASC`, fmt.Sprintf(sqlDeudaAcumulada, "$3"))
@@ -302,7 +315,7 @@ func (s *Server) registrarRutasPagos(r *gin.Engine) {
 		query := `
         SELECT id, hijo_id, monto, concepto, periodo, fecha_pago, metodo_pago, COALESCE(observaciones, '')
         FROM pagos
-        WHERE guarderia_id = $1 AND hijo_id::text = $2
+        WHERE guarderia_id = $1 AND hijo_id::text = $2 AND eliminado_en IS NULL
         ORDER BY fecha_pago DESC, id DESC`
 
 		rows, err := s.DB.Query(query, gID, hijoID)

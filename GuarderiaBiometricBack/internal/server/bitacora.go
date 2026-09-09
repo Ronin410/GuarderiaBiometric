@@ -179,6 +179,7 @@ func (s *Server) handleReportesAsistencia(c *gin.Context) {
 
 func (s *Server) handleGuardarSeguimiento(c *gin.Context) {
 	gID, _ := c.Get("guarderia_id")
+	usuarioID, _ := c.Get("user_id")
 
 	hijoID := c.PostForm("hijo_id")
 	desayuno := c.PostForm("desayuno")
@@ -191,11 +192,19 @@ func (s *Server) handleGuardarSeguimiento(c *gin.Context) {
 	ahora := time.Now().In(zonaMazatlan())
 	fechaHoy := ahora.Format("2006-01-02")
 
+	// El UPSERT sigue pisando el valor "vigente" del día (es lo que lee
+	// VistaPadreDetalle: la última versión, no el historial completo) --
+	// actualizado_por/actualizado_en quedan en la fila misma para saber de
+	// un vistazo quién tocó esto por última vez, y el INSERT de abajo a
+	// seguimiento_diario_historial (nunca se le hace UPDATE ni DELETE desde
+	// ningún código de este proyecto) deja además una copia de ESTA versión
+	// completa, para que "no comió" -> "comió bien" al día siguiente quede
+	// documentado en vez de simplemente desaparecer.
 	var seguimientoID int
 	query := `
     INSERT INTO seguimiento_diario
-    (hijo_id, guarderia_id, fecha, desayuno, comida, merienda, esfinter, observaciones, durmio)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    (hijo_id, guarderia_id, fecha, desayuno, comida, merienda, esfinter, observaciones, durmio, actualizado_por, actualizado_en)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
     ON CONFLICT (hijo_id, fecha)
     DO UPDATE SET
         desayuno = EXCLUDED.desayuno,
@@ -203,14 +212,29 @@ func (s *Server) handleGuardarSeguimiento(c *gin.Context) {
         merienda = EXCLUDED.merienda,
         esfinter = EXCLUDED.esfinter,
         observaciones = EXCLUDED.observaciones,
-        durmio = EXCLUDED.durmio
+        durmio = EXCLUDED.durmio,
+        actualizado_por = EXCLUDED.actualizado_por,
+        actualizado_en = EXCLUDED.actualizado_en
     RETURNING id;`
 
-	err := s.DB.QueryRow(query, hijoID, gID, fechaHoy, desayuno, comida, merienda, esfinter, observaciones, durmio).Scan(&seguimientoID)
+	err := s.DB.QueryRow(query, hijoID, gID, fechaHoy, desayuno, comida, merienda, esfinter, observaciones, durmio, usuarioID, ahora).Scan(&seguimientoID)
 	if err != nil {
 		s.logError(c, "No se pudo actualizar la bitácora", err, "hijo_id", hijoID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo actualizar la bitácora"})
 		return
+	}
+
+	if _, err := s.DB.Exec(
+		`INSERT INTO seguimiento_diario_historial
+        (seguimiento_id, hijo_id, guarderia_id, fecha, desayuno, comida, merienda, esfinter, observaciones, durmio, usuario_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+		seguimientoID, hijoID, gID, fechaHoy, desayuno, comida, merienda, esfinter, observaciones, durmio, usuarioID,
+	); err != nil {
+		// No se aborta el guardado por esto -- la versión vigente ya quedó
+		// bien en seguimiento_diario, que es lo que ve la familia. Perder
+		// una entrada del historial es peor que no tenerlo, pero no debe
+		// tumbar el guardado del día para el niño.
+		s.logError(c, "No se pudo guardar la versión en el historial de bitácora", err, "seguimiento_id", seguimientoID)
 	}
 
 	if hijoIDNum, errConv := strconv.Atoi(hijoID); errConv == nil {

@@ -96,7 +96,7 @@ func (s *Server) handleCrearCheckoutColegiatura(c *gin.Context) {
         SELECT h.nombre_niño, h.colegiatura_mensual,
                COALESCE(SUM(p.monto) FILTER (WHERE p.concepto = 'Colegiatura'), 0)
         FROM hijos h
-        LEFT JOIN pagos p ON p.hijo_id = h.id AND p.periodo = $2
+        LEFT JOIN pagos p ON p.hijo_id = h.id AND p.periodo = $2 AND p.eliminado_en IS NULL
         WHERE h.id = $1 AND h.guarderia_id = $3
         GROUP BY h.id, h.nombre_niño, h.colegiatura_mensual`,
 		input.HijoID, input.Periodo, gID,

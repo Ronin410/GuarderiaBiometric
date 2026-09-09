@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/base64"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -44,10 +45,16 @@ type RegistroAsistencia struct {
 
 func (s *Server) registrarRutasAsistencia(r *gin.Engine) {
 	auth := middleware.Auth(s.JWTKey)
+	// "/admin/forzar-estatus" salta la verificación biométrica -- marca una
+	// entrada/salida a mano cuando Rekognition no reconoce a alguien. Antes
+	// solo exigía auth (CUALQUIER cuenta logueada, incluida una de rol
+	// "papa", podía llamarla directo sin pasar por la UI); ahora exige
+	// admin, en línea con el prefijo "/admin/" que ya tenía la ruta.
+	admin := middleware.RequireAdmin()
 	r.POST("/registrar", auth, s.handleRegistrar)
 	r.POST("/identificar", auth, s.identificarLimiter.Middleware(), s.handleIdentificar)
 	r.POST("/confirmar-asistencia", auth, s.handleConfirmarAsistencia)
-	r.POST("/admin/forzar-estatus", auth, s.handleForzarEstatus)
+	r.POST("/admin/forzar-estatus", auth, admin, s.handleForzarEstatus)
 }
 
 func (s *Server) handleRegistrar(c *gin.Context) {
@@ -182,9 +189,27 @@ func (s *Server) handleRegistrar(c *gin.Context) {
 	// chocaba contra el id, no contra el username, pero el mensaje decía
 	// "usuario ya existe" porque el chequeo de antes no distinguía una
 	// cosa de la otra.
+	// padres + consentimientos van en una sola transacción: el rostro ya
+	// quedó indexado en Rekognition arriba (eso no se puede meter en una
+	// transacción de Postgres), pero de aquí para abajo NO puede quedar un
+	// padre con face_id sin su fila de consentimiento correspondiente --
+	// antes, si el INSERT a consentimientos fallaba, el código solo lo
+	// anotaba en el log y devolvía "OK" de todos modos, dejando la
+	// plantilla biométrica guardada sin que existiera evidencia de que el
+	// tutor la aceptó. Si algo de esto falla, se hace rollback del padre Y
+	// se desindexa el rostro de Rekognition -- el registro completo se
+	// cancela en vez de quedar a medias.
+	tx, err := s.DB.Begin()
+	if err != nil {
+		s.logError(c, "No se pudo iniciar la transacción de registro", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo completar el registro. Intenta de nuevo."})
+		return
+	}
+	defer tx.Rollback()
+
 	var nuevoPadreID int
 	if input.CrearCuenta {
-		if err := s.DB.QueryRow(`
+		if err := tx.QueryRow(`
             SELECT GREATEST(
                 COALESCE((SELECT MAX(id) FROM padres), 0),
                 COALESCE((SELECT MAX(id) FROM usuarios), 0)
@@ -193,7 +218,7 @@ func (s *Server) handleRegistrar(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo completar el registro. Intenta de nuevo."})
 			return
 		}
-		if _, err := s.DB.Exec(
+		if _, err := tx.Exec(
 			"INSERT INTO padres (id, nombre, face_id, guarderia_id) VALUES ($1, $2, $3, $4)",
 			nuevoPadreID, input.Nombre, faceID, gID,
 		); err != nil {
@@ -201,21 +226,45 @@ func (s *Server) handleRegistrar(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo completar el registro. Intenta de nuevo."})
 			return
 		}
-		if _, err := s.DB.Exec(`SELECT setval('padres_id_seq', (SELECT MAX(id) FROM padres))`); err != nil {
+		// setval() no es transaccional (es un comportamiento a propósito de
+		// Postgres, para no bloquear inserts concurrentes) -- si más abajo
+		// se hace rollback, este avance de secuencia se queda igual. Es
+		// aceptable: en el peor caso deja un hueco en la secuencia, nunca
+		// un id repetido.
+		if _, err := tx.Exec(`SELECT setval('padres_id_seq', (SELECT MAX(id) FROM padres))`); err != nil {
 			s.logError(c, "No se pudo reacomodar la secuencia de padres tras crear el padre", err, "padre_id", nuevoPadreID)
 		}
 	} else {
-		s.DB.QueryRow("INSERT INTO padres (nombre, face_id, guarderia_id) VALUES ($1, $2, $3) RETURNING id",
-			input.Nombre, faceID, gID).Scan(&nuevoPadreID)
+		if err := tx.QueryRow(
+			"INSERT INTO padres (nombre, face_id, guarderia_id) VALUES ($1, $2, $3) RETURNING id",
+			input.Nombre, faceID, gID,
+		).Scan(&nuevoPadreID); err != nil {
+			s.logError(c, "No se pudo crear el padre", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo completar el registro. Intenta de nuevo."})
+			return
+		}
 	}
 
-	_, err = s.DB.Exec(
+	if _, err := tx.Exec(
 		`INSERT INTO consentimientos (padre_id, padre_nombre_historico, guarderia_id, version_aviso, ip)
 		 VALUES ($1, $2, $3, $4, $5)`,
 		nuevoPadreID, input.Nombre, gID, versionAviso, c.ClientIP(),
-	)
-	if err != nil {
-		s.logError(c, "No se pudo registrar el consentimiento del padre", err, "padre_id", nuevoPadreID)
+	); err != nil {
+		s.logError(c, "No se pudo registrar el consentimiento del padre -- se cancela el registro completo", err, "padre_id", nuevoPadreID)
+		if _, errDel := s.Rek.DeleteFaces(context.TODO(), &rekognition.DeleteFacesInput{
+			CollectionId: aws.String(colID),
+			FaceIds:      []string{faceID},
+		}); errDel != nil {
+			s.logError(c, "Tampoco se pudo desindexar el rostro de Rekognition tras el fallo de consentimiento", errDel, "face_id", faceID)
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo completar el registro. Intenta de nuevo."})
+		return
+	}
+
+	if err := tx.Commit(); err != nil {
+		s.logError(c, "No se pudo confirmar el registro del tutor", err, "padre_id", nuevoPadreID)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo completar el registro. Intenta de nuevo."})
+		return
 	}
 
 	respuesta := gin.H{"status": "OK", "padre_id": nuevoPadreID}
@@ -347,6 +396,11 @@ func (s *Server) handleIdentificar(c *gin.Context) {
 
 func (s *Server) handleConfirmarAsistencia(c *gin.Context) {
 	gID, _ := c.Get("guarderia_id")
+	// La biometría prueba QUÉ tutor recogió al niño (padre_id, via
+	// Rekognition); esto prueba QUÉ CUENTA de staff operaba el kiosco en ese
+	// momento -- sin esto, dos maestras que se turnan la recepción el mismo
+	// día son indistinguibles en el historial.
+	usuarioID, _ := c.Get("user_id")
 
 	var req RegistroAsistencia
 	if err := c.BindJSON(&req); err != nil {
@@ -379,10 +433,10 @@ func (s *Server) handleConfirmarAsistencia(c *gin.Context) {
 	}
 
 	query := `
-        INSERT INTO asistencia (padre_id, hijo_id, aseado, reporte_golpe, observaciones, tipo_movimiento, guarderia_id)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)`
+        INSERT INTO asistencia (padre_id, hijo_id, aseado, reporte_golpe, observaciones, tipo_movimiento, guarderia_id, usuario_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 
-	_, err = s.DB.Exec(query, req.PadreID, req.HijoID, req.Aseado, req.ReporteGolpe, req.Observaciones, tipoFinal, gID)
+	_, err = s.DB.Exec(query, req.PadreID, req.HijoID, req.Aseado, req.ReporteGolpe, req.Observaciones, tipoFinal, gID, usuarioID)
 	if err != nil {
 		s.logError(c, "No se pudo guardar la asistencia", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo guardar"})
@@ -405,6 +459,7 @@ func (s *Server) handleForzarEstatus(c *gin.Context) {
 	}
 
 	gID, _ := c.Get("guarderia_id")
+	usuarioID, _ := c.Get("user_id")
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Datos inválidos"})
@@ -438,13 +493,24 @@ func (s *Server) handleForzarEstatus(c *gin.Context) {
 		}
 	}
 
+	// El texto ya no es un string fijo idéntico para cualquier admin --
+	// lleva el username real de quién forzó el movimiento, y usuario_id
+	// abajo deja además el dato en una columna consultable (por si algún
+	// día hace falta un reporte "todos los forzados de este mes", en vez de
+	// tener que leer el texto libre uno por uno).
+	// usuarios vive en la conexión DBAuth, no en DB (ver personal.go/auth.go
+	// -- toda lectura de esta tabla en el proyecto pasa por DBAuth).
+	var usernameAdmin string
+	if err := s.DBAuth.QueryRow("SELECT username FROM usuarios WHERE id = $1", usuarioID).Scan(&usernameAdmin); err != nil {
+		usernameAdmin = fmt.Sprintf("cuenta #%v", usuarioID)
+	}
+	observacion := fmt.Sprintf("Movimiento forzado manualmente por %s (sin verificación biométrica)", usernameAdmin)
+
 	query := `
-        INSERT INTO asistencia (hijo_id, padre_id, guarderia_id, tipo_movimiento, fecha_hora, observaciones)
-        VALUES ($1, $2, $3, $4, $5, $6)`
+        INSERT INTO asistencia (hijo_id, padre_id, guarderia_id, tipo_movimiento, fecha_hora, observaciones, usuario_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)`
 
-	observacion := "Actualizado por Admin"
-
-	_, err = s.DB.Exec(query, req.HijoID, padreID, gID, req.Movimiento, ahora, observacion)
+	_, err = s.DB.Exec(query, req.HijoID, padreID, gID, req.Movimiento, ahora, observacion, usuarioID)
 	if err != nil {
 		s.logError(c, "No se pudo registrar el movimiento (forzar estatus)", err, "hijo_id", req.HijoID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo registrar el movimiento"})

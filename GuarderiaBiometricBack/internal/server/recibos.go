@@ -57,7 +57,7 @@ func (s *Server) handleObtenerRecibo(c *gin.Context) {
         FROM pagos p
         JOIN hijos h ON h.id = p.hijo_id
         JOIN guarderias g ON g.id = p.guarderia_id
-        WHERE p.id = $1 AND p.guarderia_id = $2`,
+        WHERE p.id = $1 AND p.guarderia_id = $2 AND p.eliminado_en IS NULL`,
 		pagoID, gID,
 	).Scan(&rec.ID, &rec.Monto, &rec.Concepto, &rec.Periodo, &fechaPago, &rec.MetodoPago, &rec.Observaciones,
 		&hijoID, &rec.NinoNombre, &rec.GuarderiaNombre, &direccion)
@@ -118,7 +118,7 @@ func (s *Server) handleEnviarRecordatorios(c *gin.Context) {
                COALESCE(SUM(p.monto) FILTER (WHERE p.concepto = 'Colegiatura'), 0),
                %s as deuda_acumulada
         FROM hijos h
-        LEFT JOIN pagos p ON p.hijo_id = h.id AND p.periodo = $2
+        LEFT JOIN pagos p ON p.hijo_id = h.id AND p.periodo = $2 AND p.eliminado_en IS NULL
         WHERE h.guarderia_id = $1 AND h.activo = true
         GROUP BY h.id, h.colegiatura_mensual`, fmt.Sprintf(sqlDeudaAcumulada, "$2")),
 		gID, periodo,
