@@ -41,6 +41,10 @@ type RegistroAsistencia struct {
 	ReporteGolpe  bool   `json:"reporte_golpe"`
 	Observaciones string `json:"observaciones"`
 	Tipo          string `json:"tipo"`
+	// CodigoAccesoID viene de handleIdentificarPorCodigo cuando el
+	// movimiento se originó por un código QR/corto en vez de un rostro
+	// (ver codigos_acceso.go) -- 0 cuando es el flujo biométrico normal.
+	CodigoAccesoID int `json:"codigo_acceso_id,omitempty"`
 }
 
 func (s *Server) registrarRutasAsistencia(r *gin.Engine) {
@@ -408,6 +412,26 @@ func (s *Server) handleConfirmarAsistencia(c *gin.Context) {
 		return
 	}
 
+	// Si el movimiento viene de un código de acceso (QR/corto, ver
+	// codigos_acceso.go), se revalida AQUÍ -- nunca basta con que ya haya
+	// pasado por handleIdentificarPorCodigo, porque entre identificar y
+	// confirmar el papá pudo haberlo revocado desde su celular.
+	observaciones := req.Observaciones
+	var codigoAccesoArg any
+	if req.CodigoAccesoID != 0 {
+		nota, err := s.validarCodigoAccesoParaConfirmar(req.CodigoAccesoID, req.HijoID, gID, req.PadreID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Este código ya no es válido. Vuelve a escanearlo o pide uno nuevo."})
+			return
+		}
+		if observaciones != "" {
+			observaciones = nota + " — " + observaciones
+		} else {
+			observaciones = nota
+		}
+		codigoAccesoArg = req.CodigoAccesoID
+	}
+
 	// Buscamos el último registro de HOY
 	var ultimoTipo string
 	err := s.DB.QueryRow(`
@@ -433,10 +457,10 @@ func (s *Server) handleConfirmarAsistencia(c *gin.Context) {
 	}
 
 	query := `
-        INSERT INTO asistencia (padre_id, hijo_id, aseado, reporte_golpe, observaciones, tipo_movimiento, guarderia_id, usuario_id)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+        INSERT INTO asistencia (padre_id, hijo_id, aseado, reporte_golpe, observaciones, tipo_movimiento, guarderia_id, usuario_id, codigo_acceso_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
 
-	_, err = s.DB.Exec(query, req.PadreID, req.HijoID, req.Aseado, req.ReporteGolpe, req.Observaciones, tipoFinal, gID, usuarioID)
+	_, err = s.DB.Exec(query, req.PadreID, req.HijoID, req.Aseado, req.ReporteGolpe, observaciones, tipoFinal, gID, usuarioID, codigoAccesoArg)
 	if err != nil {
 		s.logError(c, "No se pudo guardar la asistencia", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo guardar"})

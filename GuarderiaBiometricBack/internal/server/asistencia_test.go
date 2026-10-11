@@ -43,7 +43,7 @@ func TestConfirmarAsistencia(t *testing.T) {
 			WithArgs(42, 1).
 			WillReturnError(sql.ErrNoRows)
 		mock.ExpectExec("INSERT INTO asistencia").
-			WithArgs(1, 42, true, false, "", "ENTRADA", 1, 1).
+			WithArgs(1, 42, true, false, "", "ENTRADA", 1, 1, nil).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 
 		r := nuevoRouterDePrueba(srv)
@@ -75,7 +75,7 @@ func TestConfirmarAsistencia(t *testing.T) {
 			WithArgs(42, 1).
 			WillReturnRows(sqlmock.NewRows([]string{"tipo_movimiento"}).AddRow("ENTRADA"))
 		mock.ExpectExec("INSERT INTO asistencia").
-			WithArgs(1, 42, true, false, "", "SALIDA", 1, 1).
+			WithArgs(1, 42, true, false, "", "SALIDA", 1, 1, nil).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 
 		r := nuevoRouterDePrueba(srv)

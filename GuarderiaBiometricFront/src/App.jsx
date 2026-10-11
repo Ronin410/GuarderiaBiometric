@@ -9,7 +9,7 @@ import {
   Lock, LogOut, CheckCircle, KeyRound, RefreshCw, X, Send, Clock, LogOut as LogOutIcon,
   User, IdCard, Wallet, BarChart3, ShieldCheck as ShieldCheckIcon, UserCog, UtensilsCrossed,
   CalendarDays, LayoutDashboard, Settings, Megaphone, MessageCircle, CalendarOff, Soup, ClipboardCheck,
-  BookOpen, Menu, BellRing, ChevronDown
+  BookOpen, Menu, BellRing, ChevronDown, QrCode
 } from 'lucide-react';
 
 // Componentes secundarios
@@ -284,6 +284,15 @@ function MainApp() {
   const [resultado, setResultado] = useState(null);
   const [seleccionados, setSeleccionados] = useState([]);
   const [formAsistencia, setFormAsistencia] = useState({});
+  // "Quiero permitirles que se puedan... por medio de un código QR" --
+  // modo alterno de Recepción, para alguien que no tiene su rostro
+  // enrolado (ver CodigosAccesoPadre.jsx, donde el papá genera el código).
+  // Vive junto al resto del estado del escaneo porque comparte exactamente
+  // el mismo resultado/seleccionados/formAsistencia de abajo: una vez
+  // identificado por código, la pantalla de confirmación es idéntica a la
+  // del rostro.
+  const [modoIdentificacion, setModoIdentificacion] = useState('rostro');
+  const [codigoAcceso, setCodigoAcceso] = useState('');
   // Cuenta del portal del papá, opcional al registrar su rostro -- el tutor
   // está presente en el kiosco en ese momento, así que puede quedar lista de
   // una vez (ver el comentario de handleRegistrar en el backend).
@@ -516,6 +525,8 @@ function MainApp() {
     setCrearCuentaPortal(false);
     setUsernamePortal('');
     setPasswordPortal('');
+    setCodigoAcceso('');
+    setModoIdentificacion('rostro');
   };
 
   const verificarPinAdmin = async () => {
@@ -601,7 +612,12 @@ function MainApp() {
   // dependencia y no `tab` directo: solo debe reiniciar el estado de la
   // cámara cuando de verdad se sale y se vuelve a esta vista, no en cada
   // clic entre esas dos pestañas.
-  const mostrarCamara = tab === 'identificar' || tab === 'registrar';
+  // En modo código la cámara ni se monta (ver el bloque condicionado por
+  // modoIdentificacion más abajo) -- sin esto, estos dos efectos seguían
+  // armando el timeout de "no se pudo activar la cámara" sobre una cámara
+  // que a propósito nunca se intenta prender, y ese error quedaba marcado
+  // para cuando se regresara a modo rostro.
+  const mostrarCamara = tab === 'registrar' || (tab === 'identificar' && modoIdentificacion === 'rostro');
   useEffect(() => {
     if (!mostrarCamara) return;
     setCamaraLista(false);
@@ -710,6 +726,34 @@ function MainApp() {
     }
   };
 
+  // identificarPorCodigo -- el equivalente de capturarYEnviar('identificar')
+  // pero por QR/código corto en vez de rostro. Deja resultado.data en la
+  // MISMA forma (padre, padre_id, hijos) para que de aquí en adelante sea
+  // exactamente la misma pantalla de confirmación que ya existe --
+  // codigo_acceso_id viaja también en resultado.data, y
+  // registrarMultiplesAsistencias lo reenvía al confirmar (ver abajo).
+  const identificarPorCodigo = async () => {
+    const codigo = codigoAcceso.trim();
+    if (!codigo) return mostrarError('Escribe o escanea el código');
+
+    setLoading(true);
+    try {
+      const response = await api.post('/identificar-codigo', { codigo });
+      setResultado({
+        type: 'success',
+        data: { ...response.data, nombre: response.data.padre },
+      });
+      setCodigoAcceso('');
+    } catch (error) {
+      setResultado({
+        type: 'error',
+        msg: error.response?.data?.mensaje || error.response?.data?.error || 'Código no válido',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const manejarToggleHijo = async (hijo) => {
     const hID = hijo.id || hijo.hijo_id;
     const estado = hijo.ultimo_estado;
@@ -740,7 +784,11 @@ function MainApp() {
           hijo_id: hijoId,
           aseado: esSalida ? false : (datos.aseado || false),
           reporte_golpe: esSalida ? false : (datos.golpes || false),
-          observaciones: datos.observaciones || ""
+          observaciones: datos.observaciones || "",
+          // Presente solo si este resultado vino de identificarPorCodigo
+          // -- el backend lo revalida de nuevo antes de confirmar (puede
+          // haberse revocado entre que se identificó y que se confirma).
+          ...(resultado.data.codigo_acceso_id && { codigo_acceso_id: resultado.data.codigo_acceso_id }),
         });
       });
       await Promise.all(promesas);
@@ -1078,6 +1126,61 @@ function MainApp() {
                    )}
                  </div>
                )}
+               {/* Alternativa al rostro: alguien sin enrolar (delegado por
+                   un papá) o un papá que prefiere su código ese día -- ver
+                   CodigosAccesoPadre.jsx, donde se genera. Solo aplica a
+                   Recepción, no a Registrar (ahí SIEMPRE se enrola un
+                   rostro nuevo, es justo el punto de esa pantalla). */}
+               {tab === 'identificar' && (
+                 <div className="max-w-md mx-auto space-y-3">
+                   <div className="flex gap-2">
+                     <button
+                       type="button"
+                       onClick={() => setModoIdentificacion('rostro')}
+                       className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-[11px] font-black uppercase tracking-wide transition-all ${
+                         modoIdentificacion === 'rostro' ? 'bg-brand-600 text-white shadow-md' : 'bg-white text-slate-400 border border-slate-200'
+                       }`}
+                     >
+                       <ScanEye size={14} /> Rostro
+                     </button>
+                     <button
+                       type="button"
+                       onClick={() => setModoIdentificacion('codigo')}
+                       className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-[11px] font-black uppercase tracking-wide transition-all ${
+                         modoIdentificacion === 'codigo' ? 'bg-brand-600 text-white shadow-md' : 'bg-white text-slate-400 border border-slate-200'
+                       }`}
+                     >
+                       <QrCode size={14} /> Código
+                     </button>
+                   </div>
+                   {modoIdentificacion === 'codigo' && (
+                     <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm space-y-3 animate-in fade-in duration-200">
+                       <input
+                         type="text"
+                         placeholder="Código de acceso"
+                         value={codigoAcceso}
+                         onChange={(e) => setCodigoAcceso(e.target.value.toUpperCase())}
+                         onKeyDown={(e) => e.key === 'Enter' && identificarPorCodigo()}
+                         autoFocus
+                         className="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl text-slate-900 text-center text-2xl font-black tracking-[0.2em] focus:ring-2 focus:ring-brand-500 outline-none"
+                       />
+                       <button
+                         onClick={identificarPorCodigo}
+                         disabled={loading}
+                         className="w-full py-4 bg-brand-600 hover:bg-brand-700 text-white rounded-2xl font-black uppercase text-sm shadow-lg active:scale-95 transition-all disabled:opacity-50"
+                       >
+                         {loading ? 'Verificando...' : 'Verificar código'}
+                       </button>
+                     </div>
+                   )}
+                 </div>
+               )}
+               {/* En modo código no hay nada que la cámara deba mostrar --
+                   se oculta entera en vez de dejarla corriendo de fondo
+                   sin usarse (consumo de batería/cámara en un kiosco que
+                   puede quedarse horas prendido). */}
+               {(modoIdentificacion === 'rostro' || tab === 'registrar') && (
+               <>
                {/* "Quiero que abarque toda la pantalla el cuadro del facial"
                    -- un min(100%, Xvh) fijo por ancho de pantalla se rompía
                    con una tablet grande EN VERTICAL: tiene más de 768px de
@@ -1143,6 +1246,8 @@ function MainApp() {
                   </div>
                   {loading && <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center z-30"><RefreshCw className="animate-spin text-brand-600" size={54} /></div>}
                </div>
+               </>
+               )}
             </div>
             <div ref={resultadoRef} className="w-full max-w-md scroll-mt-6">
                {resultado ? (
@@ -1156,6 +1261,18 @@ function MainApp() {
                         <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
                           <p className="text-brand-600 text-[10px] font-black uppercase mb-1 tracking-widest">Tutor</p>
                           <p className="text-xl font-bold text-slate-900 uppercase">{resultado.data.nombre}</p>
+                          {/* Solo aparece cuando la identificación vino de
+                              un código (ver identificarPorCodigo) -- el
+                              software no puede verificar quién trae el
+                              código, pero sí puede ponerle a recepción el
+                              nombre que el papá autorizó, para que lo
+                              compare contra una identificación si no
+                              conoce a la persona. */}
+                          {resultado.data.persona_autorizada && (
+                            <p className="text-[11px] font-black text-amber-600 uppercase mt-2 flex items-center gap-1.5">
+                              <QrCode size={13} /> Vía código — autorizado para: {resultado.data.persona_autorizada}
+                            </p>
+                          )}
                         </div>
                         {resultado.data.hijos?.length > 0 ? (
                           <div className="space-y-4">

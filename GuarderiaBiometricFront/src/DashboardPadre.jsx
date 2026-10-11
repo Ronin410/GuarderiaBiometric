@@ -18,7 +18,8 @@ import {
   CalendarDays,
   ClipboardCheck,
   AlertTriangle,
-  BookOpen
+  BookOpen,
+  QrCode
 } from 'lucide-react';
 import VistaPadreDetalle from './VistaPadreDetalle';
 import ChatPadre from './ChatPadre';
@@ -26,6 +27,7 @@ import EncuestasPadre from './EncuestasPadre';
 import CircularesPadre from './CircularesPadre';
 import EventosPadre from './EventosPadre';
 import MenuPadre from './MenuPadre';
+import CodigosAccesoPadre from './CodigosAccesoPadre';
 import { suscribirseAPush, desuscribirseDePush, suscripcionActiva, pushSoportado } from './utils/push';
 import { hoyLocal } from './utils/fecha';
 import InstalarApp from './components/InstalarApp';
@@ -65,6 +67,7 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
   const [mostrarCirculares, setMostrarCirculares] = useState(false);
   const [mostrarEventos, setMostrarEventos] = useState(false);
   const [mostrarMenu, setMostrarMenu] = useState(false);
+  const [mostrarCodigosAcceso, setMostrarCodigosAcceso] = useState(false);
   const [loading, setLoading] = useState(true);
   const usuarioNombre = nombreUsuario || 'Familia';
   const [pagos, setPagos] = useState([]);
@@ -270,6 +273,10 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
     return <MenuPadre onVolver={() => setMostrarMenu(false)} />;
   }
 
+  if (mostrarCodigosAcceso) {
+    return <CodigosAccesoPadre onVolver={() => setMostrarCodigosAcceso(false)} />;
+  }
+
   if (hijoSeleccionado) {
     return (
       <VistaPadreDetalle
@@ -385,6 +392,21 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
           <div className="flex-1 text-left">
             <p className="text-[11px] font-black text-slate-900 uppercase leading-tight">Menú semanal</p>
             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Días anteriores y posteriores</p>
+          </div>
+          <ChevronRight size={20} className="text-slate-300 shrink-0" />
+        </button>
+
+        {/* CÓDIGO DE ACCESO -- "quiero poder darle entrada a los niños por
+            medio de un código QR" para quien no quiere poner su rostro, o
+            para delegar una recogida a alguien que no está enrolado. */}
+        <button
+          onClick={() => setMostrarCodigosAcceso(true)}
+          className="w-full bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-all active:scale-[0.98]"
+        >
+          <div className="bg-brand-100 p-3 rounded-2xl text-brand-600 shrink-0"><QrCode size={20} /></div>
+          <div className="flex-1 text-left">
+            <p className="text-[11px] font-black text-slate-900 uppercase leading-tight">Código de acceso</p>
+            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Para quien recoja a tu hijo por ti</p>
           </div>
           <ChevronRight size={20} className="text-slate-300 shrink-0" />
         </button>
