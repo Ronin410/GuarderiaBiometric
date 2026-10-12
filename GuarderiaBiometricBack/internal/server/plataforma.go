@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -16,15 +17,21 @@ import (
 // que el dueño de la plataforma tenga un panorama de adopción sin tener
 // que entrar a cada guardería una por una.
 type GuarderiaPlataforma struct {
-	ID           int     `json:"id"`
-	Nombre       string  `json:"nombre"`
-	Slug         string  `json:"slug"`
-	Direccion    *string `json:"direccion"`
-	CreadoEn     string  `json:"creado_en"`
-	TotalNinos   int     `json:"total_ninos"`
-	TotalPapas   int     `json:"total_papas"`
-	TotalStaff   int     `json:"total_staff"` // incluye admin
-	UltimoAcceso *string `json:"ultimo_acceso"`
+	ID         int     `json:"id"`
+	Nombre     string  `json:"nombre"`
+	Slug       string  `json:"slug"`
+	Direccion  *string `json:"direccion"`
+	CreadoEn   string  `json:"creado_en"`
+	TotalNinos int     `json:"total_ninos"`
+	TotalPapas int     `json:"total_papas"`
+	// TotalAdmin/TotalMaestras en vez de un solo TotalStaff -- "cuántas
+	// maestras tienen" se preguntó explícito, y el proyecto solo tiene dos
+	// roles de personal (admin/staff, ver personal.go): admin es
+	// prácticamente siempre la dirección, así que separar deja "maestras"
+	// como un número que de verdad responde esa pregunta.
+	TotalAdmin    int     `json:"total_admin"`
+	TotalMaestras int     `json:"total_maestras"`
+	UltimoAcceso  *string `json:"ultimo_acceso"`
 	// "Quiero una forma de bloquear el acceso a una guardería... eso lo
 	// haré manualmente" -- ver handleBloquearGuarderia/
 	// handleDesbloquearGuarderia más abajo.
@@ -35,8 +42,57 @@ type GuarderiaPlataforma struct {
 func (s *Server) registrarRutasPlataformaGuarderias(r *gin.Engine) {
 	platform := middleware.RequirePlatformKey(s.PlatformAdminKey)
 	r.GET("/plataforma/guarderias", platform, s.handleListarGuarderiasPlataforma)
+	r.PUT("/plataforma/guarderias/:id", platform, s.handleActualizarGuarderiaPlataforma)
 	r.POST("/plataforma/guarderias/:id/bloquear", platform, s.handleBloquearGuarderia)
 	r.POST("/plataforma/guarderias/:id/desbloquear", platform, s.handleDesbloquearGuarderia)
+}
+
+// handleActualizarGuarderiaPlataforma -- a diferencia de
+// handleActualizarGuarderia (guarderia.go), que deja al ADMIN de una
+// guardería cambiar su propio nombre, esto es el dueño de la plataforma
+// corrigiendo nombre/dirección de CUALQUIER guardería sin tener que
+// pedirle a esa guardería que entre a hacerlo. No toca slug (se usa como
+// identificador estable en URLs/exportaciones) ni plan_suscripcion/
+// bloqueada (esos ya tienen su propio control dedicado).
+func (s *Server) handleActualizarGuarderiaPlataforma(c *gin.Context) {
+	id := c.Param("id")
+
+	var input struct {
+		Nombre    string `json:"nombre"`
+		Direccion string `json:"direccion"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Datos inválidos"})
+		return
+	}
+
+	nombre := strings.TrimSpace(input.Nombre)
+	if nombre == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "El nombre de la guardería no puede quedar vacío"})
+		return
+	}
+	if len([]rune(nombre)) > maxLongitudNombreGuarderia {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "El nombre es demasiado largo (máximo 100 caracteres)"})
+		return
+	}
+	direccion := strings.TrimSpace(input.Direccion)
+
+	res, err := s.DBAuth.Exec(
+		`UPDATE guarderias SET nombre = $1, direccion = $2 WHERE id = $3`,
+		nombre, direccion, id,
+	)
+	if err != nil {
+		s.logError(c, "No se pudo actualizar la guardería desde /plataforma", err, "guarderia_id", id)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo actualizar la guardería"})
+		return
+	}
+	if filas, _ := res.RowsAffected(); filas == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Guardería no encontrada"})
+		return
+	}
+
+	applog.Info("Guardería editada desde /plataforma", "guarderia_id", id)
+	c.JSON(http.StatusOK, gin.H{"nombre": nombre, "direccion": direccion})
 }
 
 // handleBloquearGuarderia corta el acceso de TODA la guardería (admin,
@@ -87,7 +143,8 @@ func (s *Server) handleListarGuarderiasPlataforma(c *gin.Context) {
 	rows, err := s.DBAuth.Query(`
         SELECT g.id, g.nombre, g.slug, g.direccion, g.created_at, g.bloqueada, g.bloqueada_en,
                COUNT(*) FILTER (WHERE u.rol = 'papa') AS total_papas,
-               COUNT(*) FILTER (WHERE u.rol IN ('admin', 'staff') AND u.activo) AS total_staff
+               COUNT(*) FILTER (WHERE u.rol = 'admin' AND u.activo) AS total_admin,
+               COUNT(*) FILTER (WHERE u.rol = 'staff' AND u.activo) AS total_maestras
         FROM guarderias g
         LEFT JOIN usuarios u ON u.guarderia_id = g.id
         GROUP BY g.id, g.nombre, g.slug, g.direccion, g.created_at, g.bloqueada, g.bloqueada_en
@@ -100,7 +157,7 @@ func (s *Server) handleListarGuarderiasPlataforma(c *gin.Context) {
 	guarderias := []GuarderiaPlataforma{}
 	for rows.Next() {
 		var g GuarderiaPlataforma
-		if err := rows.Scan(&g.ID, &g.Nombre, &g.Slug, &g.Direccion, &g.CreadoEn, &g.Bloqueada, &g.BloqueadaEn, &g.TotalPapas, &g.TotalStaff); err != nil {
+		if err := rows.Scan(&g.ID, &g.Nombre, &g.Slug, &g.Direccion, &g.CreadoEn, &g.Bloqueada, &g.BloqueadaEn, &g.TotalPapas, &g.TotalAdmin, &g.TotalMaestras); err != nil {
 			continue
 		}
 		guarderias = append(guarderias, g)

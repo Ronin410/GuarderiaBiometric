@@ -72,9 +72,9 @@ func TestListarGuarderiasPlataforma(t *testing.T) {
 		srv, mock := nuevoServidorDePruebaPlataforma(t)
 
 		mock.ExpectQuery("SELECT(.|\n)*FROM guarderias(.|\n)*LEFT JOIN usuarios").
-			WillReturnRows(sqlmock.NewRows([]string{"id", "nombre", "slug", "direccion", "created_at", "bloqueada", "bloqueada_en", "total_papas", "total_staff"}).
-				AddRow(1, "Guardería Uno", "guarderia-uno", "Calle Falsa 123", "2026-08-01T10:00:00Z", false, nil, 12, 3).
-				AddRow(2, "Guardería Dos", "guarderia-dos", nil, "2026-08-15T10:00:00Z", true, "2026-08-20T10:00:00Z", 0, 1))
+			WillReturnRows(sqlmock.NewRows([]string{"id", "nombre", "slug", "direccion", "created_at", "bloqueada", "bloqueada_en", "total_papas", "total_admin", "total_maestras"}).
+				AddRow(1, "Guardería Uno", "guarderia-uno", "Calle Falsa 123", "2026-08-01T10:00:00Z", false, nil, 12, 1, 2).
+				AddRow(2, "Guardería Dos", "guarderia-dos", nil, "2026-08-15T10:00:00Z", true, "2026-08-20T10:00:00Z", 0, 1, 0))
 
 		mock.ExpectQuery("SELECT guarderia_id, COUNT\\(\\*\\) FROM hijos").
 			WillReturnRows(sqlmock.NewRows([]string{"guarderia_id", "count"}).
@@ -95,7 +95,7 @@ func TestListarGuarderiasPlataforma(t *testing.T) {
 		}
 		body := w.Body.String()
 		// Guardería 1: tiene niños y un último acceso registrado.
-		for _, esperado := range []string{`"total_ninos":15`, `"total_papas":12`, `"total_staff":3`, `"ultimo_acceso":"2026-08-29T09:00:00Z"`} {
+		for _, esperado := range []string{`"total_ninos":15`, `"total_papas":12`, `"total_admin":1`, `"total_maestras":2`, `"ultimo_acceso":"2026-08-29T09:00:00Z"`} {
 			if !strings.Contains(body, esperado) {
 				t.Errorf("body no trae %q (datos de la guardería 1): %s", esperado, body)
 			}
@@ -173,6 +173,73 @@ func TestBloquearYDesbloquearGuarderia(t *testing.T) {
 		srv, _ := nuevoServidorDePruebaPlataforma(t)
 		r := nuevoRouterDePrueba(srv)
 		req := jsonRequest(http.MethodPost, "/plataforma/guarderias/1/bloquear", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("código = %d; esperado 401 (body: %s)", w.Code, w.Body.String())
+		}
+	})
+}
+
+// TestActualizarGuarderiaPlataforma cubre "algo de configuración, como
+// cambiar el nombre" desde /plataforma -- a diferencia de
+// handleActualizarGuarderia (guarderia.go), aquí es el dueño de la
+// plataforma editando CUALQUIER guardería sin pedirle a su admin que lo
+// haga.
+func TestActualizarGuarderiaPlataforma(t *testing.T) {
+	cuerpoValido := map[string]string{"nombre": "Nuevo Nombre", "direccion": "Nueva Dirección 456"}
+
+	t.Run("llave correcta, guardería existente -> 200", func(t *testing.T) {
+		srv, mock := nuevoServidorDePruebaPlataforma(t)
+		mock.ExpectExec("UPDATE guarderias SET nombre = \\$1, direccion = \\$2").
+			WithArgs("Nuevo Nombre", "Nueva Dirección 456", "1").
+			WillReturnResult(sqlmock.NewResult(0, 1))
+
+		r := nuevoRouterDePrueba(srv)
+		req := jsonRequest(http.MethodPut, "/plataforma/guarderias/1", cuerpoValido)
+		req.Header.Set("X-Platform-Key", "clave-de-plataforma-de-prueba")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("código = %d; esperado 200 (body: %s)", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("guardería inexistente -> 404", func(t *testing.T) {
+		srv, mock := nuevoServidorDePruebaPlataforma(t)
+		mock.ExpectExec("UPDATE guarderias SET nombre = \\$1, direccion = \\$2").
+			WithArgs("Nuevo Nombre", "Nueva Dirección 456", "999").
+			WillReturnResult(sqlmock.NewResult(0, 0))
+
+		r := nuevoRouterDePrueba(srv)
+		req := jsonRequest(http.MethodPut, "/plataforma/guarderias/999", cuerpoValido)
+		req.Header.Set("X-Platform-Key", "clave-de-plataforma-de-prueba")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusNotFound {
+			t.Fatalf("código = %d; esperado 404 (body: %s)", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("nombre vacío -> 400, no llega a tocar la base de datos", func(t *testing.T) {
+		srv, _ := nuevoServidorDePruebaPlataforma(t)
+		r := nuevoRouterDePrueba(srv)
+		req := jsonRequest(http.MethodPut, "/plataforma/guarderias/1", map[string]string{"nombre": "   ", "direccion": "X"})
+		req.Header.Set("X-Platform-Key", "clave-de-plataforma-de-prueba")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("código = %d; esperado 400 (body: %s)", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("sin llave -> 401", func(t *testing.T) {
+		srv, _ := nuevoServidorDePruebaPlataforma(t)
+		r := nuevoRouterDePrueba(srv)
+		req := jsonRequest(http.MethodPut, "/plataforma/guarderias/1", cuerpoValido)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 		if w.Code != http.StatusUnauthorized {

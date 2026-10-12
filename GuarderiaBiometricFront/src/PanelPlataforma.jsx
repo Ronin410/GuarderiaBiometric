@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { KeyRound, CheckCircle2, XCircle, Building2, RefreshCw, LogOut, Users, Baby, MapPin, Clock, ClipboardList, LifeBuoy, BellRing, Lock, Unlock } from 'lucide-react';
+import { KeyRound, CheckCircle2, XCircle, Building2, RefreshCw, LogOut, Users, Baby, MapPin, Clock, ClipboardList, LifeBuoy, BellRing, Lock, Unlock, Search, Pencil, Save, X, GraduationCap, ShieldCheck } from 'lucide-react';
 import { mostrarError, mostrarExito, confirmar } from './utils/alertas';
 import { suscribirseAPush, desuscribirseDePush, suscripcionActiva, pushSoportado } from './utils/push';
 import PanelSoportePlataforma from './PanelSoportePlataforma';
@@ -31,6 +31,19 @@ const PanelPlataforma = () => {
   const [errorKey, setErrorKey] = useState('');
   const [noLeidosSoporte, setNoLeidosSoporte] = useState(0);
   const [notifEstado, setNotifEstado] = useState('default'); // default | granted | activando | desactivando
+  // Buscador de la pestaña "Guarderías" -- filtra en memoria sobre lo que
+  // ya se cargó, no vuelve a pedirle nada al backend (la lista completa de
+  // guarderías no es tan grande como para justificar un endpoint de
+  // búsqueda aparte).
+  const [busquedaGuarderia, setBusquedaGuarderia] = useState('');
+  // Edición de nombre/dirección -- "algo de configuración, como cambiar el
+  // nombre": editandoId distingue "ninguna tarjeta en edición" (null) de
+  // "esta tarjeta sí", y los otros dos guardan el borrador mientras se
+  // edita, sin tocar guarderias hasta que se guarda de verdad.
+  const [editandoId, setEditandoId] = useState(null);
+  const [editNombre, setEditNombre] = useState('');
+  const [editDireccion, setEditDireccion] = useState('');
+  const [guardandoEdicion, setGuardandoEdicion] = useState(false);
 
   const cabeceras = { headers: { 'X-Platform-Key': key } };
 
@@ -201,6 +214,62 @@ const PanelPlataforma = () => {
     }
   };
 
+  const empezarEdicion = (g) => {
+    setEditandoId(g.id);
+    setEditNombre(g.nombre);
+    setEditDireccion(g.direccion || '');
+  };
+
+  const cancelarEdicion = () => setEditandoId(null);
+
+  const guardarEdicion = async (g) => {
+    const nombre = editNombre.trim();
+    if (!nombre) {
+      mostrarError('El nombre no puede quedar vacío.');
+      return;
+    }
+    setGuardandoEdicion(true);
+    try {
+      await axios.put(`${API_URL}/plataforma/guarderias/${g.id}`, { nombre, direccion: editDireccion.trim() }, cabeceras);
+      setGuarderias((prev) => prev.map((x) => (x.id === g.id ? { ...x, nombre, direccion: editDireccion.trim() || null } : x)));
+      setEditandoId(null);
+      mostrarExito('Guardería actualizada.');
+    } catch (err) {
+      mostrarError(err.response?.data?.error || 'No se pudo actualizar la guardería.');
+    } finally {
+      setGuardandoEdicion(false);
+    }
+  };
+
+  // guarderiasFiltradas -- el buscador filtra sobre lo ya cargado en
+  // memoria, no vuelve a pedirle nada al backend.
+  const guarderiasFiltradas = useMemo(() => {
+    if (!guarderias) return guarderias;
+    const q = busquedaGuarderia.trim().toLowerCase();
+    if (!q) return guarderias;
+    return guarderias.filter((g) => g.nombre.toLowerCase().includes(q) || g.slug.toLowerCase().includes(q));
+  }, [guarderias, busquedaGuarderia]);
+
+  // resumenGuarderias -- "quisiera saber estadísticas y todo eso": un
+  // panorama agregado de TODA la plataforma arriba de la lista, en vez de
+  // tener que sumar a mano guardería por guardería. Se calcula sobre
+  // `guarderias` (todas), no sobre el filtro del buscador -- el resumen
+  // siempre es el total real, buscar no debe hacerlo parecer más chico.
+  const resumenGuarderias = useMemo(() => {
+    if (!guarderias || guarderias.length === 0) return null;
+    return guarderias.reduce(
+      (acc, g) => ({
+        total: acc.total + 1,
+        bloqueadas: acc.bloqueadas + (g.bloqueada ? 1 : 0),
+        ninos: acc.ninos + g.total_ninos,
+        papas: acc.papas + g.total_papas,
+        admin: acc.admin + g.total_admin,
+        maestras: acc.maestras + g.total_maestras,
+      }),
+      { total: 0, bloqueadas: 0, ninos: 0, papas: 0, admin: 0, maestras: 0 }
+    );
+  }, [guarderias]);
+
   const cerrarSesionPlataforma = () => {
     sessionStorage.removeItem(STORAGE_KEY);
     setKey('');
@@ -300,6 +369,51 @@ const PanelPlataforma = () => {
           <PanelSoportePlataforma apiUrl={API_URL} platformKey={key} />
         ) : vista === 'guarderias' ? (
           <div className="space-y-3">
+            {/* RESUMEN AGREGADO -- "quisiera saber estadísticas y todo eso"
+                de toda la plataforma de un vistazo, no guardería por
+                guardería. */}
+            {resumenGuarderias && (
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                <div className="bg-white border border-slate-200 rounded-2xl p-3 text-center">
+                  <p className="font-black text-slate-900 text-xl leading-none">{resumenGuarderias.total}</p>
+                  <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mt-1">Guarderías</p>
+                </div>
+                <div className="bg-white border border-slate-200 rounded-2xl p-3 text-center">
+                  <p className={`font-black text-xl leading-none ${resumenGuarderias.bloqueadas > 0 ? 'text-rose-600' : 'text-slate-900'}`}>{resumenGuarderias.bloqueadas}</p>
+                  <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mt-1">Bloqueadas</p>
+                </div>
+                <div className="bg-white border border-slate-200 rounded-2xl p-3 text-center">
+                  <p className="font-black text-slate-900 text-xl leading-none">{resumenGuarderias.ninos}</p>
+                  <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mt-1">Niños</p>
+                </div>
+                <div className="bg-white border border-slate-200 rounded-2xl p-3 text-center">
+                  <p className="font-black text-slate-900 text-xl leading-none">{resumenGuarderias.papas}</p>
+                  <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mt-1">Papás</p>
+                </div>
+                <div className="bg-white border border-slate-200 rounded-2xl p-3 text-center">
+                  <p className="font-black text-slate-900 text-xl leading-none">{resumenGuarderias.admin}</p>
+                  <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mt-1">Admins</p>
+                </div>
+                <div className="bg-white border border-slate-200 rounded-2xl p-3 text-center">
+                  <p className="font-black text-slate-900 text-xl leading-none">{resumenGuarderias.maestras}</p>
+                  <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mt-1">Maestras</p>
+                </div>
+              </div>
+            )}
+
+            {guarderias?.length > 0 && (
+              <div className="relative">
+                <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
+                <input
+                  type="text"
+                  value={busquedaGuarderia}
+                  onChange={(e) => setBusquedaGuarderia(e.target.value)}
+                  placeholder="Buscar por nombre..."
+                  className="w-full bg-white border border-slate-200 rounded-2xl py-3 pl-11 pr-4 text-sm outline-none focus:ring-2 focus:ring-brand-500 transition-all"
+                />
+              </div>
+            )}
+
             {cargandoGuarderias && guarderias === null ? (
               <div className="bg-white p-10 rounded-[2.5rem] border border-dashed border-slate-200 text-center text-slate-400 font-bold uppercase text-xs tracking-widest">
                 Cargando...
@@ -308,27 +422,75 @@ const PanelPlataforma = () => {
               <div className="bg-white p-10 rounded-[2.5rem] border border-dashed border-slate-200 text-center text-slate-400 font-bold uppercase text-xs tracking-widest">
                 Todavía no hay ninguna guardería dada de alta
               </div>
+            ) : guarderiasFiltradas?.length === 0 ? (
+              <div className="bg-white p-10 rounded-[2.5rem] border border-dashed border-slate-200 text-center text-slate-400 font-bold uppercase text-xs tracking-widest">
+                Ninguna guardería coincide con "{busquedaGuarderia}"
+              </div>
             ) : (
-              guarderias?.map((g) => (
+              guarderiasFiltradas?.map((g) => (
                 <div key={g.id} className={`bg-white p-6 rounded-[2rem] border shadow-sm space-y-4 ${g.bloqueada ? 'border-rose-200' : 'border-slate-200'}`}>
                   <div className="flex items-start justify-between gap-4 flex-wrap">
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-black text-slate-900 text-lg">{g.nombre}</p>
-                        {g.bloqueada && (
-                          <span className="bg-rose-100 text-rose-700 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full flex items-center gap-1">
-                            <Lock size={10} /> Bloqueada
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[10px] font-black uppercase text-brand-600 tracking-widest mt-1">{g.slug}</p>
-                      {g.direccion && (
-                        <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-2">
-                          <MapPin size={12} className="shrink-0" /> {g.direccion}
-                        </p>
-                      )}
-                      {g.bloqueada && g.bloqueada_en && (
-                        <p className="text-[10px] text-rose-500 font-bold mt-1.5">Bloqueada desde {formatoFecha(g.bloqueada_en)}</p>
+                    <div className="flex-1 min-w-0">
+                      {editandoId === g.id ? (
+                        <div className="space-y-2 max-w-sm">
+                          <input
+                            type="text"
+                            value={editNombre}
+                            onChange={(e) => setEditNombre(e.target.value)}
+                            placeholder="Nombre"
+                            autoFocus
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-sm font-black outline-none focus:ring-2 focus:ring-brand-500"
+                          />
+                          <input
+                            type="text"
+                            value={editDireccion}
+                            onChange={(e) => setEditDireccion(e.target.value)}
+                            placeholder="Dirección (opcional)"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs outline-none focus:ring-2 focus:ring-brand-500"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => guardarEdicion(g)}
+                              disabled={guardandoEdicion}
+                              className="px-3 py-2 rounded-xl bg-emerald-500 text-white font-bold text-[11px] uppercase flex items-center gap-1.5 hover:bg-emerald-600 transition-all disabled:opacity-50"
+                            >
+                              <Save size={13} /> Guardar
+                            </button>
+                            <button
+                              onClick={cancelarEdicion}
+                              className="px-3 py-2 rounded-xl bg-slate-100 text-slate-500 font-bold text-[11px] uppercase flex items-center gap-1.5 hover:bg-slate-200 transition-all"
+                            >
+                              <X size={13} /> Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-black text-slate-900 text-lg">{g.nombre}</p>
+                            {g.bloqueada && (
+                              <span className="bg-rose-100 text-rose-700 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full flex items-center gap-1">
+                                <Lock size={10} /> Bloqueada
+                              </span>
+                            )}
+                            <button
+                              onClick={() => empezarEdicion(g)}
+                              className="text-slate-300 hover:text-brand-600 transition-colors"
+                              title="Editar nombre/dirección"
+                            >
+                              <Pencil size={13} />
+                            </button>
+                          </div>
+                          <p className="text-[10px] font-black uppercase text-brand-600 tracking-widest mt-1">#{g.id} · {g.slug}</p>
+                          {g.direccion && (
+                            <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-2">
+                              <MapPin size={12} className="shrink-0" /> {g.direccion}
+                            </p>
+                          )}
+                          {g.bloqueada && g.bloqueada_en && (
+                            <p className="text-[10px] text-rose-500 font-bold mt-1.5">Bloqueada desde {formatoFecha(g.bloqueada_en)}</p>
+                          )}
+                        </>
                       )}
                     </div>
                     <div className="flex flex-col items-end gap-2 shrink-0">
@@ -354,7 +516,7 @@ const PanelPlataforma = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                     <div className="bg-slate-50 rounded-xl p-3 text-center">
                       <Baby size={16} className="mx-auto text-brand-500 mb-1" />
                       <p className="font-black text-slate-900 text-lg leading-none">{g.total_ninos}</p>
@@ -366,9 +528,14 @@ const PanelPlataforma = () => {
                       <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mt-1">Papás</p>
                     </div>
                     <div className="bg-slate-50 rounded-xl p-3 text-center">
-                      <Users size={16} className="mx-auto text-slate-400 mb-1" />
-                      <p className="font-black text-slate-900 text-lg leading-none">{g.total_staff}</p>
-                      <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mt-1">Staff/Admin</p>
+                      <ShieldCheck size={16} className="mx-auto text-slate-400 mb-1" />
+                      <p className="font-black text-slate-900 text-lg leading-none">{g.total_admin}</p>
+                      <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mt-1">Admin</p>
+                    </div>
+                    <div className="bg-slate-50 rounded-xl p-3 text-center">
+                      <GraduationCap size={16} className="mx-auto text-slate-400 mb-1" />
+                      <p className="font-black text-slate-900 text-lg leading-none">{g.total_maestras}</p>
+                      <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mt-1">Maestras</p>
                     </div>
                     <div className="bg-slate-50 rounded-xl p-3 text-center">
                       <Clock size={16} className="mx-auto text-slate-400 mb-1" />
