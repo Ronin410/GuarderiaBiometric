@@ -274,7 +274,7 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
   }
 
   if (mostrarCodigosAcceso) {
-    return <CodigosAccesoPadre onVolver={() => setMostrarCodigosAcceso(false)} />;
+    return <CodigosAccesoPadre onVolver={() => setMostrarCodigosAcceso(false)} nombrePadre={usuarioNombre} />;
   }
 
   if (hijoSeleccionado) {
@@ -406,7 +406,7 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
           <div className="bg-brand-100 p-3 rounded-2xl text-brand-600 shrink-0"><QrCode size={20} /></div>
           <div className="flex-1 text-left">
             <p className="text-[11px] font-black text-slate-900 uppercase leading-tight">Código de acceso</p>
-            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Para quien recoja a tu hijo por ti</p>
+            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Para ti o para quien recoja a tu hijo</p>
           </div>
           <ChevronRight size={20} className="text-slate-300 shrink-0" />
         </button>

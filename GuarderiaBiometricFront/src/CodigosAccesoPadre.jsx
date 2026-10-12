@@ -42,12 +42,15 @@ const ESTADO_INFO = {
   vencido: { texto: 'Vencido', clase: 'bg-amber-50 text-amber-600 border-amber-200', Icono: Clock },
 };
 
-// CodigosAccesoPadre -- "una sección de generar QR" para delegar una
-// recogida a alguien que no tiene su rostro enrolado (un familiar que va
-// ocasionalmente, o el papá mismo si no quiere usar reconocimiento
-// facial). Mismo patrón de pantalla completa que CircularesPadre/
-// EncuestasPadre (swap desde DashboardPadre, con onVolver).
-const CodigosAccesoPadre = ({ onVolver }) => {
+// CodigosAccesoPadre -- "una sección de generar QR" para dos casos: delegar
+// una recogida a alguien sin rostro enrolado, O que el papá mismo entre por
+// código en vez de rostro -- el facial sigue siendo obligatorio al
+// registrarse (eso no cambia), pero el día a día puede ser molesto para
+// quien no le gusta quedarse enfocando, o en sitios con poca luz donde la
+// cámara del kiosco no alcanza a leer bien la cara. Mismo patrón de
+// pantalla completa que CircularesPadre/EncuestasPadre (swap desde
+// DashboardPadre, con onVolver).
+const CodigosAccesoPadre = ({ onVolver, nombrePadre }) => {
   const [hijos, setHijos] = useState([]);
   const [codigos, setCodigos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -55,8 +58,18 @@ const CodigosAccesoPadre = ({ onVolver }) => {
   const [codigoNuevo, setCodigoNuevo] = useState(null);
 
   const [hijosSeleccionados, setHijosSeleccionados] = useState([]);
+  // paraMiMismo -- "ya va a ser decisión de él si pone el facial o si
+  // quiere entrar por código QR": con esto activado se autoriza al propio
+  // papá (persona_autorizada queda con su nombre) y se esconde el campo de
+  // texto libre, que es para nombrar a alguien MÁS, no a uno mismo.
+  const [paraMiMismo, setParaMiMismo] = useState(true);
   const [personaAutorizada, setPersonaAutorizada] = useState('');
   const [dias, setDias] = useState(3);
+
+  const elegirParaMiMismo = (valor) => {
+    setParaMiMismo(valor);
+    setPersonaAutorizada(valor ? (nombrePadre || 'El tutor') : '');
+  };
 
   const cargar = async () => {
     setLoading(true);
@@ -75,7 +88,14 @@ const CodigosAccesoPadre = ({ onVolver }) => {
     }
   };
 
-  useEffect(() => { cargar(); }, []);
+  useEffect(() => {
+    cargar();
+    // Arranca en "para mí mismo" con el nombre ya puesto -- es el caso más
+    // común (un papá generando su propio código), así que no debería
+    // obligar a escribir nada para llegar ahí.
+    setPersonaAutorizada(nombrePadre || 'El tutor');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const alternarHijo = (hijoId) => {
     setHijosSeleccionados((prev) =>
@@ -102,7 +122,7 @@ const CodigosAccesoPadre = ({ onVolver }) => {
       });
       setCodigoNuevo(res.data);
       setHijosSeleccionados([]);
-      setPersonaAutorizada('');
+      elegirParaMiMismo(true);
       await cargar();
     } catch (err) {
       mostrarError(err.response?.data?.error || 'No se pudo generar el código');
@@ -146,9 +166,10 @@ const CodigosAccesoPadre = ({ onVolver }) => {
           </div>
         </div>
         <p className="text-xs text-slate-500 font-medium mt-3 leading-relaxed">
-          Genera un código para que alguien que tú autorices -- sin que tenga que enrolar su rostro -- pueda
-          recoger a tu hijo en recepción. Cualquiera que tenga el código puede usarlo mientras esté vigente,
-          así que compártelo solo con la persona que autorizas.
+          Úsalo tú mismo cuando no quieras pasar por reconocimiento facial -- hay lugares donde la cámara
+          no alcanza a leer bien la cara, o simplemente no te gusta quedarte enfocando -- o genera uno para
+          alguien que tú autorices, sin que tenga que enrolar su rostro. Cualquiera que tenga el código
+          puede usarlo mientras esté vigente, así que compártelo solo con la persona que autorizas.
         </p>
       </div>
 
@@ -209,16 +230,41 @@ const CodigosAccesoPadre = ({ onVolver }) => {
 
           <div>
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">¿Quién lo va a usar?</p>
-            <input
-              type="text"
-              value={personaAutorizada}
-              onChange={(e) => setPersonaAutorizada(e.target.value)}
-              placeholder="Ej. Tía Lupita, mi suegro..."
-              maxLength={100}
-              className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm font-medium outline-none focus:border-brand-400"
-            />
+            <div className="flex gap-2 mb-3">
+              <button
+                type="button"
+                onClick={() => elegirParaMiMismo(true)}
+                className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase transition-all ${
+                  paraMiMismo ? `${acento.solido} text-white shadow-md` : 'bg-slate-50 text-slate-500 border border-slate-200'
+                }`}
+              >
+                Yo mismo
+              </button>
+              <button
+                type="button"
+                onClick={() => elegirParaMiMismo(false)}
+                className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase transition-all ${
+                  !paraMiMismo ? `${acento.solido} text-white shadow-md` : 'bg-slate-50 text-slate-500 border border-slate-200'
+                }`}
+              >
+                Otra persona
+              </button>
+            </div>
+            {!paraMiMismo && (
+              <input
+                type="text"
+                value={personaAutorizada}
+                onChange={(e) => setPersonaAutorizada(e.target.value)}
+                placeholder="Ej. Tía Lupita, mi suegro..."
+                maxLength={100}
+                autoFocus
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm font-medium outline-none focus:border-brand-400"
+              />
+            )}
             <p className="text-[9px] text-slate-400 font-medium mt-1.5">
-              Recepción va a ver este nombre al momento de usar el código, para poder confirmar con quién habla.
+              {paraMiMismo
+                ? 'Recepción va a ver tu nombre al momento de usar el código, igual que si te reconociera el rostro.'
+                : 'Recepción va a ver este nombre al momento de usar el código, para poder confirmar con quién habla.'}
             </p>
           </div>
 
