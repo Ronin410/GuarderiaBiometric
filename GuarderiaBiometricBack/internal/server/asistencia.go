@@ -15,6 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 
+	"biometrico/internal/applog"
 	"biometrico/internal/middleware"
 )
 
@@ -129,6 +130,17 @@ func (s *Server) handleRegistrar(c *gin.Context) {
 
 	imgBytes, _ := base64.StdEncoding.DecodeString(input.Imagen)
 
+	// Antes de tocar la colección de ESTA guardería, asegura que exista --
+	// ver el comentario largo en asegurarColeccionRekognition (server.go):
+	// nada más en el proyecto llamaba CreateCollection, así que una
+	// guardería recién aprobada dependía de un paso manual en AWS que no
+	// estaba documentado en ningún lado.
+	if err := s.asegurarColeccionRekognition(context.TODO(), colID); err != nil {
+		s.logError(c, "No se pudo asegurar la colección de Rekognition", err, "coleccion", colID)
+		c.JSON(500, gin.H{"error": "No se pudo preparar el reconocimiento facial de esta guardería. Intenta de nuevo."})
+		return
+	}
+
 	// 1. Validar duplicados SOLO en la colección de esta guardería
 	searchRes, err := s.Rek.SearchFacesByImage(context.TODO(), &rekognition.SearchFacesByImageInput{
 		CollectionId:       aws.String(colID),
@@ -147,6 +159,17 @@ func (s *Server) handleRegistrar(c *gin.Context) {
 		// diagnosticarlo a ciegas en producción era imposible.
 		s.logError(c, "SearchFacesByImage falló", err, "coleccion", colID)
 	} else if len(searchRes.FaceMatches) > 0 {
+		// Si esto se dispara en una guardería que se jura "nueva, sin
+		// nadie registrado todavía", este log es la evidencia de qué
+		// coincidió de verdad -- el FaceId y el % de similitud, contra
+		// cuál colección exactamente, en vez de quedarse solo con la
+		// sospecha de "algo está cruzado entre guarderías".
+		m := searchRes.FaceMatches[0]
+		applog.Warn("Rostro ya existía en la colección de esta guardería",
+			"coleccion", colID,
+			"face_id_encontrado", aws.ToString(m.Face.FaceId),
+			"similitud", aws.ToFloat32(m.Similarity),
+		)
 		c.JSON(409, gin.H{"error": "Esta persona ya está registrada en esta guardería."})
 		return
 	}

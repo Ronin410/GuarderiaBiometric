@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
@@ -237,6 +238,17 @@ func (s *Server) handleAprobarSolicitud(c *gin.Context) {
 		s.logError(c, "No se pudo completar la aprobación de la solicitud", err, "solicitud_id", id, "guarderia_id", nuevaGuarderiaID)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo completar la aprobación"})
 		return
+	}
+
+	// Fuera de la transacción a propósito (es una llamada a AWS, no a
+	// Postgres) -- se intenta aquí para que la guardería quede lista desde
+	// ya, pero si falla (AWS caído, lo que sea) NO se revierte la
+	// aprobación: handleRegistrar (asistencia.go) la vuelve a intentar sola
+	// la primera vez que alguien registre un rostro ahí, así que esto es
+	// una optimización, no un paso del que dependa que el alta funcione.
+	colID := getCollectionID(nuevaGuarderiaID)
+	if err := s.asegurarColeccionRekognition(context.Background(), colID); err != nil {
+		s.logError(c, "No se pudo crear la colección de Rekognition de la guardería nueva (se reintentará al primer registro)", err, "guarderia_id", nuevaGuarderiaID, "coleccion", colID)
 	}
 
 	s.registrarAcceso("guarderia_aprobada", nuevaGuarderiaID, nil,

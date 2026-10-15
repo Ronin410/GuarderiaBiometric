@@ -5,13 +5,17 @@
 package server
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/anthropics/anthropic-sdk-go"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/rekognition"
+	"github.com/aws/aws-sdk-go-v2/service/rekognition/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gin-gonic/gin"
 
@@ -23,6 +27,34 @@ import (
 // aquí a partir del guarderia_id del JWT.
 func getCollectionID(guarderiaID any) string {
 	return fmt.Sprintf("guarderia-%v", guarderiaID)
+}
+
+// asegurarColeccionRekognition crea la colección de una guardería si todavía
+// no existe -- IndexFaces/SearchFacesByImage fallan con
+// ResourceNotFoundException contra una colección que nunca se creó, y
+// CreateCollection nunca se llamaba en ningún lado del proyecto (ni al
+// aprobar una solicitud de guardería nueva, ni en ningún script de
+// aprovisionamiento): una guardería recién aprobada dependía por completo de
+// que alguien la creara a mano en la consola de AWS, un paso que no estaba
+// documentado en ningún lado y que es fácil de olvidar -- justo el síntoma
+// de "registro mi rostro en una guardería nueva y no funciona bien".
+//
+// Idempotente a propósito: CreateCollection contra una que ya existe
+// responde ResourceAlreadyExistsException, que aquí se trata como éxito --
+// así se puede llamar en cada registro sin tener que acordarse de nada, en
+// vez de depender de un paso manual de provisión.
+func (s *Server) asegurarColeccionRekognition(ctx context.Context, colID string) error {
+	_, err := s.Rek.CreateCollection(ctx, &rekognition.CreateCollectionInput{
+		CollectionId: aws.String(colID),
+	})
+	if err == nil {
+		return nil
+	}
+	var yaExiste *types.ResourceAlreadyExistsException
+	if errors.As(err, &yaExiste) {
+		return nil
+	}
+	return err
 }
 
 // Server agrupa todas las dependencias que antes eran variables globales de

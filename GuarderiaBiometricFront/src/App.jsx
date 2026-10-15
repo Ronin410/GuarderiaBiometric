@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Webcam from 'react-webcam';
+import jsQR from 'jsqr';
 import api, { setCsrfToken } from './axiosConfig';
 // Importar componentes de rutas
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useParams, Link } from 'react-router-dom';
@@ -293,6 +294,17 @@ function MainApp() {
   // del rostro.
   const [modoIdentificacion, setModoIdentificacion] = useState('rostro');
   const [codigoAcceso, setCodigoAcceso] = useState('');
+  // Lectura del QR por cámara -- "que lo puedan mostrar a la cámara de la
+  // tablet y lea el QR": misma cámara frontal que el rostro, pero apuntando
+  // el celular del papá en vez de la cara. camaraQRLista/camaraQRError
+  // reutilizan el mismo criterio que ya existe para el rostro (ver más
+  // abajo); escaneandoQRRef es un candado para no mandar la misma lectura
+  // dos veces mientras la petición anterior sigue en curso.
+  const webcamQRRef = useRef(null);
+  const canvasQRRef = useRef(null);
+  const escaneandoQRRef = useRef(false);
+  const [camaraQRLista, setCamaraQRLista] = useState(false);
+  const [camaraQRError, setCamaraQRError] = useState(false);
   // Cuenta del portal del papá, opcional al registrar su rostro -- el tutor
   // está presente en el kiosco en ese momento, así que puede quedar lista de
   // una vez (ver el comentario de handleRegistrar en el backend).
@@ -732,8 +744,12 @@ function MainApp() {
   // exactamente la misma pantalla de confirmación que ya existe --
   // codigo_acceso_id viaja también en resultado.data, y
   // registrarMultiplesAsistencias lo reenvía al confirmar (ver abajo).
-  const identificarPorCodigo = async () => {
-    const codigo = codigoAcceso.trim();
+  // valorForzado -- lo manda el escaneo automático de QR (ver el efecto más
+  // abajo) con el texto recién leído de la cámara; sin esto usaría
+  // `codigoAcceso` del estado, que en ese momento todavía no se habría
+  // actualizado (setState es asíncrono) y mandaría el código ANTERIOR.
+  const identificarPorCodigo = async (valorForzado) => {
+    const codigo = (valorForzado ?? codigoAcceso).trim();
     if (!codigo) return mostrarError('Escribe o escanea el código');
 
     setLoading(true);
@@ -753,6 +769,51 @@ function MainApp() {
       setLoading(false);
     }
   };
+
+  // Escaneo de QR por cámara -- revisa un frame cada 400ms mientras el modo
+  // código esté activo y la cámara ya haya arrancado. escaneandoQRRef evita
+  // mandar la misma lectura dos veces mientras la petición anterior sigue
+  // en curso, y se vuelve a abrir solo/sola (con un pequeño respiro de 3s,
+  // para no reintentar la MISMA lectura el instante siguiente mientras el
+  // papá sigue con el teléfono en el mismo lugar) tanto si salió bien como
+  // si el código resultó inválido -- así un código vencido/revocado no
+  // deja la cámara congelada esperando que alguien toque algo a mano.
+  useEffect(() => {
+    if (tab !== 'identificar' || modoIdentificacion !== 'codigo' || !camaraQRLista) return undefined;
+
+    const intervalo = setInterval(() => {
+      if (escaneandoQRRef.current) return;
+      const video = webcamQRRef.current?.video;
+      const canvas = canvasQRRef.current;
+      if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) return;
+
+      const w = video.videoWidth;
+      const h = video.videoHeight;
+      if (!w || !h) return;
+
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, w, h);
+      let datos;
+      try {
+        datos = ctx.getImageData(0, 0, w, h);
+      } catch {
+        return; // frame todavía no listo (tainted canvas en el primerísimo tick)
+      }
+
+      const leido = jsQR(datos.data, w, h);
+      if (!leido?.data) return;
+
+      escaneandoQRRef.current = true;
+      identificarPorCodigo(leido.data).finally(() => {
+        setTimeout(() => { escaneandoQRRef.current = false; }, 3000);
+      });
+    }, 400);
+
+    return () => clearInterval(intervalo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, modoIdentificacion, camaraQRLista]);
 
   const manejarToggleHijo = async (hijo) => {
     const hID = hijo.id || hijo.hijo_id;
@@ -1154,31 +1215,79 @@ function MainApp() {
                      </button>
                    </div>
                    {modoIdentificacion === 'codigo' && (
-                     <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm space-y-3 animate-in fade-in duration-200">
-                       <input
-                         type="text"
-                         placeholder="Código de acceso"
-                         value={codigoAcceso}
-                         onChange={(e) => setCodigoAcceso(e.target.value.toUpperCase())}
-                         onKeyDown={(e) => e.key === 'Enter' && identificarPorCodigo()}
-                         autoFocus
-                         className="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl text-slate-900 text-center text-2xl font-black tracking-[0.2em] focus:ring-2 focus:ring-brand-500 outline-none"
-                       />
-                       <button
-                         onClick={identificarPorCodigo}
-                         disabled={loading}
-                         className="w-full py-4 bg-brand-600 hover:bg-brand-700 text-white rounded-2xl font-black uppercase text-sm shadow-lg active:scale-95 transition-all disabled:opacity-50"
-                       >
-                         {loading ? 'Verificando...' : 'Verificar código'}
-                       </button>
+                     <div className="space-y-3 animate-in fade-in duration-200">
+                       {/* Cámara apuntando al teléfono del papá -- "que lo
+                           puedan mostrar a la cámara de la tablet y lea el
+                           QR". Misma cámara frontal que el rostro; el papá
+                           acerca la pantalla de su celular en vez de la
+                           cara. Escanea sola cada 400ms (ver el efecto de
+                           arriba), sin botón de "capturar": a diferencia
+                           del rostro, aquí no hace falta que nadie decida
+                           el momento exacto. */}
+                       <div className="relative rounded-[2.5rem] overflow-hidden border-4 border-white bg-slate-200 shadow-xl aspect-square max-w-xs mx-auto">
+                         <Webcam
+                           ref={webcamQRRef}
+                           audio={false}
+                           screenshotFormat="image/jpeg"
+                           videoConstraints={videoConstraints}
+                           className="absolute inset-0 w-full h-full object-cover"
+                           mirrored={false}
+                           onUserMedia={() => { setCamaraQRLista(true); setCamaraQRError(false); }}
+                           onUserMediaError={(err) => { console.error('No se pudo activar la cámara (QR):', err); setCamaraQRError(true); }}
+                         />
+                         <canvas ref={canvasQRRef} className="hidden" />
+                         {!camaraQRLista && (
+                           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-slate-800/90 px-6 text-center">
+                             {camaraQRError ? (
+                               <>
+                                 <AlertCircle className="text-rose-300" size={28} />
+                                 <p className="text-white text-[10px] font-black uppercase tracking-widest">No se pudo activar la cámara</p>
+                               </>
+                             ) : (
+                               <>
+                                 <RefreshCw className="animate-spin text-white" size={28} />
+                                 <p className="text-white text-[9px] font-black uppercase tracking-widest">Iniciando cámara...</p>
+                               </>
+                             )}
+                           </div>
+                         )}
+                         {camaraQRLista && (
+                           <div className="absolute inset-x-0 bottom-0 bg-slate-900/60 py-2 text-center">
+                             <p className="text-white text-[9px] font-black uppercase tracking-widest">Acerca el QR a la cámara</p>
+                           </div>
+                         )}
+                       </div>
+
+                       <div className="max-w-md mx-auto">
+                         <p className="text-center text-[9px] font-black uppercase tracking-widest text-slate-300">o escríbelo a mano</p>
+                       </div>
+
+                       <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm space-y-3 max-w-md mx-auto">
+                         <input
+                           type="text"
+                           placeholder="Código de acceso"
+                           value={codigoAcceso}
+                           onChange={(e) => setCodigoAcceso(e.target.value.toUpperCase())}
+                           onKeyDown={(e) => e.key === 'Enter' && identificarPorCodigo()}
+                           className="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl text-slate-900 text-center text-2xl font-black tracking-[0.2em] focus:ring-2 focus:ring-brand-500 outline-none"
+                         />
+                         <button
+                           onClick={() => identificarPorCodigo()}
+                           disabled={loading}
+                           className="w-full py-4 bg-brand-600 hover:bg-brand-700 text-white rounded-2xl font-black uppercase text-sm shadow-lg active:scale-95 transition-all disabled:opacity-50"
+                         >
+                           {loading ? 'Verificando...' : 'Verificar código'}
+                         </button>
+                       </div>
                      </div>
                    )}
                  </div>
                )}
-               {/* En modo código no hay nada que la cámara deba mostrar --
-                   se oculta entera en vez de dejarla corriendo de fondo
-                   sin usarse (consumo de batería/cámara en un kiosco que
-                   puede quedarse horas prendido). */}
+               {/* En modo código la cámara de ARRIBA (la del rostro) no hay
+                   nada que deba mostrar -- se oculta entera en vez de
+                   dejarla corriendo de fondo sin usarse; la cámara de QR
+                   vive en su propio bloque, justo arriba, con su propio
+                   ciclo de vida. */}
                {(modoIdentificacion === 'rostro' || tab === 'registrar') && (
                <>
                {/* "Quiero que abarque toda la pantalla el cuadro del facial"
