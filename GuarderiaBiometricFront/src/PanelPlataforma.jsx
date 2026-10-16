@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { KeyRound, CheckCircle2, XCircle, Building2, RefreshCw, LogOut, Users, Baby, MapPin, Clock, ClipboardList, LifeBuoy, BellRing, Lock, Unlock, Search, Pencil, Save, X, GraduationCap, ShieldCheck } from 'lucide-react';
+import { KeyRound, CheckCircle2, XCircle, Building2, RefreshCw, LogOut, Users, Baby, MapPin, Clock, ClipboardList, LifeBuoy, BellRing, Lock, Unlock, Search, Pencil, Save, X, GraduationCap, ShieldCheck, ScanFace } from 'lucide-react';
 import { mostrarError, mostrarExito, confirmar } from './utils/alertas';
 import { suscribirseAPush, desuscribirseDePush, suscripcionActiva, pushSoportado } from './utils/push';
 import PanelSoportePlataforma from './PanelSoportePlataforma';
@@ -199,6 +199,27 @@ const PanelPlataforma = () => {
       setGuarderias((prev) => prev.map((x) => (x.id === g.id ? { ...x, bloqueada: true, bloqueada_en: new Date().toISOString() } : x)));
     } catch (err) {
       mostrarError(err.response?.data?.error || 'No se pudo bloquear la guardería.');
+    }
+  };
+
+  // reiniciarReconocimientoFacial -- rescate para "creé una guardería
+  // nueva y ya me reconoce de otra": guarderia_id es un SERIAL reciclable,
+  // así que si una guardería anterior se borró de la base sin borrar
+  // también su colección de Rekognition en AWS, el número puede
+  // reaparecer con rostros viejos ya adentro. DESTRUCTIVO -- borra TODOS
+  // los rostros ya enrolados en esta guardería en AWS, así que el
+  // confirm() es deliberadamente explícito sobre eso.
+  const reiniciarReconocimientoFacial = async (g) => {
+    const ok = await confirmar(
+      `Esto borra TODOS los rostros ya enrolados en "${g.nombre}" (quedarían sin poder entrar hasta volver a registrarse). Úsalo solo si esta guardería nunca ha logrado completar un registro.`,
+      '¿Reiniciar el reconocimiento facial?'
+    );
+    if (!ok) return;
+    try {
+      await axios.post(`${API_URL}/plataforma/guarderias/${g.id}/reiniciar-reconocimiento-facial`, {}, cabeceras);
+      mostrarExito(`Reconocimiento facial de "${g.nombre}" reiniciado.`);
+    } catch (err) {
+      mostrarError(err.response?.data?.error || 'No se pudo reiniciar el reconocimiento facial.');
     }
   };
 
@@ -513,6 +534,13 @@ const PanelPlataforma = () => {
                           <Lock size={13} /> Bloquear
                         </button>
                       )}
+                      <button
+                        onClick={() => reiniciarReconocimientoFacial(g)}
+                        className="px-3.5 py-2 rounded-xl bg-amber-50 text-amber-700 font-bold text-[11px] uppercase flex items-center gap-1.5 hover:bg-amber-100 transition-all"
+                        title="Borra todos los rostros ya enrolados en esta guardería -- úsalo solo si nunca ha logrado completar un registro"
+                      >
+                        <ScanFace size={13} /> Reiniciar facial
+                      </button>
                     </div>
                   </div>
 

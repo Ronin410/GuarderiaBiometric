@@ -244,11 +244,14 @@ func (s *Server) handleAprobarSolicitud(c *gin.Context) {
 	// Postgres) -- se intenta aquí para que la guardería quede lista desde
 	// ya, pero si falla (AWS caído, lo que sea) NO se revierte la
 	// aprobación: handleRegistrar (asistencia.go) la vuelve a intentar sola
-	// la primera vez que alguien registre un rostro ahí, así que esto es
-	// una optimización, no un paso del que dependa que el alta funcione.
+	// la primera vez que alguien registre un rostro ahí (con la versión que
+	// NUNCA borra nada -- ver el comentario de recrearColeccionRekognitionLimpia
+	// sobre por qué SOLO aquí, al dar de alta, se justifica borrar primero),
+	// así que esto es una optimización, no un paso del que dependa que el
+	// alta funcione.
 	colID := getCollectionID(nuevaGuarderiaID)
-	if err := s.asegurarColeccionRekognition(context.Background(), colID); err != nil {
-		s.logError(c, "No se pudo crear la colección de Rekognition de la guardería nueva (se reintentará al primer registro)", err, "guarderia_id", nuevaGuarderiaID, "coleccion", colID)
+	if err := s.recrearColeccionRekognitionLimpia(context.Background(), colID); err != nil {
+		s.logError(c, "No se pudo preparar la colección de Rekognition de la guardería nueva (se reintentará al primer registro)", err, "guarderia_id", nuevaGuarderiaID, "coleccion", colID)
 	}
 
 	s.registrarAcceso("guarderia_aprobada", nuevaGuarderiaID, nil,

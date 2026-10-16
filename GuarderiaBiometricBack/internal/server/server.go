@@ -57,6 +57,34 @@ func (s *Server) asegurarColeccionRekognition(ctx context.Context, colID string)
 	return err
 }
 
+// recrearColeccionRekognitionLimpia -- SOLO para cuando se aprueba una
+// guardería nueva (ver handleAprobarSolicitud, solicitudes.go), nunca para
+// una ya existente: a diferencia de asegurarColeccionRekognition (que nunca
+// borra nada, pensada para guarderías en marcha), esta SÍ borra la
+// colección antes de recrearla, para blindar contra el caso real que
+// explica "cree una guardería nueva y ya me reconoce de otra" --
+// guarderia_id es un SERIAL de Postgres: si una guardería anterior se borró
+// de la base (a mano, un TRUNCATE de pruebas, lo que sea) sin que nadie
+// borrara también SU colección en AWS -- son sistemas distintos, borrar la
+// fila de guarderias no toca Rekognition -- el siguiente alta puede
+// perfectamente recibir ESE MISMO id reciclado, y heredar sin darse cuenta
+// una colección vieja que ya tenía rostros indexados.
+//
+// Intentar borrar una colección que no existe responde
+// ResourceNotFoundException, que aquí se trata como "ya estaba limpia".
+func (s *Server) recrearColeccionRekognitionLimpia(ctx context.Context, colID string) error {
+	_, err := s.Rek.DeleteCollection(ctx, &rekognition.DeleteCollectionInput{
+		CollectionId: aws.String(colID),
+	})
+	if err != nil {
+		var noExiste *types.ResourceNotFoundException
+		if !errors.As(err, &noExiste) {
+			return fmt.Errorf("no se pudo limpiar la colección existente: %w", err)
+		}
+	}
+	return s.asegurarColeccionRekognition(ctx, colID)
+}
+
 // Server agrupa todas las dependencias que antes eran variables globales de
 // package main (db, dbAuth, rekClient, jwtKey) y las inyecta explícitamente
 // en cada handler vía sus métodos.

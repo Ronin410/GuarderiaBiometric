@@ -45,6 +45,32 @@ func (s *Server) registrarRutasPlataformaGuarderias(r *gin.Engine) {
 	r.PUT("/plataforma/guarderias/:id", platform, s.handleActualizarGuarderiaPlataforma)
 	r.POST("/plataforma/guarderias/:id/bloquear", platform, s.handleBloquearGuarderia)
 	r.POST("/plataforma/guarderias/:id/desbloquear", platform, s.handleDesbloquearGuarderia)
+	r.POST("/plataforma/guarderias/:id/reiniciar-reconocimiento-facial", platform, s.handleReiniciarReconocimientoFacial)
+}
+
+// handleReiniciarReconocimientoFacial -- herramienta de rescate para el
+// caso real que destapó esto: "creé una guardería nueva y ya me reconoce
+// de otra" porque guarderia_id es un SERIAL reciclable y ese número ya
+// tenía una colección de Rekognition con rostros de una guardería
+// anterior que se borró de Postgres sin que nadie borrara también SU
+// colección en AWS (son sistemas distintos). Esto vuelve a dejar la
+// colección de la guardería genuinamente vacía -- DESTRUCTIVO a propósito:
+// cualquier tutor que ya se haya enrolado de verdad en ESTA guardería
+// tendría que volver a registrar su rostro después de esto, así que solo
+// tiene sentido usarlo en una guardería que, como esta, nunca ha logrado
+// que un registro se complete.
+func (s *Server) handleReiniciarReconocimientoFacial(c *gin.Context) {
+	id := c.Param("id")
+	colID := getCollectionID(id)
+
+	if err := s.recrearColeccionRekognitionLimpia(c.Request.Context(), colID); err != nil {
+		s.logError(c, "No se pudo reiniciar la colección de Rekognition", err, "guarderia_id", id, "coleccion", colID)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo reiniciar el reconocimiento facial"})
+		return
+	}
+
+	applog.Info("Colección de Rekognition reiniciada desde /plataforma", "guarderia_id", id, "coleccion", colID)
+	c.JSON(http.StatusOK, gin.H{"status": "Reconocimiento facial reiniciado. Cualquier rostro enrolado antes en esta guardería ya no será reconocido."})
 }
 
 // handleActualizarGuarderiaPlataforma -- a diferencia de
