@@ -19,7 +19,8 @@ import {
   ClipboardCheck,
   AlertTriangle,
   BookOpen,
-  QrCode
+  QrCode,
+  Smartphone
 } from 'lucide-react';
 import VistaPadreDetalle from './VistaPadreDetalle';
 import ChatPadre from './ChatPadre';
@@ -28,6 +29,7 @@ import CircularesPadre from './CircularesPadre';
 import EventosPadre from './EventosPadre';
 import MenuPadre from './MenuPadre';
 import CodigosAccesoPadre from './CodigosAccesoPadre';
+import EscanearQRKioscoPadre from './EscanearQRKioscoPadre';
 import { suscribirseAPush, desuscribirseDePush, suscripcionActiva, pushSoportado } from './utils/push';
 import { hoyLocal } from './utils/fecha';
 import InstalarApp from './components/InstalarApp';
@@ -68,6 +70,7 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
   const [mostrarEventos, setMostrarEventos] = useState(false);
   const [mostrarMenu, setMostrarMenu] = useState(false);
   const [mostrarCodigosAcceso, setMostrarCodigosAcceso] = useState(false);
+  const [mostrarEscanearQR, setMostrarEscanearQR] = useState(false);
   const [loading, setLoading] = useState(true);
   const usuarioNombre = nombreUsuario || 'Familia';
   const [pagos, setPagos] = useState([]);
@@ -277,6 +280,10 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
     return <CodigosAccesoPadre onVolver={() => setMostrarCodigosAcceso(false)} nombrePadre={usuarioNombre} />;
   }
 
+  if (mostrarEscanearQR) {
+    return <EscanearQRKioscoPadre onVolver={() => setMostrarEscanearQR(false)} />;
+  }
+
   if (hijoSeleccionado) {
     return (
       <VistaPadreDetalle
@@ -407,6 +414,23 @@ const DashboardPadre = ({ padreId, nombreUsuario, alCerrarSesion }) => {
           <div className="flex-1 text-left">
             <p className="text-[11px] font-black text-slate-900 uppercase leading-tight">Código de acceso</p>
             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Para ti o para quien recoja a tu hijo</p>
+          </div>
+          <ChevronRight size={20} className="text-slate-300 shrink-0" />
+        </button>
+
+        {/* ENTRADA RÁPIDA -- "que lleguen, escaneen el código QR desde su
+            aplicación y le den entrada a su hijo desde ahí": el QR lo
+            muestra la TABLET de Recepción (modo "Autoservicio"), el papá
+            lo escanea con SU cámara y confirma desde aquí, sin esperar
+            turno. */}
+        <button
+          onClick={() => setMostrarEscanearQR(true)}
+          className="w-full bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-all active:scale-[0.98]"
+        >
+          <div className="bg-brand-100 p-3 rounded-2xl text-brand-600 shrink-0"><Smartphone size={20} /></div>
+          <div className="flex-1 text-left">
+            <p className="text-[11px] font-black text-slate-900 uppercase leading-tight">Entrada rápida</p>
+            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">Escanea el QR de recepción</p>
           </div>
           <ChevronRight size={20} className="text-slate-300 shrink-0" />
         </button>

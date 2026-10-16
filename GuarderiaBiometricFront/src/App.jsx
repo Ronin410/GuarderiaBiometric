@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Webcam from 'react-webcam';
 import jsQR from 'jsqr';
+import { QRCodeSVG } from 'qrcode.react';
 import api, { setCsrfToken } from './axiosConfig';
 // Importar componentes de rutas
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useParams, Link } from 'react-router-dom';
@@ -10,7 +11,7 @@ import {
   Lock, LogOut, CheckCircle, KeyRound, RefreshCw, X, Send, Clock, LogOut as LogOutIcon,
   User, IdCard, Wallet, BarChart3, ShieldCheck as ShieldCheckIcon, UserCog, UtensilsCrossed,
   CalendarDays, LayoutDashboard, Settings, Megaphone, MessageCircle, CalendarOff, Soup, ClipboardCheck,
-  BookOpen, Menu, BellRing, ChevronDown, QrCode
+  BookOpen, Menu, BellRing, ChevronDown, QrCode, Smartphone
 } from 'lucide-react';
 
 // Componentes secundarios
@@ -305,6 +306,13 @@ function MainApp() {
   const escaneandoQRRef = useRef(false);
   const [camaraQRLista, setCamaraQRLista] = useState(false);
   const [camaraQRError, setCamaraQRError] = useState(false);
+  // "Autoservicio" -- un tercer modo de Recepción, distinto de Código: ahí
+  // la TABLET muestra un QR anónimo (no identifica a nadie) que un papá
+  // escanea desde SU PROPIA app para confirmar la entrada/salida de SU
+  // hijo sin que staff tenga que tocar nada. Se renueva solo -- en cuanto
+  // alguien lo usa o se cumple el minuto, la tablet pide uno nuevo.
+  const [codigoKiosco, setCodigoKiosco] = useState(null); // { id, token, expira_en }
+  const [segundosKiosco, setSegundosKiosco] = useState(0);
   // Cuenta del portal del papá, opcional al registrar su rostro -- el tutor
   // está presente en el kiosco en ese momento, así que puede quedar lista de
   // una vez (ver el comentario de handleRegistrar en el backend).
@@ -815,6 +823,66 @@ function MainApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, modoIdentificacion, camaraQRLista]);
 
+  // generarCodigoKiosco -- le pide al backend un QR anónimo nuevo (ver
+  // handleGenerarCodigoKiosco). Se llama al entrar al modo "Autoservicio"
+  // y cada vez que el efecto de abajo detecta que el anterior ya se usó o
+  // venció -- la tablet nunca se queda mostrando un QR muerto.
+  const generarCodigoKiosco = useCallback(async () => {
+    try {
+      const res = await api.post('/admin/codigo-kiosco');
+      setCodigoKiosco(res.data);
+    } catch (err) {
+      console.error('No se pudo generar el código de kiosco:', err);
+      setCodigoKiosco(null);
+    }
+  }, []);
+
+  // Mientras el modo "Autoservicio" está activo: genera un código al
+  // entrar, y cada segundo revisa si ya se usó o venció (polling, no un
+  // solo timeout) para reemplazarlo EN CUANTO un papá lo escanee, sin
+  // esperar a que se cumpla el minuto completo de un código que ya nadie
+  // va a volver a usar.
+  useEffect(() => {
+    if (tab !== 'identificar' || modoIdentificacion !== 'autoservicio') {
+      setCodigoKiosco(null);
+      return undefined;
+    }
+
+    generarCodigoKiosco();
+
+    const intervalo = setInterval(async () => {
+      setCodigoKiosco((actual) => {
+        if (!actual) return actual;
+        const restantes = Math.max(0, Math.round((new Date(actual.expira_en) - Date.now()) / 1000));
+        setSegundosKiosco(restantes);
+        return actual;
+      });
+    }, 1000);
+
+    return () => clearInterval(intervalo);
+  }, [tab, modoIdentificacion, generarCodigoKiosco]);
+
+  // Poll aparte (cada 2s) contra el backend para enterarse de "usado" --
+  // el timer de arriba solo cuenta segundos en el cliente, esto es lo que
+  // de verdad sabe si un papá YA lo canjeó.
+  useEffect(() => {
+    if (tab !== 'identificar' || modoIdentificacion !== 'autoservicio' || !codigoKiosco?.id) return undefined;
+
+    const poll = setInterval(async () => {
+      try {
+        const res = await api.get(`/admin/codigo-kiosco/${codigoKiosco.id}`);
+        if (res.data.usado || res.data.expirado) {
+          generarCodigoKiosco();
+        }
+      } catch {
+        // Si falla la consulta, lo peor que pasa es que el QR actual se
+        // quede un poco más -- no hay que tumbar nada por esto.
+      }
+    }, 2000);
+
+    return () => clearInterval(poll);
+  }, [tab, modoIdentificacion, codigoKiosco?.id, generarCodigoKiosco]);
+
   const manejarToggleHijo = async (hijo) => {
     const hID = hijo.id || hijo.hijo_id;
     const estado = hijo.ultimo_estado;
@@ -1213,6 +1281,15 @@ function MainApp() {
                      >
                        <QrCode size={14} /> Código
                      </button>
+                     <button
+                       type="button"
+                       onClick={() => setModoIdentificacion('autoservicio')}
+                       className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-[11px] font-black uppercase tracking-wide transition-all ${
+                         modoIdentificacion === 'autoservicio' ? 'bg-brand-600 text-white shadow-md' : 'bg-white text-slate-400 border border-slate-200'
+                       }`}
+                     >
+                       <Smartphone size={14} /> Autoservicio
+                     </button>
                    </div>
                    {modoIdentificacion === 'codigo' && (
                      <div className="space-y-3 animate-in fade-in duration-200">
@@ -1279,6 +1356,31 @@ function MainApp() {
                            {loading ? 'Verificando...' : 'Verificar código'}
                          </button>
                        </div>
+                     </div>
+                   )}
+                   {modoIdentificacion === 'autoservicio' && (
+                     <div className="bg-white border border-slate-200 p-6 rounded-[2rem] shadow-sm text-center space-y-4 animate-in fade-in duration-200">
+                       <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                         Cada papá escanea este código desde <b>su propia app</b> y confirma la entrada o
+                         salida de su hijo desde su teléfono, sin esperar turno.
+                       </p>
+                       {codigoKiosco ? (
+                         <>
+                           <div className="flex justify-center">
+                             <div className="p-4 bg-white rounded-2xl border border-slate-100">
+                               <QRCodeSVG value={codigoKiosco.token} size={200} level="M" />
+                             </div>
+                           </div>
+                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                             Se renueva solo en {segundosKiosco}s (o en cuanto alguien lo use)
+                           </p>
+                         </>
+                       ) : (
+                         <div className="py-10 flex flex-col items-center gap-3">
+                           <RefreshCw className="animate-spin text-brand-600" size={32} />
+                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Generando código...</p>
+                         </div>
+                       )}
                      </div>
                    )}
                  </div>
