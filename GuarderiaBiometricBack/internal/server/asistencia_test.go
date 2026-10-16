@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -241,6 +242,76 @@ func TestIdentificarRequiereImagen(t *testing.T) {
 		r.ServeHTTP(w, req)
 		if w.Code != http.StatusBadRequest {
 			t.Errorf("código = %d; esperado 400 (body: %s)", w.Code, w.Body.String())
+		}
+	})
+}
+
+// TestRegistrarExigeAvisoDePrivacidad cubre el bug real: "configuré el
+// Aviso de Privacidad como PDF y me sigue diciendo que falta configurarlo".
+// La comprobación solo miraba aviso_privacidad_texto -- un PDF deja ese
+// campo vacío a propósito (ver handleActualizarAviso, privacidad.go), así
+// que una guardería que lo configuró como PDF nunca podía pasar de aquí.
+//
+// Los tres casos usan AceptaAviso: false para que, si pasan la primera
+// comprobación, el handler devuelva el segundo 400 ("Debes mostrar...")
+// ANTES de llegar a Rekognition -- s.Rek es nil en este Server de prueba, y
+// tocarlo panicaría.
+func TestRegistrarExigeAvisoDePrivacidad(t *testing.T) {
+	registrarRequest := func(t *testing.T, jwtKey []byte) *http.Request {
+		t.Helper()
+		req := jsonRequest(http.MethodPost, "/registrar", map[string]any{"nombre": "Tutor de prueba", "imagen": "", "acepta_aviso": false})
+		autenticarRequestPrueba(t, req, jwtKey, "staff", time.Hour)
+		return req
+	}
+
+	t.Run("sin texto ni PDF -> 400 'falta configurar'", func(t *testing.T) {
+		srv, mock := nuevoServidorDePruebaConDB(t)
+		mock.ExpectQuery("SELECT(.|\n)*FROM guarderias").
+			WithArgs(1).
+			WillReturnRows(sqlmock.NewRows([]string{"texto", "version", "pdf_key"}).AddRow("", "v1", nil))
+
+		r := nuevoRouterDePrueba(srv)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, registrarRequest(t, srv.JWTKey))
+
+		if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "debe configurar") {
+			t.Fatalf("código = %d, body = %s; esperado 400 'debe configurar'", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("configurado con texto -> pasa esta comprobación", func(t *testing.T) {
+		srv, mock := nuevoServidorDePruebaConDB(t)
+		mock.ExpectQuery("SELECT(.|\n)*FROM guarderias").
+			WithArgs(1).
+			WillReturnRows(sqlmock.NewRows([]string{"texto", "version", "pdf_key"}).AddRow("Texto del aviso", "v1", nil))
+
+		r := nuevoRouterDePrueba(srv)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, registrarRequest(t, srv.JWTKey))
+
+		if strings.Contains(w.Body.String(), "debe configurar") {
+			t.Fatalf("no debería bloquear con texto configurado (body: %s)", w.Body.String())
+		}
+		if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "Debes mostrar") {
+			t.Fatalf("código = %d, body = %s; esperado el 400 de AceptaAviso (confirma que sí pasó la primera comprobación)", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("configurado solo con PDF -> también pasa esta comprobación", func(t *testing.T) {
+		srv, mock := nuevoServidorDePruebaConDB(t)
+		mock.ExpectQuery("SELECT(.|\n)*FROM guarderias").
+			WithArgs(1).
+			WillReturnRows(sqlmock.NewRows([]string{"texto", "version", "pdf_key"}).AddRow("", "v1", "aviso-privacidad/guarderia_1/aviso.pdf"))
+
+		r := nuevoRouterDePrueba(srv)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, registrarRequest(t, srv.JWTKey))
+
+		if strings.Contains(w.Body.String(), "debe configurar") {
+			t.Fatalf("no debería bloquear con un PDF configurado (body: %s)", w.Body.String())
+		}
+		if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "Debes mostrar") {
+			t.Fatalf("código = %d, body = %s; esperado el 400 de AceptaAviso (confirma que sí pasó la primera comprobación)", w.Code, w.Body.String())
 		}
 	})
 }

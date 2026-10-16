@@ -85,16 +85,28 @@ func (s *Server) handleRegistrar(c *gin.Context) {
 	// que además queda ligado a los datos de sus hijos) no puede proceder sin
 	// un Aviso de Privacidad vigente ni sin que el tutor lo haya aceptado
 	// explícitamente frente al staff que opera el kiosco.
+	//
+	// "Configurado" es texto escrito a mano O un PDF subido -- son
+	// alternativas, nunca conviven los dos a la vez (ver el comentario
+	// largo en handleActualizarAviso, privacidad.go: subir un PDF deja
+	// aviso_privacidad_texto vacío a propósito). Antes esta validación solo
+	// miraba el texto, así que una guardería que configuró su aviso como
+	// PDF (en vez de escribirlo) nunca podía registrar un rostro -- el
+	// kiosco SÍ mostraba el PDF y dejaba aceptarlo (handleObtenerAviso ya
+	// consideraba las dos alternativas), pero al confirmar el registro esta
+	// comprobación lo rechazaba igual, con el mismo mensaje de "todavía
+	// falta configurarlo" aunque ya estuviera.
 	var textoAviso, versionAviso string
+	var pdfAviso sql.NullString
 	if err := s.DB.QueryRow(
-		"SELECT COALESCE(aviso_privacidad_texto, ''), aviso_privacidad_version FROM guarderias WHERE id = $1",
+		"SELECT COALESCE(aviso_privacidad_texto, ''), aviso_privacidad_version, aviso_privacidad_pdf_s3_key FROM guarderias WHERE id = $1",
 		gID,
-	).Scan(&textoAviso, &versionAviso); err != nil {
+	).Scan(&textoAviso, &versionAviso, &pdfAviso); err != nil {
 		s.logError(c, "No se pudo verificar el Aviso de Privacidad", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo verificar el Aviso de Privacidad"})
 		return
 	}
-	if strings.TrimSpace(textoAviso) == "" {
+	if strings.TrimSpace(textoAviso) == "" && !pdfAviso.Valid {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "El administrador debe configurar el Aviso de Privacidad antes de poder registrar tutores."})
 		return
 	}
