@@ -100,6 +100,47 @@ func TestLogin(t *testing.T) {
 		}
 	})
 
+	// A diferencia de admin/staff, "papa" SÍ debe traer el JWT en el body --
+	// es el respaldo que el frontend guarda en localStorage para que la
+	// sesión sobreviva a que la PWA instalada se cierre del todo y se
+	// reabra, cuando la cookie "cross-site" no sobrevive a eso (ver el
+	// comentario largo en handleLogin/middleware.Auth).
+	t.Run("papá -> 200 con token también en el body", func(t *testing.T) {
+		mockDB, mock, err := sqlmock.New()
+		if err != nil {
+			t.Fatalf("sqlmock: %v", err)
+		}
+		defer mockDB.Close()
+
+		srv := New()
+		srv.DBAuth = mockDB
+		srv.JWTKey = []byte("clave-de-prueba-solo-para-tests")
+
+		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.username = \\$1").
+			WithArgs("papa_demo").
+			WillReturnRows(sqlmock.NewRows(columnas).
+				AddRow(2, 1, string(hashCorrecto), "papa", "", "Guardería Demo", "demo", true, nil, false))
+
+		r := nuevoRouterDePrueba(srv)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, loginRequest("papa_demo", "Correcta123!"))
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("código = %d; esperado 200 (body: %s)", w.Code, w.Body.String())
+		}
+		var resp map[string]any
+		if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("respuesta no es JSON válido: %v", err)
+		}
+		tok, _ := resp["token"].(string)
+		if tok == "" {
+			t.Errorf("se esperaba el JWT en el body para rol=papa, body: %s", w.Body.String())
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("expectativas de sqlmock no cumplidas: %v", err)
+		}
+	})
+
 	t.Run("contraseña incorrecta -> 401", func(t *testing.T) {
 		mockDB, mock, err := sqlmock.New()
 		if err != nil {
@@ -353,6 +394,46 @@ func TestMe(t *testing.T) {
 			t.Errorf("MaxAge de la cookie renovada = %d; esperado ~90 días", cookieRenovada.MaxAge)
 		}
 
+		// El respaldo de localStorage (ver axiosConfig.js) depende de que
+		// /me también mande el JWT renovado en el body para rol=="papa".
+		tok, _ := resp["token"].(string)
+		if tok == "" {
+			t.Errorf("se esperaba el JWT renovado en el body para rol=papa, body: %s", w.Body.String())
+		}
+
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("expectativas de sqlmock no cumplidas: %v", err)
+		}
+	})
+
+	// Mismo endpoint, pero sin cookie -- solo el header Authorization, que
+	// es justo el camino que toma un papá cuya cookie "cross-site" no
+	// sobrevivió a que la PWA se cerrara del todo (ver el comentario largo
+	// en middleware.Auth).
+	t.Run("papá -> /me funciona solo con Authorization Bearer, sin cookie", func(t *testing.T) {
+		mockDB, mock, err := sqlmock.New()
+		if err != nil {
+			t.Fatalf("sqlmock: %v", err)
+		}
+		defer mockDB.Close()
+
+		srv := New()
+		srv.DBAuth = mockDB
+		srv.JWTKey = []byte("clave-de-prueba-solo-para-tests")
+
+		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.id = \\$1").
+			WithArgs(1).
+			WillReturnRows(sqlmock.NewRows(columnasMe).AddRow("papa_demo", "Guardería Demo", "demo", false))
+
+		r := nuevoRouterDePrueba(srv)
+		req := httptest.NewRequest(http.MethodGet, "/me", nil)
+		req.Header.Set("Authorization", "Bearer "+generarTokenPrueba(t, srv.JWTKey, "papa", time.Hour))
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("código = %d; esperado 200 (body: %s)", w.Code, w.Body.String())
+		}
 		if err := mock.ExpectationsWereMet(); err != nil {
 			t.Errorf("expectativas de sqlmock no cumplidas: %v", err)
 		}
@@ -397,6 +478,9 @@ func TestMe(t *testing.T) {
 			if ck.Name == middleware.CookieToken {
 				t.Errorf("admin/staff no debe recibir una cookie de sesión nueva en /me, se encontró: %v", ck)
 			}
+		}
+		if resp["token"] != nil {
+			t.Errorf("admin/staff no debe recibir el JWT en el body, se encontró: %v", resp["token"])
 		}
 
 		if err := mock.ExpectationsWereMet(); err != nil {

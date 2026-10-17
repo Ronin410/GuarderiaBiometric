@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Webcam from 'react-webcam';
 import jsQR from 'jsqr';
 import { QRCodeSVG } from 'qrcode.react';
-import api, { setCsrfToken } from './axiosConfig';
+import api, { setCsrfToken, setAuthToken } from './axiosConfig';
 // Importar componentes de rutas
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useParams, Link } from 'react-router-dom';
 import {
@@ -333,13 +333,12 @@ function MainApp() {
 
   // Restaura la sesión al montar: la cookie httpOnly viaja sola en la
   // petición, pero JS no puede leerla — por eso se le pregunta al backend
-  // quién está logueado en vez de leer localStorage como antes.
+  // quién está logueado en vez de leer localStorage directamente. (Ya NO se
+  // hace localStorage.clear() aquí -- corría en CADA montaje, no solo una
+  // vez, y de paso borraba cosas que sí deben persistir: las preferencias
+  // de menú de staff, el token del chat de soporte público, y ahora también
+  // el respaldo de sesión del papá de axiosConfig.js.)
   useEffect(() => {
-    // Limpieza única de lo que haya quedado de sesiones previas a este
-    // cambio (el JWT vivía en localStorage) — ya no se usa como mecanismo
-    // de sesión, pero no debe quedar tirado ahí.
-    localStorage.clear();
-
     api.get('/me')
       .then((res) => hidratarSesion(res.data))
       .catch(() => { /* sin sesión activa: se queda en la pantalla de login */ })
@@ -352,6 +351,11 @@ function MainApp() {
     // dominios de verdad distintos, no solo puertos, cuando esto corre en
     // Render en vez de local).
     setCsrfToken(data.csrf_token);
+    // data.token solo viene con algo cuando rol=="papa" (ver handleLogin/
+    // handleMe) -- se guarda como respaldo de la cookie "cross-site" para
+    // que la sesión sobreviva a que la PWA se cierre del todo y se reabra.
+    // null para admin/staff, que de cualquier forma nunca mandan nada aquí.
+    setAuthToken(data.token || null);
     setIsLoggedIn(true);
     setUserRole(data.rol);
     setUserId(data.user_id);
@@ -431,6 +435,7 @@ function MainApp() {
       console.error("Error al cerrar sesión:", error);
     }
     setCsrfToken(null);
+    setAuthToken(null);
     setIsLoggedIn(false);
     setUserRole(null);
     window.location.reload();

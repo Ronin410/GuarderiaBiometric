@@ -110,6 +110,48 @@ func TestAuth(t *testing.T) {
 			t.Errorf("código = %d; esperado 200 con CSRF coincidente (body: %s)", w.Code, w.Body.String())
 		}
 	})
+
+	// Respaldo de la sesión del papá: el JWT también se guarda en
+	// localStorage y se manda por header Authorization cuando la cookie
+	// "cross-site" no sobrevivió a que la PWA se cerrara del todo -- ver el
+	// comentario largo en Auth().
+	t.Run("sin cookie, con Authorization Bearer válido -> 200", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/protegido", nil)
+		req.Header.Set("Authorization", "Bearer "+generarToken(t, jwtKey, "papa", time.Hour))
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Errorf("código = %d; esperado 200 con Authorization Bearer (body: %s)", w.Code, w.Body.String())
+		}
+	})
+
+	t.Run("Authorization Bearer con firma inválida -> 401", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/protegido", nil)
+		req.Header.Set("Authorization", "Bearer "+generarToken(t, []byte("otra-clave-distinta"), "papa", time.Hour))
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusUnauthorized {
+			t.Errorf("código = %d; esperado 401 (body: %s)", w.Code, w.Body.String())
+		}
+	})
+
+	// Un header Authorization nunca lo adjunta el navegador por su cuenta en
+	// una petición de otro sitio (a diferencia de una cookie), así que esta
+	// vía no necesita -- ni puede cumplir, no hay cookie CSRF que leer -- el
+	// candado de doble-submit.
+	t.Run("POST solo con Authorization Bearer, sin CSRF -> 200", func(t *testing.T) {
+		rPost := gin.New()
+		rPost.POST("/protegido", Auth(jwtKey), func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{"ok": true})
+		})
+		req := httptest.NewRequest(http.MethodPost, "/protegido", nil)
+		req.Header.Set("Authorization", "Bearer "+generarToken(t, jwtKey, "papa", time.Hour))
+		w := httptest.NewRecorder()
+		rPost.ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Errorf("código = %d; esperado 200 sin CSRF cuando el token viene por header (body: %s)", w.Code, w.Body.String())
+		}
+	})
 }
 
 func TestRequireStaff(t *testing.T) {

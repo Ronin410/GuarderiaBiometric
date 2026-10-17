@@ -3,6 +3,7 @@ package middleware
 import (
 	"crypto/subtle"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -37,14 +38,33 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-// Auth valida el JWT de la cookie CookieToken y publica guarderia_id/user_id/
-// rol/token_exp en el contexto de gin para que los handlers los lean con
-// c.Get(...). En peticiones que modifican datos (todo menos GET/HEAD/OPTIONS)
-// también exige que el header X-CSRF-Token coincida con la cookie CookieCSRF.
+// Auth valida el JWT -- normalmente de la cookie CookieToken, con un
+// respaldo en el header "Authorization: Bearer <token>" -- y publica
+// guarderia_id/user_id/rol/token_exp en el contexto de gin para que los
+// handlers los lean con c.Get(...). El respaldo por header existe para la
+// sesión del papá (ver handleLogin/handleMe en auth.go): su JWT también se
+// guarda en localStorage porque la cookie es "cross-site" (frontend y
+// backend en subdominios distintos) y el navegador puede purgarla al cerrar
+// del todo la PWA instalada y reabrirla, aunque el token siga vigente.
+// En peticiones que modifican datos (todo menos GET/HEAD/OPTIONS) también
+// exige que el header X-CSRF-Token coincida con la cookie CookieCSRF -- PERO
+// solo cuando el JWT llegó por la cookie: el patrón "double-submit cookie"
+// existe para defenderse de que el navegador adjunte la cookie de sesión
+// SOLO (CSRF clásico); un header Authorization nunca lo adjunta el
+// navegador por su cuenta en una petición de otro sitio, así que esa vía ya
+// no es vulnerable a lo mismo y exigir también CSRF ahí no protege nada,
+// solo rompería el flujo por header.
 func Auth(jwtKey []byte) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenString, err := c.Cookie(CookieToken)
+		viaHeader := false
 		if err != nil || tokenString == "" {
+			if authHeader := c.GetHeader("Authorization"); strings.HasPrefix(authHeader, "Bearer ") {
+				tokenString = strings.TrimPrefix(authHeader, "Bearer ")
+				viaHeader = true
+			}
+		}
+		if tokenString == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Sesión requerida"})
 			c.Abort()
 			return
@@ -61,7 +81,7 @@ func Auth(jwtKey []byte) gin.HandlerFunc {
 			return
 		}
 
-		if c.Request.Method != http.MethodGet && c.Request.Method != http.MethodHead && c.Request.Method != http.MethodOptions {
+		if !viaHeader && c.Request.Method != http.MethodGet && c.Request.Method != http.MethodHead && c.Request.Method != http.MethodOptions {
 			csrfCookie, errCookie := c.Cookie(CookieCSRF)
 			csrfHeader := c.GetHeader("X-CSRF-Token")
 			if errCookie != nil || csrfCookie == "" || csrfHeader == "" || csrfCookie != csrfHeader {

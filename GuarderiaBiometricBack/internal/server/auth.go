@@ -212,6 +212,17 @@ func (s *Server) handleLogin(c *gin.Context) {
 	c.SetCookie(middleware.CookieToken, tokenStr, duracion, "/", "", true, true)
 	c.SetCookie(middleware.CookieCSRF, csrfToken, duracion, "/", "", true, false)
 
+	// Solo para "papa": el mismo JWT va también en el body, para que el
+	// frontend lo guarde en localStorage como respaldo de la cookie -- ver
+	// el comentario largo en handleMe/middleware.Auth. admin/staff se
+	// quedan exactamente igual que antes, sin el token expuesto fuera de la
+	// cookie httpOnly -- puntero nil (-> JSON null) en vez de "", para no
+	// cambiar de "ausente" a "string vacía" de cara al frontend/pruebas.
+	var tokenParaPapa *string
+	if rol == "papa" {
+		tokenParaPapa = &tokenStr
+	}
+
 	applog.Info("Login exitoso", "username", creds.Username)
 	s.registrarAcceso("login_exitoso", gID, id, creds.Username, c.ClientIP())
 	c.JSON(http.StatusOK, gin.H{
@@ -233,6 +244,7 @@ func (s *Server) handleLogin(c *gin.Context) {
 		// en dominios de verdad distintos (ver el comentario de SameSite
 		// arriba, y el de axiosConfig.js en el frontend).
 		"csrf_token": csrfToken,
+		"token":      tokenParaPapa,
 	})
 }
 
@@ -301,6 +313,16 @@ func (s *Server) handleMe(c *gin.Context) {
 	// cuando, nunca la ve expirar de verdad. admin/staff NO se tocan aquí a
 	// propósito: se quedan con la sesión corta de siempre, sin renovación
 	// automática (ver duracionSesion más arriba).
+	//
+	// tokenParaPapa viaja TAMBIÉN en el body de la respuesta (no solo en la
+	// cookie) para que el frontend lo guarde en localStorage -- ver el
+	// comentario largo en middleware.Auth sobre por qué: la cookie es
+	// "cross-site" (frontend y backend en subdominios distintos de
+	// onrender.com) y el navegador del papá puede purgarla al cerrar del
+	// todo la PWA y reabrirla, aunque el JWT siga vigente. localStorage no
+	// depende de esa decisión del navegador. Nunca se hace esto para
+	// admin/staff: su sesión sigue viviendo SOLO en la cookie httpOnly.
+	var tokenParaPapa *string
 	if uidInt, okUID := uid.(int); okUID && rol == "papa" {
 		if gIDInt, okGID := gID.(int); okGID {
 			duracion := duracionSesion("papa")
@@ -324,6 +346,7 @@ func (s *Server) handleMe(c *gin.Context) {
 				c.SetCookie(middleware.CookieToken, tokenStr, duracion, "/", "", true, true)
 				c.SetCookie(middleware.CookieCSRF, csrfToken, duracion, "/", "", true, false)
 				expiraEn = expirationTime.Unix()
+				tokenParaPapa = &tokenStr
 			}
 		}
 	}
@@ -338,6 +361,7 @@ func (s *Server) handleMe(c *gin.Context) {
 		"expires_at":       expiraEn,
 		"permisos":         permisos,
 		"csrf_token":       csrfToken,
+		"token":            tokenParaPapa,
 	})
 }
 
