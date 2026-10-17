@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import jsQR from 'jsqr';
 import Webcam from 'react-webcam';
 import api from './axiosConfig';
-import { ChevronLeft, QrCode, RefreshCw, AlertCircle, CheckCircle2, LogIn, LogOut } from 'lucide-react';
+import { ChevronLeft, QrCode, RefreshCw, AlertCircle, CheckCircle2, LogIn, LogOut, Sparkles, Siren } from 'lucide-react';
 import { mostrarError } from './utils/alertas';
 import { ACENTOS } from './utils/acentos';
 import DinoDecorativo from './components/DinoDecorativo';
@@ -32,6 +32,8 @@ const EscanearQRKioscoPadre = ({ onVolver }) => {
   const [resultado, setResultado] = useState(null); // { codigo_kiosco_id, hijos: [...] }
   const [confirmando, setConfirmando] = useState(null); // hijo_id en curso
   const [confirmados, setConfirmados] = useState([]); // hijo_ids ya confirmados en esta sesión de escaneo
+  const [expandido, setExpandido] = useState(null); // hijo_id con el formulario de bitácora abierto
+  const [formHijo, setFormHijo] = useState({}); // { [hijo_id]: { aseado, golpe, observaciones } }
 
   // Escanea un frame cada 400ms mientras no haya un resultado ya mostrado
   // en pantalla -- igual que el modo "Código" del kiosco (App.jsx), pero
@@ -79,6 +81,8 @@ const EscanearQRKioscoPadre = ({ onVolver }) => {
       const res = await api.post('/padre/codigo-kiosco/canjear', { token });
       setResultado(res.data);
       setConfirmados([]);
+      setExpandido(null);
+      setFormHijo({});
     } catch (err) {
       setErrorCodigo(err.response?.data?.mensaje || err.response?.data?.error || 'Código no válido');
     } finally {
@@ -88,13 +92,18 @@ const EscanearQRKioscoPadre = ({ onVolver }) => {
 
   const confirmar = async (hijo) => {
     const hijoId = hijo.id || hijo.hijo_id;
+    const datos = formHijo[hijoId] || {};
     setConfirmando(hijoId);
     try {
       await api.post('/padre/confirmar-asistencia', {
         hijo_id: hijoId,
         codigo_kiosco_id: resultado.codigo_kiosco_id,
+        aseado: datos.aseado || false,
+        reporte_golpe: datos.golpe || false,
+        observaciones: datos.observaciones || '',
       });
       setConfirmados((prev) => [...prev, hijoId]);
+      setExpandido(null);
     } catch (err) {
       mostrarError(err.response?.data?.error || 'No se pudo confirmar');
     } finally {
@@ -106,6 +115,8 @@ const EscanearQRKioscoPadre = ({ onVolver }) => {
     setResultado(null);
     setErrorCodigo('');
     setConfirmados([]);
+    setExpandido(null);
+    setFormHijo({});
   };
 
   return (
@@ -186,29 +197,84 @@ const EscanearQRKioscoPadre = ({ onVolver }) => {
               const hijoId = h.id || h.hijo_id;
               const yaConfirmado = confirmados.includes(hijoId);
               const esSalida = h.ultimo_estado === 'ENTRADA';
+              const abierto = expandido === hijoId;
+              const datos = formHijo[hijoId] || {};
+              const actualizarForm = (campo, valor) =>
+                setFormHijo((prev) => ({ ...prev, [hijoId]: { ...prev[hijoId], [campo]: valor } }));
               return (
-                <div key={hijoId} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-black text-sm text-slate-900 truncate">{h.nombre_niño || h.nombre}</p>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase">
-                      {h.ultimo_estado === 'AUSENTE' ? 'Sin registro hoy' : `Último: ${h.ultimo_estado}`}
-                    </p>
+                <div key={hijoId} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-black text-sm text-slate-900 truncate">{h.nombre_niño || h.nombre}</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase">
+                        {h.ultimo_estado === 'AUSENTE' ? 'Sin registro hoy' : `Último: ${h.ultimo_estado}`}
+                      </p>
+                    </div>
+                    {yaConfirmado ? (
+                      <span className="flex items-center gap-1.5 text-[10px] font-black text-emerald-600 uppercase shrink-0">
+                        <CheckCircle2 size={14} /> Listo
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => setExpandido(abierto ? null : hijoId)}
+                        className={`shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[11px] font-black uppercase transition-all active:scale-95 ${
+                          abierto ? 'bg-slate-100 text-slate-500' : esSalida ? 'bg-amber-500 text-white' : 'bg-emerald-500 text-white'
+                        }`}
+                      >
+                        {esSalida ? <LogOut size={14} /> : <LogIn size={14} />}
+                        {abierto ? 'Cerrar' : esSalida ? 'Salida' : 'Entrada'}
+                      </button>
+                    )}
                   </div>
-                  {yaConfirmado ? (
-                    <span className="flex items-center gap-1.5 text-[10px] font-black text-emerald-600 uppercase shrink-0">
-                      <CheckCircle2 size={14} /> Listo
-                    </span>
-                  ) : (
-                    <button
-                      onClick={() => confirmar(h)}
-                      disabled={confirmando === hijoId}
-                      className={`shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[11px] font-black uppercase transition-all active:scale-95 disabled:opacity-50 ${
-                        esSalida ? 'bg-amber-500 text-white' : 'bg-emerald-500 text-white'
-                      }`}
-                    >
-                      {esSalida ? <LogOut size={14} /> : <LogIn size={14} />}
-                      {confirmando === hijoId ? '...' : esSalida ? 'Salida' : 'Entrada'}
-                    </button>
+
+                  {/* Mismos datos de bitácora que captura el staff en la
+                      tablet (App.jsx) al dar entrada: ¿aseado?, ¿golpes? y
+                      observaciones libres. ¿Aseado?/¿Golpes? solo tienen
+                      sentido al llegar, así que solo se piden en ENTRADA;
+                      observaciones queda disponible también en SALIDA
+                      (p.ej. "se fue con fiebre"). */}
+                  {!yaConfirmado && abierto && (
+                    <div className="mt-4 pt-4 border-t border-slate-100 space-y-3">
+                      {!esSalida && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => actualizarForm('aseado', !datos.aseado)}
+                            className={`flex items-center justify-center gap-1.5 py-3 rounded-xl text-[10px] font-black uppercase border transition-colors ${
+                              datos.aseado ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white text-slate-400 border-slate-200'
+                            }`}
+                          >
+                            <Sparkles size={13} /> {datos.aseado ? 'Aseado ✓' : '¿Aseado?'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => actualizarForm('golpe', !datos.golpe)}
+                            className={`flex items-center justify-center gap-1.5 py-3 rounded-xl text-[10px] font-black uppercase border transition-colors ${
+                              datos.golpe ? 'bg-rose-500 text-white border-rose-500' : 'bg-white text-slate-400 border-slate-200'
+                            }`}
+                          >
+                            <Siren size={13} /> {datos.golpe ? 'Golpes !' : '¿Golpes?'}
+                          </button>
+                        </div>
+                      )}
+                      <textarea
+                        value={datos.observaciones || ''}
+                        onChange={(e) => actualizarForm('observaciones', e.target.value)}
+                        placeholder="Observaciones para la bitácora (opcional)..."
+                        rows={2}
+                        className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs outline-none focus:border-brand-400 transition-colors resize-none"
+                      />
+                      <button
+                        onClick={() => confirmar(h)}
+                        disabled={confirmando === hijoId}
+                        className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[11px] font-black uppercase transition-all active:scale-95 disabled:opacity-50 ${
+                          esSalida ? 'bg-amber-500 text-white' : 'bg-emerald-500 text-white'
+                        }`}
+                      >
+                        {esSalida ? <LogOut size={14} /> : <LogIn size={14} />}
+                        {confirmando === hijoId ? 'Guardando...' : `Confirmar ${esSalida ? 'salida' : 'entrada'}`}
+                      </button>
+                    </div>
                   )}
                 </div>
               );

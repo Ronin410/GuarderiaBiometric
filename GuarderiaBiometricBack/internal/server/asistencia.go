@@ -467,14 +467,21 @@ func (s *Server) handleConfirmarAsistencia(c *gin.Context) {
 		codigoAccesoArg = req.CodigoAccesoID
 	}
 
-	// Buscamos el último registro de HOY
+	// Buscamos el último registro de HOY -- en hora de Mazatlán, igual que
+	// en todo el resto del código (ver p.ej. la misma comparación arriba en
+	// handleIdentificar). Sin el AT TIME ZONE, "HOY" se evaluaba en la zona
+	// horaria de la sesión de Postgres (UTC), así que entrada la noche en
+	// Mazatlán -- cuando en UTC ya es "mañana" -- esta consulta dejaba de
+	// encontrar la ENTRADA de la mañana y una SALIDA real se registraba
+	// otra vez como ENTRADA.
 	var ultimoTipo string
 	err := s.DB.QueryRow(`
         SELECT tipo_movimiento
         FROM asistencia
         WHERE hijo_id = $1
           AND guarderia_id = $2
-          AND fecha_hora::date = CURRENT_DATE
+          AND (fecha_hora AT TIME ZONE 'America/Mazatlan')::date =
+              (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mazatlan')::date
         ORDER BY fecha_hora DESC
         LIMIT 1`, req.HijoID, gID).Scan(&ultimoTipo)
 

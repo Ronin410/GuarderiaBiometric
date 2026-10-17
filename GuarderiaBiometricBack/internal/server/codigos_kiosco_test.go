@@ -203,11 +203,75 @@ func TestConfirmarAsistenciaPadre(t *testing.T) {
 			WithArgs(5, 1).
 			WillReturnError(sql.ErrNoRows)
 		mock.ExpectExec("INSERT INTO asistencia").
-			WithArgs(1, 5, "Confirmado por el propio tutor desde su app, vía QR del kiosco", "ENTRADA", 1, 9).
+			WithArgs(1, 5, false, false, "Confirmado por el propio tutor desde su app, vía QR del kiosco", "ENTRADA", 1, 9).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 
 		r := nuevoRouterDePrueba(srv)
 		req := jsonRequest(http.MethodPost, "/padre/confirmar-asistencia", cuerpo)
+		autenticarRequestPrueba(t, req, srv.JWTKey, "papa", time.Hour)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("código = %d; esperado 200 (body: %s)", w.Code, w.Body.String())
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("expectativas de sqlmock no cumplidas: %v", err)
+		}
+	})
+
+	t.Run("entrada con aseado/golpe/observaciones -> se guardan y se anexan a la nota", func(t *testing.T) {
+		srv, mock := nuevoServidorDePruebaConDB(t)
+		mock.ExpectQuery("SELECT EXISTS(.|\n)*FROM tutor_hijos").
+			WithArgs("5", 1).
+			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+		mock.ExpectQuery("SELECT usado_por FROM codigos_kiosco").
+			WithArgs(9, 1).
+			WillReturnRows(sqlmock.NewRows([]string{"usado_por"}).AddRow(1))
+		mock.ExpectQuery("SELECT tipo_movimiento(.|\n)*FROM asistencia").
+			WithArgs(5, 1).
+			WillReturnError(sql.ErrNoRows)
+		mock.ExpectExec("INSERT INTO asistencia").
+			WithArgs(1, 5, true, true, "Confirmado por el propio tutor desde su app, vía QR del kiosco — Llegó llorando", "ENTRADA", 1, 9).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+
+		r := nuevoRouterDePrueba(srv)
+		req := jsonRequest(http.MethodPost, "/padre/confirmar-asistencia", map[string]any{
+			"hijo_id": 5, "codigo_kiosco_id": 9,
+			"aseado": true, "reporte_golpe": true, "observaciones": "Llegó llorando",
+		})
+		autenticarRequestPrueba(t, req, srv.JWTKey, "papa", time.Hour)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("código = %d; esperado 200 (body: %s)", w.Code, w.Body.String())
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("expectativas de sqlmock no cumplidas: %v", err)
+		}
+	})
+
+	t.Run("salida con aseado/golpe en el body -> se ignoran, se guardan en false", func(t *testing.T) {
+		srv, mock := nuevoServidorDePruebaConDB(t)
+		mock.ExpectQuery("SELECT EXISTS(.|\n)*FROM tutor_hijos").
+			WithArgs("5", 1).
+			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+		mock.ExpectQuery("SELECT usado_por FROM codigos_kiosco").
+			WithArgs(9, 1).
+			WillReturnRows(sqlmock.NewRows([]string{"usado_por"}).AddRow(1))
+		mock.ExpectQuery("SELECT tipo_movimiento(.|\n)*FROM asistencia").
+			WithArgs(5, 1).
+			WillReturnRows(sqlmock.NewRows([]string{"tipo_movimiento"}).AddRow("ENTRADA"))
+		mock.ExpectExec("INSERT INTO asistencia").
+			WithArgs(1, 5, false, false, "Confirmado por el propio tutor desde su app, vía QR del kiosco — Se fue tranquilo", "SALIDA", 1, 9).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+
+		r := nuevoRouterDePrueba(srv)
+		req := jsonRequest(http.MethodPost, "/padre/confirmar-asistencia", map[string]any{
+			"hijo_id": 5, "codigo_kiosco_id": 9,
+			"aseado": true, "reporte_golpe": true, "observaciones": "Se fue tranquilo",
+		})
 		autenticarRequestPrueba(t, req, srv.JWTKey, "papa", time.Hour)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)

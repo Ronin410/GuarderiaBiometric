@@ -74,14 +74,6 @@ const PanelReportes = ({ guarderiaInfo }) => {
           table { width: 100% !important; border-collapse: collapse !important; table-layout: fixed !important; }
           .break-inside-avoid { page-break-inside: avoid; }
         }
-        .text-break-custom {
-          word-break: break-word;
-          overflow-wrap: break-word;
-          display: -webkit-box;
-          -webkit-line-clamp: 3;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
-        }
       `}</style>
 
       {/* CABECERA -- "el logo de pasitos en la izquierda junto con el nombre
@@ -200,43 +192,43 @@ const PanelReportes = ({ guarderiaInfo }) => {
                     </td>
                     <td className="p-4 align-top">
                       {esSalida ? (
-                        <div className="space-y-3">
-                          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3"> {/* Ajustado a 5 columnas */}
+                        // Antes cada dato (desayuno/comida/merienda/esfínter/
+                        // dormió) era una tarjeta de su propia fila con
+                        // ícono+etiqueta+valor apilados -- mucho más alto que
+                        // la celda de ENTRADA de al lado, al grado de que una
+                        // sola hoja impresa apenas alcanzaba para un niño. Se
+                        // comprime a una sola línea de etiquetas, mismo dato,
+                        // una fracción del alto.
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap gap-1.5">
                             {[
-                              { label: 'DESAYUNO', val: b.desayuno, col: 'text-blue-600', bg: 'bg-blue-50/40' },
-                              { label: 'COMIDA', val: b.comida, col: 'text-orange-600', bg: 'bg-orange-50/40' },
-                              { label: 'MERIENDA', val: b.merienda, col: 'text-pink-600', bg: 'bg-pink-50/40' },
-                              { label: 'ESFÍNTER', val: b.esfinter, col: 'text-emerald-600', bg: 'bg-emerald-50/40' },
-                              // NUEVA TARJETA: ESTADO DE SUEÑO
-                              { 
-                                label: 'DORMIÓ', 
-                                val: b.durmio ? 'SÍ' : 'NO', 
-                                col: b.durmio ? 'text-indigo-600' : 'text-slate-400', 
-                                bg: b.durmio ? 'bg-indigo-50/40' : 'bg-slate-50/40' 
-                              }
+                              { label: 'Desayuno', val: b.desayuno, col: 'text-blue-600 bg-blue-50/60 border-blue-100' },
+                              { label: 'Comida', val: b.comida, col: 'text-orange-600 bg-orange-50/60 border-orange-100' },
+                              { label: 'Merienda', val: b.merienda, col: 'text-pink-600 bg-pink-50/60 border-pink-100' },
+                              { label: 'Esfínter', val: b.esfinter, col: 'text-emerald-600 bg-emerald-50/60 border-emerald-100' },
+                              {
+                                label: 'Durmió',
+                                val: b.durmio ? 'Sí' : 'No',
+                                col: b.durmio ? 'text-indigo-600 bg-indigo-50/60 border-indigo-100' : 'text-slate-400 bg-slate-50 border-slate-200',
+                              },
                             ].map(item => (
-                              <div key={item.label} className={`${item.bg} p-2.5 rounded-xl border border-slate-100`}>
-                                <span className={`text-[8px] font-black ${item.col} block mb-1 tracking-wider`}>{item.label}</span>
-                                <p className="text-[10px] font-bold text-slate-700 leading-tight italic text-break-custom">
-                                  {item.val || '--'}
-                                </p>
-                              </div>
+                              <span key={item.label} className={`${item.col} text-[9px] font-bold px-2 py-1 rounded-lg border whitespace-nowrap`}>
+                                {item.label}: <span className="font-black">{item.val || '--'}</span>
+                              </span>
                             ))}
                           </div>
                           {b.observaciones && (
-                            <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200 border-dashed">
-                              <span className="text-[8px] font-black text-slate-400 block uppercase mb-1 tracking-widest">Observaciones Finales</span>
-                              <p className="text-[10px] text-slate-600 font-medium italic leading-relaxed">{b.observaciones}</p>
-                            </div>
+                            <p className="text-[9px] text-slate-500 font-medium italic leading-snug">
+                              <span className="font-black text-slate-400 not-italic uppercase tracking-wide">Obs: </span>
+                              {b.observaciones}
+                            </p>
                           )}
                         </div>
                       ) : (
-                        <div className="bg-brand-50/40 p-3 rounded-xl border border-brand-100 border-dashed">
-                          <span className="text-[8px] font-black text-brand-600 block mb-1 uppercase tracking-widest">Nota de Ingreso</span>
-                          <p className="text-[11px] font-bold text-slate-600 italic">
-                            "{reg.obs_asistencia || "Sin novedades reportadas."}"
-                          </p>
-                        </div>
+                        <p className="text-[10px] font-bold text-slate-600 italic leading-snug">
+                          <span className="font-black text-brand-600 not-italic uppercase tracking-wide">Nota: </span>
+                          "{reg.obs_asistencia || "Sin novedades reportadas."}"
+                        </p>
                       )}
                     </td>
                   </tr>

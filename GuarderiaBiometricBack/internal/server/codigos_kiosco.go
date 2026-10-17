@@ -232,8 +232,11 @@ func (s *Server) handleConfirmarAsistenciaPadre(c *gin.Context) {
 	padreID, _ := padreIDRaw.(int)
 
 	var input struct {
-		HijoID         int `json:"hijo_id"`
-		CodigoKioscoID int `json:"codigo_kiosco_id"`
+		HijoID         int    `json:"hijo_id"`
+		CodigoKioscoID int    `json:"codigo_kiosco_id"`
+		Aseado         bool   `json:"aseado"`
+		ReporteGolpe   bool   `json:"reporte_golpe"`
+		Observaciones  string `json:"observaciones"`
 	}
 	if err := c.BindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Datos inválidos"})
@@ -257,13 +260,17 @@ func (s *Server) handleConfirmarAsistenciaPadre(c *gin.Context) {
 		return
 	}
 
+	// Misma zona horaria que el resto del código (ver asistencia.go) -- sin
+	// esto, una SALIDA real entrada la noche en Mazatlán se detectaba como
+	// si no hubiera habido ENTRADA ese día y volvía a quedar como ENTRADA.
 	var ultimoTipo string
 	err := s.DB.QueryRow(`
         SELECT tipo_movimiento
         FROM asistencia
         WHERE hijo_id = $1
           AND guarderia_id = $2
-          AND fecha_hora::date = CURRENT_DATE
+          AND (fecha_hora AT TIME ZONE 'America/Mazatlan')::date =
+              (CURRENT_TIMESTAMP AT TIME ZONE 'America/Mazatlan')::date
         ORDER BY fecha_hora DESC
         LIMIT 1`, input.HijoID, gID).Scan(&ultimoTipo)
 
@@ -276,10 +283,21 @@ func (s *Server) handleConfirmarAsistenciaPadre(c *gin.Context) {
 		}
 	}
 
+	nota := "Confirmado por el propio tutor desde su app, vía QR del kiosco"
+	observaciones := strings.TrimSpace(input.Observaciones)
+	if observaciones != "" {
+		nota = nota + " — " + observaciones
+	}
+	// "¿Aseado?" / "¿Golpes?" son preguntas de ENTRADA (cómo llegó el niño),
+	// igual que en el kiosco de recepción (App.jsx) -- en SALIDA no aplican
+	// y se guardan en false sin importar lo que mande el cliente.
+	aseado := tipoFinal == "ENTRADA" && input.Aseado
+	reporteGolpe := tipoFinal == "ENTRADA" && input.ReporteGolpe
+
 	_, err = s.DB.Exec(
-		`INSERT INTO asistencia (padre_id, hijo_id, observaciones, tipo_movimiento, guarderia_id, codigo_kiosco_id)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-		padreID, input.HijoID, "Confirmado por el propio tutor desde su app, vía QR del kiosco", tipoFinal, gID, input.CodigoKioscoID,
+		`INSERT INTO asistencia (padre_id, hijo_id, aseado, reporte_golpe, observaciones, tipo_movimiento, guarderia_id, codigo_kiosco_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		padreID, input.HijoID, aseado, reporteGolpe, nota, tipoFinal, gID, input.CodigoKioscoID,
 	)
 	if err != nil {
 		s.logError(c, "No se pudo guardar la asistencia (confirmación del propio papá)", err)
