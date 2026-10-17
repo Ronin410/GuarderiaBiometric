@@ -1,0 +1,333 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Alert,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import api from '../api/client';
+import { useAuth } from '../context/AuthContext';
+import { hoyLocal } from '../utils/fecha';
+import { activarPushNativo, desactivarPushNativo, notificacionesActivas } from '../utils/push';
+import { color, radius, sombra } from '../theme';
+
+// Equivalente a la parte de arriba de DashboardPadre.jsx en la web: saludo,
+// aviso de "las bitácoras se actualizan en tiempo real", entradas fijas
+// (Chat/Encuestas/Eventos/Menú) y el listado de niños para entrar a su
+// bitácora de hoy. `pantalla` es la ruta real ya portada -- si falta, la
+// tarjeta manda a "Proximamente" (ver API_MOVIL.md para el orden en que
+// se van agregando).
+const ENTRADAS = [
+  { key: 'encuestas', icon: 'clipboard', titulo: 'Encuestas', subtitulo: 'Comparte tu opinión con la guardería', pantalla: 'Encuestas' },
+  { key: 'eventos', icon: 'calendar', titulo: 'Eventos', subtitulo: 'Calendario escolar de la guardería', pantalla: 'Eventos' },
+  { key: 'menu', icon: 'restaurant', titulo: 'Menú semanal', subtitulo: 'Días anteriores y posteriores', pantalla: 'MenuSemanal' },
+];
+
+const formatoFechaCircular = (iso) => {
+  try {
+    return new Date(iso).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return iso;
+  }
+};
+
+export default function DashboardScreen({ navigation }) {
+  const { usuario, cerrarSesion } = useAuth();
+  const [hijos, setHijos] = useState([]);
+  const [circulares, setCirculares] = useState([]);
+  const [menuHoy, setMenuHoy] = useState(null);
+  const [cargando, setCargando] = useState(true);
+  const [refrescando, setRefrescando] = useState(false);
+  // 'default' | 'activando' | 'granted' | 'desactivando' -- mismo criterio
+  // que notifEstado en DashboardPadre.jsx (web), aquí contra el permiso
+  // del sistema operativo en vez de la Push API del navegador.
+  const [notifEstado, setNotifEstado] = useState('default');
+
+  useEffect(() => {
+    notificacionesActivas().then((activas) => { if (activas) setNotifEstado('granted'); });
+  }, []);
+
+  const activarNotificaciones = async () => {
+    setNotifEstado('activando');
+    const { token, error } = await activarPushNativo();
+    if (token) {
+      setNotifEstado('granted');
+    } else {
+      setNotifEstado('default');
+      // Se muestra el error real (error) en vez de un aviso genérico -- en
+      // un build normal (no development) no hay forma de ver la consola
+      // sin conectar el celular por USB, así que este mensaje es la única
+      // pista disponible si algo vuelve a fallar.
+      Alert.alert('No se pudo activar', error || 'Inténtalo de nuevo más tarde.');
+    }
+  };
+
+  const desactivarNotificaciones = async () => {
+    setNotifEstado('desactivando');
+    await desactivarPushNativo();
+    setNotifEstado('default');
+  };
+
+  const cargar = useCallback(async () => {
+    try {
+      // "0" == el backend lo resuelve con el user_id del propio token (ver
+      // el mismo comentario en DashboardPadre.jsx de la web).
+      const hoy = hoyLocal();
+      const [resHijos, resCirculares, resMenu] = await Promise.all([
+        api.get('/padre/0/hijos'),
+        api.get('/padre/circulares').catch(() => ({ data: [] })),
+        api.get('/padre/menu-semanal', { params: { inicio: hoy, fin: hoy } }).catch(() => ({ data: [] })),
+      ]);
+      const lista = (resHijos.data || []).map((h) => ({
+        id: h.id,
+        nombre: h.nombre_niño || h.nombre || 'Sin nombre',
+        // Expediente extendido -- ya viene en /padre/0/hijos, se manda tal
+        // cual a BitacoraScreen para su pestaña "Expediente" (ver
+        // TabExpediente.js), mismo criterio que DashboardPadre.jsx web.
+        expediente: {
+          fechaNacimiento: h.fecha_nacimiento,
+          direccion: h.direccion,
+          contactoEmergenciaNombre: h.contacto_emergencia_nombre,
+          contactoEmergenciaTelefono: h.contacto_emergencia_telefono,
+        },
+      }));
+      setHijos(lista);
+      setCirculares(Array.isArray(resCirculares.data) ? resCirculares.data : []);
+      const dia = (resMenu.data || [])[0];
+      setMenuHoy(dia && (dia.desayuno || dia.comida || dia.merienda) ? dia : null);
+    } catch (err) {
+      console.error('Error al cargar el inicio:', err);
+    } finally {
+      setCargando(false);
+      setRefrescando(false);
+    }
+  }, []);
+
+  useEffect(() => { cargar(); }, [cargar]);
+
+  const refrescar = () => {
+    setRefrescando(true);
+    cargar();
+  };
+
+  return (
+    <ScrollView
+      style={styles.pantalla}
+      contentContainerStyle={styles.contenido}
+      refreshControl={<RefreshControl refreshing={refrescando} onRefresh={refrescar} tintColor={color.brand600} />}
+    >
+      <View style={styles.encabezado}>
+        <Text style={styles.saludo}>Hola,</Text>
+        <Text style={styles.nombreUsuario}>{usuario?.username}</Text>
+        <Text style={styles.pregunta}>¿DE QUIÉN DESEAS VER EL REPORTE HOY?</Text>
+      </View>
+
+      <View style={styles.avisoTiempoReal}>
+        <View style={styles.avisoIcono}><Ionicons name="notifications" size={18} color={color.brand600} /></View>
+        <Text style={styles.avisoTexto}>Las bitácoras se actualizan en tiempo real por las maestras.</Text>
+      </View>
+
+      <TouchableOpacity
+        style={styles.tarjetaFila}
+        activeOpacity={0.7}
+        onPress={() => navigation.navigate('ChatContactos')}
+      >
+        <View style={styles.iconoRedondo}><Ionicons name="chatbubble-ellipses" size={20} color={color.brand600} /></View>
+        <View style={styles.filaTexto}>
+          <Text style={styles.filaTitulo}>Chat con la guardería</Text>
+          <Text style={styles.filaSubtitulo}>Mensajes directos, sin WhatsApp</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={color.slate300} />
+      </TouchableOpacity>
+
+      {ENTRADAS.map((entrada) => (
+        <TouchableOpacity
+          key={entrada.key}
+          style={styles.tarjetaFila}
+          activeOpacity={0.7}
+          onPress={() => (entrada.pantalla
+            ? navigation.navigate(entrada.pantalla)
+            : navigation.navigate('Proximamente', { titulo: entrada.titulo }))}
+        >
+          <View style={styles.iconoRedondo}><Ionicons name={entrada.icon} size={20} color={color.brand600} /></View>
+          <View style={styles.filaTexto}>
+            <Text style={styles.filaTitulo}>{entrada.titulo}</Text>
+            <Text style={styles.filaSubtitulo}>{entrada.subtitulo}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={color.slate300} />
+        </TouchableOpacity>
+      ))}
+
+      {/* NOTIFICACIONES PUSH -- mismo criterio que DashboardPadre.jsx en la
+          web, contra el permiso del sistema operativo y el token de Expo
+          en vez de la Push API del navegador (ver src/utils/push.js). */}
+      <View style={styles.tarjetaNotif}>
+        <View style={[styles.iconoNotif, notifEstado === 'granted' && styles.iconoNotifActivo]}>
+          <Ionicons name="notifications" size={20} color={notifEstado === 'granted' ? color.emerald600 : color.slate400} />
+        </View>
+        <View style={styles.filaTexto}>
+          <Text style={styles.filaTitulo}>{notifEstado === 'granted' ? 'Notificaciones activas' : 'Activar notificaciones'}</Text>
+          <Text style={styles.filaSubtitulo}>Entradas, salidas y bitácora al instante</Text>
+        </View>
+        <TouchableOpacity
+          style={[styles.botonNotif, notifEstado === 'granted' && styles.botonNotifActivo]}
+          onPress={notifEstado === 'granted' ? desactivarNotificaciones : activarNotificaciones}
+          disabled={notifEstado === 'activando' || notifEstado === 'desactivando'}
+        >
+          {notifEstado === 'activando' || notifEstado === 'desactivando' ? (
+            <ActivityIndicator size="small" color={notifEstado === 'desactivando' ? color.slate500 : color.white} />
+          ) : (
+            <Text style={[styles.botonNotifTexto, notifEstado === 'granted' && styles.botonNotifTextoActivo]}>
+              {notifEstado === 'granted' ? 'Desactivar' : 'Activar'}
+            </Text>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      {/* ÚLTIMO AVISO -- mismo criterio que DashboardPadre.jsx en la web:
+          se muestra el aviso más reciente completo, no solo un teaser con
+          el título; si hay más de uno, "Ver avisos anteriores" manda al
+          listado completo. */}
+      {circulares.length > 0 && (
+        <View style={styles.tarjetaAviso}>
+          <TouchableOpacity
+            style={styles.avisoContenido}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('Circulares')}
+          >
+            <View style={styles.avisoEncabezado}>
+              <View style={styles.avisoEtiqueta}>
+                <Ionicons name="megaphone" size={14} color={color.brand600} />
+                <Text style={styles.avisoEtiquetaTexto}>Último aviso</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={color.slate300} />
+            </View>
+            <Text style={styles.avisoTitulo}>{circulares[0].titulo}</Text>
+            <Text style={styles.avisoFecha}>{formatoFechaCircular(circulares[0].creado_en)}</Text>
+            <Text style={styles.avisoCuerpo} numberOfLines={3}>{circulares[0].contenido}</Text>
+          </TouchableOpacity>
+          {circulares.length > 1 && (
+            <TouchableOpacity style={styles.verAnteriores} onPress={() => navigation.navigate('Circulares')}>
+              <Text style={styles.verAnterioresTexto}>Ver avisos anteriores</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* MENÚ DE HOY -- clickeable hacia la misma semana completa que la
+          tarjeta "Menú semanal" de arriba, para quien lo toca esperando
+          ver otros días directo desde aquí. */}
+      {!!menuHoy && (
+        <TouchableOpacity
+          style={styles.tarjetaMenu}
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('MenuSemanal')}
+        >
+          <View style={styles.avisoEncabezado}>
+            <View style={styles.avisoEtiqueta}>
+              <Ionicons name="restaurant" size={14} color={color.brand500} />
+              <Text style={styles.avisoEtiquetaTexto}>Menú de hoy</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={color.slate300} />
+          </View>
+          {!!menuHoy.desayuno && <Text style={styles.textoMenu}><Text style={styles.labelMenu}>Desayuno: </Text>{menuHoy.desayuno}</Text>}
+          {!!menuHoy.comida && <Text style={styles.textoMenu}><Text style={styles.labelMenu}>Comida: </Text>{menuHoy.comida}</Text>}
+          {!!menuHoy.merienda && <Text style={styles.textoMenu}><Text style={styles.labelMenu}>Merienda: </Text>{menuHoy.merienda}</Text>}
+        </TouchableOpacity>
+      )}
+
+      <Text style={styles.seccionLabel}>Niños</Text>
+
+      {cargando ? (
+        <ActivityIndicator color={color.brand600} style={{ marginTop: 24 }} />
+      ) : hijos.length === 0 ? (
+        <View style={styles.vacio}>
+          <Ionicons name="body" size={36} color={color.slate200} />
+          <Text style={styles.vacioTexto}>No se encontraron niños vinculados.</Text>
+        </View>
+      ) : (
+        hijos.map((hijo) => (
+          <TouchableOpacity
+            key={hijo.id}
+            style={styles.tarjetaHijo}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('Bitacora', { hijoId: hijo.id, nombreHijo: hijo.nombre, expediente: hijo.expediente })}
+          >
+            <View style={styles.avatarHijo}><Ionicons name="person" size={28} color={color.slate400} /></View>
+            <View style={styles.filaTexto}>
+              <Text style={styles.nombreHijo}>{hijo.nombre}</Text>
+              <View style={styles.verBitacoraFila}>
+                <Ionicons name="heart" size={10} color={color.brand500} />
+                <Text style={styles.verBitacora}>Ver bitácora diaria</Text>
+              </View>
+            </View>
+            <View style={styles.flechaHijo}><Ionicons name="chevron-forward" size={20} color={color.slate300} /></View>
+          </TouchableOpacity>
+        ))
+      )}
+
+      <TouchableOpacity style={styles.salir} onPress={cerrarSesion}>
+        <Ionicons name="log-out-outline" size={16} color={color.slate400} />
+        <Text style={styles.salirTexto}>Cerrar sesión</Text>
+      </TouchableOpacity>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  pantalla: { flex: 1, backgroundColor: color.slate50 },
+  contenido: { padding: 20, paddingBottom: 40, gap: 12 },
+  encabezado: { alignItems: 'center', paddingVertical: 12, gap: 2 },
+  saludo: { fontSize: 30, fontWeight: '900', color: color.slate900, lineHeight: 32 },
+  nombreUsuario: { fontSize: 22, fontWeight: '900', color: color.brand600 },
+  pregunta: { fontSize: 10, fontWeight: '800', color: color.slate400, letterSpacing: 1, marginTop: 8 },
+  avisoTiempoReal: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: color.brand50,
+    borderWidth: 1, borderColor: color.brand100, borderRadius: radius.lg, padding: 16,
+  },
+  avisoIcono: { backgroundColor: color.white, padding: 10, borderRadius: radius.sm, ...sombra.sm },
+  avisoTexto: { flex: 1, fontSize: 11, fontWeight: '800', color: color.brand800, textTransform: 'uppercase' },
+  tarjetaFila: {
+    flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: color.white,
+    borderWidth: 1, borderColor: color.slate100, borderRadius: radius.lg, padding: 16, ...sombra.sm,
+  },
+  iconoRedondo: { backgroundColor: color.brand100, padding: 10, borderRadius: radius.sm },
+  filaTexto: { flex: 1 },
+  filaTitulo: { fontSize: 12, fontWeight: '900', color: color.slate900, textTransform: 'uppercase' },
+  filaSubtitulo: { fontSize: 9, fontWeight: '700', color: color.slate400, textTransform: 'uppercase', marginTop: 2 },
+  tarjetaNotif: {
+    flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: color.white,
+    borderWidth: 1, borderColor: color.slate100, borderRadius: radius.lg, padding: 16, ...sombra.sm,
+  },
+  iconoNotif: { backgroundColor: color.slate50, padding: 10, borderRadius: radius.sm },
+  iconoNotifActivo: { backgroundColor: color.emerald50 },
+  botonNotif: { backgroundColor: color.brand600, borderRadius: radius.sm, paddingHorizontal: 16, paddingVertical: 10, minWidth: 76, alignItems: 'center' },
+  botonNotifActivo: { backgroundColor: color.slate100 },
+  botonNotifTexto: { color: color.white, fontWeight: '900', fontSize: 10, textTransform: 'uppercase' },
+  botonNotifTextoActivo: { color: color.slate500 },
+  tarjetaAviso: { backgroundColor: color.white, borderWidth: 1, borderColor: color.slate100, borderRadius: radius.lg, overflow: 'hidden', ...sombra.sm },
+  avisoContenido: { padding: 18, gap: 6 },
+  avisoEncabezado: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  avisoEtiqueta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  avisoEtiquetaTexto: { fontSize: 9, fontWeight: '900', color: color.brand600, textTransform: 'uppercase', letterSpacing: 0.5 },
+  avisoTitulo: { fontSize: 14, fontWeight: '900', color: color.slate900, textTransform: 'uppercase' },
+  avisoFecha: { fontSize: 9, color: color.slate400, fontWeight: '700', textTransform: 'uppercase' },
+  avisoCuerpo: { fontSize: 12, color: color.slate600, fontWeight: '600', lineHeight: 18, marginTop: 2 },
+  verAnteriores: { borderTopWidth: 1, borderTopColor: color.slate100, paddingVertical: 12, alignItems: 'center' },
+  verAnterioresTexto: { fontSize: 9, fontWeight: '900', color: color.brand500, textTransform: 'uppercase', letterSpacing: 0.5 },
+  tarjetaMenu: { backgroundColor: color.white, borderWidth: 1, borderColor: color.slate100, borderRadius: radius.lg, padding: 18, gap: 4, ...sombra.sm },
+  textoMenu: { fontSize: 12, fontWeight: '700', color: color.slate700, marginTop: 2 },
+  labelMenu: { color: color.brand500 },
+  seccionLabel: { fontSize: 11, fontWeight: '900', color: color.slate400, textTransform: 'uppercase', letterSpacing: 1, marginTop: 8, marginLeft: 4 },
+  vacio: { backgroundColor: color.white, borderWidth: 2, borderStyle: 'dashed', borderColor: color.slate200, borderRadius: radius.lg, padding: 32, alignItems: 'center', gap: 12 },
+  vacioTexto: { color: color.slate400, fontWeight: '700', fontSize: 11, textTransform: 'uppercase' },
+  tarjetaHijo: {
+    flexDirection: 'row', alignItems: 'center', gap: 16, backgroundColor: color.white,
+    borderWidth: 1, borderColor: color.slate100, borderRadius: radius.lg, padding: 18, ...sombra.md,
+  },
+  avatarHijo: { width: 56, height: 56, borderRadius: radius.md, backgroundColor: color.slate50, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: color.slate100 },
+  nombreHijo: { fontSize: 17, fontWeight: '900', color: color.slate900, textTransform: 'uppercase' },
+  verBitacoraFila: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  verBitacora: { fontSize: 9, fontWeight: '900', color: color.brand500, textTransform: 'uppercase', letterSpacing: 0.5 },
+  flechaHijo: { backgroundColor: color.slate50, padding: 10, borderRadius: radius.sm },
+  salir: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 20 },
+  salirTexto: { color: color.slate400, fontWeight: '800', fontSize: 11, textTransform: 'uppercase' },
+});
