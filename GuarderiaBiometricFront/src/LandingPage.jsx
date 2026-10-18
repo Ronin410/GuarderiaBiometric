@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   ShieldCheck, ArrowUpRight, Check, ScanEye, ClipboardList, BellRing,
   MessageCircle, Megaphone, ClipboardCheck, CalendarDays, CalendarOff,
   UtensilsCrossed, Wallet, UserCog, BarChart3, Lock, Clock3,
 } from 'lucide-react';
 import SoporteChat from './SoporteChat';
+import api from './axiosConfig';
 import { usePaginaSEO } from './hooks/usePaginaSEO';
 
 // LandingPage -- "pon como main page la página de presentación, me gustó,
@@ -96,6 +97,23 @@ const LandingPage = () => {
     descripcion: 'Software para guarderías y centros infantiles: control de acceso biométrico, bitácora digital, circulares, encuestas, pagos y chat de soporte con IA. Reemplaza el cuaderno y el grupo de WhatsApp.',
     ruta: '/',
   });
+
+  const navigate = useNavigate();
+
+  // "Si tiene un token válido, que lo mande directo al portal, no a la
+  // landing" -- el papá que instaló la PWA entra siempre por "/" (es el
+  // start_url del manifest), así que sin esto SIEMPRE veía esta página de
+  // presentación primero, aunque su sesión de 90 días siguiera viva, y
+  // tenía que picarle a "Iniciar sesión" para llegar a /panel/identificar
+  // (que es quien de verdad revisa la sesión). Se dispara en segundo plano
+  // -- la landing se pinta igual de rápido que antes para quien NO tiene
+  // sesión (visitante nuevo, buscador) y solo redirige si /me confirma que
+  // sí hay una.
+  useEffect(() => {
+    api.get('/me')
+      .then(() => navigate('/panel/identificar', { replace: true }))
+      .catch(() => { /* sin sesión: se queda en la landing, como siempre */ });
+  }, [navigate]);
 
   const [tabActiva, setTabActiva] = useState('dia');
   const funcionesActivas = FUNCIONES.find((f) => f.key === tabActiva) ?? FUNCIONES[0];
