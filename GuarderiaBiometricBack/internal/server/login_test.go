@@ -342,7 +342,7 @@ func TestLogin(t *testing.T) {
 // cada vez que abren la app), mientras que admin/staff conservan su sesión
 // corta de siempre sin renovación automática.
 func TestMe(t *testing.T) {
-	columnasMe := []string{"username", "nombre", "slug", "bloqueada"}
+	columnasMe := []string{"username", "nombre", "slug", "bloqueada", "sesion_invalida_desde"}
 
 	t.Run("papá -> se renueva a ~90 días y llega cookie nueva", func(t *testing.T) {
 		mockDB, mock, err := sqlmock.New()
@@ -357,7 +357,7 @@ func TestMe(t *testing.T) {
 
 		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.id = \\$1").
 			WithArgs(1).
-			WillReturnRows(sqlmock.NewRows(columnasMe).AddRow("papa_demo", "Guardería Demo", "demo", false))
+			WillReturnRows(sqlmock.NewRows(columnasMe).AddRow("papa_demo", "Guardería Demo", "demo", false, nil))
 
 		r := nuevoRouterDePrueba(srv)
 		req := httptest.NewRequest(http.MethodGet, "/me", nil)
@@ -423,7 +423,7 @@ func TestMe(t *testing.T) {
 
 		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.id = \\$1").
 			WithArgs(1).
-			WillReturnRows(sqlmock.NewRows(columnasMe).AddRow("papa_demo", "Guardería Demo", "demo", false))
+			WillReturnRows(sqlmock.NewRows(columnasMe).AddRow("papa_demo", "Guardería Demo", "demo", false, nil))
 
 		r := nuevoRouterDePrueba(srv)
 		req := httptest.NewRequest(http.MethodGet, "/me", nil)
@@ -452,7 +452,7 @@ func TestMe(t *testing.T) {
 
 		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.id = \\$1").
 			WithArgs(1).
-			WillReturnRows(sqlmock.NewRows(columnasMe).AddRow("admin_demo", "Guardería Demo", "demo", false))
+			WillReturnRows(sqlmock.NewRows(columnasMe).AddRow("admin_demo", "Guardería Demo", "demo", false, nil))
 
 		r := nuevoRouterDePrueba(srv)
 		req := httptest.NewRequest(http.MethodGet, "/me", nil)
@@ -504,7 +504,7 @@ func TestMe(t *testing.T) {
 
 		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.id = \\$1").
 			WithArgs(1).
-			WillReturnRows(sqlmock.NewRows(columnasMe).AddRow("papa_demo", "Guardería Morosa", "morosa", true))
+			WillReturnRows(sqlmock.NewRows(columnasMe).AddRow("papa_demo", "Guardería Morosa", "morosa", true, nil))
 
 		r := nuevoRouterDePrueba(srv)
 		req := httptest.NewRequest(http.MethodGet, "/me", nil)
@@ -519,6 +519,139 @@ func TestMe(t *testing.T) {
 			if ck.Name == middleware.CookieToken {
 				t.Errorf("no debe emitirse una cookie renovada para una guardería bloqueada, se encontró: %v", ck)
 			}
+		}
+	})
+
+	// El núcleo del fix: un logout anterior (sesion_invalida_desde en BD)
+	// debe rechazar un JWT emitido ANTES de esa marca, aunque su firma siga
+	// siendo válida y no haya expirado -- es lo que evita que la sesión
+	// "resucite" si la cookie o el localStorage no se limpiaron del todo
+	// (ver el comentario largo en handleMe/handleLogout).
+	t.Run("token emitido ANTES del último logout -> 401, no resucita la sesión", func(t *testing.T) {
+		mockDB, mock, err := sqlmock.New()
+		if err != nil {
+			t.Fatalf("sqlmock: %v", err)
+		}
+		defer mockDB.Close()
+
+		srv := New()
+		srv.DBAuth = mockDB
+		srv.JWTKey = []byte("clave-de-prueba-solo-para-tests")
+
+		logoutEn := time.Now()
+		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.id = \\$1").
+			WithArgs(1).
+			WillReturnRows(sqlmock.NewRows(columnasMe).AddRow("papa_demo", "Guardería Demo", "demo", false, logoutEn))
+
+		r := nuevoRouterDePrueba(srv)
+		req := httptest.NewRequest(http.MethodGet, "/me", nil)
+		req.AddCookie(&http.Cookie{
+			Name:  middleware.CookieToken,
+			Value: generarTokenPruebaConIat(t, srv.JWTKey, "papa", time.Hour, logoutEn.Add(-time.Minute)),
+		})
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("código = %d; esperado 401 (body: %s)", w.Code, w.Body.String())
+		}
+		for _, ck := range w.Result().Cookies() {
+			if ck.Name == middleware.CookieToken {
+				t.Errorf("no debe emitirse una cookie renovada para un token ya invalidado por logout, se encontró: %v", ck)
+			}
+		}
+	})
+
+	t.Run("token emitido DESPUÉS del último logout -> 200, sigue vivo", func(t *testing.T) {
+		mockDB, mock, err := sqlmock.New()
+		if err != nil {
+			t.Fatalf("sqlmock: %v", err)
+		}
+		defer mockDB.Close()
+
+		srv := New()
+		srv.DBAuth = mockDB
+		srv.JWTKey = []byte("clave-de-prueba-solo-para-tests")
+
+		logoutEn := time.Now().Add(-time.Hour)
+		mock.ExpectQuery("SELECT(.|\n)*FROM usuarios(.|\n)*WHERE u.id = \\$1").
+			WithArgs(1).
+			WillReturnRows(sqlmock.NewRows(columnasMe).AddRow("papa_demo", "Guardería Demo", "demo", false, logoutEn))
+
+		r := nuevoRouterDePrueba(srv)
+		req := httptest.NewRequest(http.MethodGet, "/me", nil)
+		req.AddCookie(&http.Cookie{
+			Name:  middleware.CookieToken,
+			Value: generarTokenPruebaConIat(t, srv.JWTKey, "papa", time.Hour, logoutEn.Add(time.Minute)),
+		})
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("código = %d; esperado 200 (body: %s)", w.Code, w.Body.String())
+		}
+	})
+}
+
+// TestLogout cubre la otra mitad del fix: además de borrar las cookies,
+// /logout debe marcar sesion_invalida_desde en BD -- es lo que hace que un
+// JWT que de todas formas siga circulando (cookie que no se terminó de
+// borrar, localStorage del celular) deje de servir para entrar vía /me.
+func TestLogout(t *testing.T) {
+	t.Run("marca sesion_invalida_desde y borra las cookies", func(t *testing.T) {
+		mockDB, mock, err := sqlmock.New()
+		if err != nil {
+			t.Fatalf("sqlmock: %v", err)
+		}
+		defer mockDB.Close()
+
+		srv := New()
+		srv.DBAuth = mockDB
+		srv.JWTKey = []byte("clave-de-prueba-solo-para-tests")
+
+		mock.ExpectExec("UPDATE usuarios SET sesion_invalida_desde = NOW\\(\\) WHERE id = \\$1").
+			WithArgs(1).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+
+		r := nuevoRouterDePrueba(srv)
+		req := httptest.NewRequest(http.MethodPost, "/logout", nil)
+		autenticarRequestPrueba(t, req, srv.JWTKey, "papa", time.Hour)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("código = %d; esperado 200 (body: %s)", w.Code, w.Body.String())
+		}
+
+		var tieneCookieToken, tieneCookieCSRF bool
+		for _, ck := range w.Result().Cookies() {
+			if ck.Name == middleware.CookieToken {
+				tieneCookieToken = true
+				if ck.MaxAge >= 0 {
+					t.Errorf("la cookie %s debe borrarse (MaxAge negativo), MaxAge = %d", middleware.CookieToken, ck.MaxAge)
+				}
+			}
+			if ck.Name == middleware.CookieCSRF {
+				tieneCookieCSRF = true
+			}
+		}
+		if !tieneCookieToken || !tieneCookieCSRF {
+			t.Errorf("se esperaba que /logout borrara ambas cookies, cookies recibidas: %v", w.Result().Cookies())
+		}
+		if err := mock.ExpectationsWereMet(); err != nil {
+			t.Errorf("expectativas de sqlmock no cumplidas: %v", err)
+		}
+	})
+
+	t.Run("sin sesión -> 401, nunca llega a tocar la base de datos", func(t *testing.T) {
+		srv, _ := nuevoServidorDePruebaConDB(t)
+		r := nuevoRouterDePrueba(srv)
+		req := httptest.NewRequest(http.MethodPost, "/logout", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("código = %d; esperado 401 (body: %s)", w.Code, w.Body.String())
 		}
 	})
 }

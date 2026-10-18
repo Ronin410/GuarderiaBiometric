@@ -40,6 +40,30 @@ func generarTokenPrueba(t *testing.T, jwtKey []byte, rol string, expiraEn time.D
 	return firmado
 }
 
+// generarTokenPruebaConIat -- igual que generarTokenPrueba, pero fijando a
+// mano el "iat" (cuándo se emitió el token) en vez de dejarlo fuera, para
+// poder probar el chequeo de sesion_invalida_desde en handleMe (un token
+// emitido antes de un logout debe rechazarse; uno emitido después debe
+// seguir pasando).
+func generarTokenPruebaConIat(t *testing.T, jwtKey []byte, rol string, expiraEn time.Duration, emitidoEn time.Time) string {
+	t.Helper()
+	claims := &middleware.Claims{
+		UserID:      1,
+		GuarderiaID: 1,
+		Rol:         rol,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(expiraEn)),
+			IssuedAt:  jwt.NewNumericDate(emitidoEn),
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	firmado, err := token.SignedString(jwtKey)
+	if err != nil {
+		t.Fatalf("no se pudo firmar el token de prueba: %v", err)
+	}
+	return firmado
+}
+
 // autenticarRequestPrueba agrega a un *http.Request las cookies que
 // middleware.Auth exige (JWT + CSRF) y, si el método modifica datos, el
 // header X-CSRF-Token — mismo patrón "double-submit cookie" que usa

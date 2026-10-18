@@ -173,13 +173,19 @@ func (s *Server) handleLogin(c *gin.Context) {
 	}
 
 	duracion := duracionSesion(rol)
-	expirationTime := time.Now().Add(time.Duration(duracion) * time.Second)
+	ahora := time.Now()
+	expirationTime := ahora.Add(time.Duration(duracion) * time.Second)
 	claims := &middleware.Claims{
 		UserID:      id,
 		GuarderiaID: gID,
 		Rol:         rol,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
+			// IssuedAt -- handleMe lo compara contra sesion_invalida_desde
+			// para que un logout de verdad invalide el JWT, no solo la
+			// cookie (ver el comentario de esa columna en la migración
+			// 000049 y el de token_iat en middleware.Auth).
+			IssuedAt: jwt.NewNumericDate(ahora),
 		},
 	}
 	// permisos == nil (columna NULL en BD, cuenta sin personalizar) se deja
@@ -259,13 +265,14 @@ func (s *Server) handleMe(c *gin.Context) {
 
 	var username, gNombre, gSlug string
 	var bloqueada bool
+	var sesionInvalidaDesde sql.NullTime
 	err := s.DBAuth.QueryRow(
-		`SELECT u.username, g.nombre, g.slug, g.bloqueada
+		`SELECT u.username, g.nombre, g.slug, g.bloqueada, u.sesion_invalida_desde
          FROM usuarios u
          INNER JOIN guarderias g ON u.guarderia_id = g.id
          WHERE u.id = $1`,
 		uid,
-	).Scan(&username, &gNombre, &gSlug, &bloqueada)
+	).Scan(&username, &gNombre, &gSlug, &bloqueada, &sesionInvalidaDesde)
 	if err != nil {
 		s.logError(c, "No se pudo cargar la sesión", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo cargar la sesión"})
@@ -282,6 +289,26 @@ func (s *Server) handleMe(c *gin.Context) {
 	if bloqueada {
 		c.JSON(http.StatusForbidden, gin.H{"error": "El acceso de tu guardería está temporalmente suspendido. Contacta a Pasitos para más información."})
 		return
+	}
+
+	// Tercer punto de corte: un logout explícito. El JWT es stateless y
+	// sigue siendo criptográficamente válido hasta su expiración aunque se
+	// cierre sesión (/logout solo borra la cookie, y para "papa" el mismo
+	// token también vive en localStorage del celular como respaldo -- ver
+	// axiosConfig.js). Si por lo que sea la cookie o el localStorage no
+	// terminan de limpiarse del todo en el navegador, un token "viejo"
+	// seguiría colándose aquí sin esto. token_iat (cuándo se emitió ESTE
+	// JWT, puesto por Auth()) contra sesion_invalida_desde (cuándo fue el
+	// último logout, puesto por handleLogout) es la autoridad real: un
+	// token emitido ANTES del último logout se rechaza, sin importar qué
+	// tan "vigente" siga pareciendo.
+	if sesionInvalidaDesde.Valid {
+		tokenIat, okIat := c.Get("token_iat")
+		iatTime, okTipo := tokenIat.(time.Time)
+		if !okIat || !okTipo || iatTime.Before(sesionInvalidaDesde.Time) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Sesión cerrada. Vuelve a iniciar sesión."})
+			return
+		}
 	}
 
 	var expiraEn int64
@@ -326,13 +353,19 @@ func (s *Server) handleMe(c *gin.Context) {
 	if uidInt, okUID := uid.(int); okUID && rol == "papa" {
 		if gIDInt, okGID := gID.(int); okGID {
 			duracion := duracionSesion("papa")
-			expirationTime := time.Now().Add(time.Duration(duracion) * time.Second)
+			ahora := time.Now()
+			expirationTime := ahora.Add(time.Duration(duracion) * time.Second)
 			claims := &middleware.Claims{
 				UserID:      uidInt,
 				GuarderiaID: gIDInt,
 				Rol:         "papa",
 				RegisteredClaims: jwt.RegisteredClaims{
 					ExpiresAt: jwt.NewNumericDate(expirationTime),
+					// IssuedAt de ESTA renovación, no la del login original
+					// -- un logout DESPUÉS de esta renovación debe poder
+					// invalidar este token nuevo también (ver el chequeo de
+					// sesion_invalida_desde arriba).
+					IssuedAt: jwt.NewNumericDate(ahora),
 				},
 			}
 			if permisos != nil {
@@ -365,10 +398,26 @@ func (s *Server) handleMe(c *gin.Context) {
 	})
 }
 
-// handleLogout borra las cookies de sesión. JavaScript no puede borrar una
+// handleLogout borra las cookies de sesión (JavaScript no puede borrar una
 // cookie httpOnly con document.cookie, por eso hace falta un endpoint que
-// las sobreescriba con un maxAge negativo.
+// las sobreescriba con un maxAge negativo) Y marca sesion_invalida_desde en
+// la base de datos -- borrar la cookie ya no basta por sí solo: el JWT
+// también puede seguir viviendo en localStorage (respaldo de sesión del
+// papá, ver axiosConfig.js) y es stateless, así que sigue siendo válido
+// hasta su expiración de 90 días si solo se le borra la cookie al
+// navegador. sesion_invalida_desde es lo que de verdad lo invalida del
+// lado del servidor (ver el chequeo en handleMe).
 func (s *Server) handleLogout(c *gin.Context) {
+	if uid, ok := c.Get("user_id"); ok {
+		if _, err := s.DBAuth.Exec(`UPDATE usuarios SET sesion_invalida_desde = NOW() WHERE id = $1`, uid); err != nil {
+			s.logError(c, "No se pudo invalidar la sesión en logout", err, "user_id", uid)
+			// No se corta la respuesta por esto -- las cookies de todas
+			// formas se borran abajo, que sigue siendo la defensa principal
+			// en el caso común (cookie sí sobrevive, localStorage sí se
+			// limpia). Sin esto el logout simplemente queda un poco menos
+			// garantizado en el caso raro de que AMBAS cosas fallen a la vez.
+		}
+	}
 	c.SetSameSite(http.SameSiteNoneMode)
 	c.SetCookie(middleware.CookieToken, "", -1, "/", "", true, true)
 	c.SetCookie(middleware.CookieCSRF, "", -1, "/", "", true, false)

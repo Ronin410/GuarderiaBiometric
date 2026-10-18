@@ -1,0 +1,16 @@
+-- "Cerrar sesión" para el papá dejó de bastar con borrar la cookie: desde
+-- que el JWT también se guarda en localStorage del celular como respaldo
+-- (ver codigos_kiosco... no, ver el commit de axiosConfig.js/middleware.Auth
+-- sobre el respaldo de sesión), ese token sigue siendo criptográficamente
+-- válido hasta sus 90 días aunque se borre la cookie -- es stateless, el
+-- servidor no tenía forma de "invalidarlo" de verdad. Si por cualquier
+-- razón la cookie o el localStorage no se terminan de limpiar del todo en
+-- el navegador (la misma clase de inconsistencia cross-site que ya
+-- obligó a añadir el respaldo), /me volvía a aceptar ese token viejo y
+-- resucitaba la sesión justo después de cerrarla.
+--
+-- sesion_invalida_desde es la autoridad del lado del servidor: al cerrar
+-- sesión se marca NOW() aquí; handleMe compara contra el "iat" (fecha de
+-- emisión) del JWT que llega y rechaza cualquiera emitido ANTES de esa
+-- marca, sin importar qué tan "válido" siga pareciendo el token en sí.
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS sesion_invalida_desde TIMESTAMP WITH TIME ZONE;

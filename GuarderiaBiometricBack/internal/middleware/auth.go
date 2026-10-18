@@ -97,6 +97,13 @@ func Auth(jwtKey []byte) gin.HandlerFunc {
 		if claims.ExpiresAt != nil {
 			c.Set("token_exp", claims.ExpiresAt.Time)
 		}
+		// token_iat -- cuándo se emitió ESTE JWT. handleMe lo compara contra
+		// usuarios.sesion_invalida_desde para rechazar un token que, aunque
+		// su firma siga siendo válida, se emitió ANTES del último logout
+		// (ver el comentario de esa columna en la migración 000049).
+		if claims.IssuedAt != nil {
+			c.Set("token_iat", claims.IssuedAt.Time)
+		}
 		// Solo se publica en el contexto si la cuenta tiene permisos
 		// personalizados (claims.Permisos != nil) — RequireArea distingue
 		// "la clave 'permisos' no existe en el contexto" (sin personalizar,
