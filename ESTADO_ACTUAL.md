@@ -1,6 +1,14 @@
 # Estado Actual del Proyecto — GuarderiaBiometric
 
 > Documento generado a partir de un escaneo completo del repositorio (backend + frontend) el 2026-07-20.
+>
+> **Aviso:** desde esa fecha el proyecto cambió mucho y este documento YA NO describe partes importantes del backend/frontend con precisión (por ejemplo: el backend dejó de vivir en un único `main.go` — ahora está dividido en archivos por función bajo `internal/server/`, con migraciones versionadas en `internal/db/migrations/` y una suite de pruebas real con `go test`; CORS ya no está abierto a cualquier origen, sino restringido por `ALLOWED_ORIGINS`). Una actualización completa de este documento requeriría un escaneo nuevo de todo el repositorio, que no es lo que se pidió esta vez. Lo que sí se agrega aquí es lo construido en la sesión más reciente, para no dejarlo sin documentar:
+>
+> - **Códigos de acceso (QR/corto) del papá**: generados desde su propio portal, con nombre, vigencia de varios días y revocables — para entrar sin rostro o para delegar en alguien no enrolado (`codigos_acceso.go` / `CodigosAccesoPadre.jsx`).
+> - **"Autoservicio" / Entrada rápida por QR del kiosco**: QR anónimo y de un solo uso que genera la tablet, válido 60 segundos y renovado solo; cada papá lo escanea desde su propio celular y confirma entrada/salida de sus hijos sin esperar turno (`codigos_kiosco.go` / `EscanearQRKioscoPadre.jsx`, modo "Autoservicio" en `App.jsx`).
+> - **Sesión del papá persistente en el celular**: el JWT de 90 días ahora también se guarda en `localStorage` como respaldo de la cookie de sesión (que es "cross-site" entre frontend y backend y el navegador puede purgarla al cerrar del todo la PWA instalada); `middleware.Auth` acepta ese respaldo por header `Authorization: Bearer` cuando la cookie no llega. "Cerrar sesión" invalida el JWT de verdad del lado del servidor (`usuarios.sesion_invalida_desde`), no solo borra la cookie.
+> - **La landing page (`/`) redirige solo** a `/panel/identificar` cuando ya hay una sesión válida, en vez de mostrar siempre la página de presentación.
+> - Corrección de un bug donde una guardería recién creada podía heredar, por reciclaje del `guarderia_id` de Postgres, la colección de AWS Rekognition de una guardería eliminada anteriormente.
 
 ## 1. Visión general
 

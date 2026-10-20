@@ -1,6 +1,6 @@
 # PLANTILLA — AVISO DE PRIVACIDAD PARA UNA GUARDERÍA (uso en Pasitos)
 
-Fecha de versión: 31/08/2026 | Versión: 1.0 (plantilla genérica)
+Fecha de versión: 20/10/2026 | Versión: 1.1 (plantilla genérica)
 
 > **Esto NO es el Aviso de Privacidad de Pasitos** (ese es
 > `AVISO_PRIVACIDAD_PASITOS.md`, distinto y aparte). Esta es una
@@ -45,6 +45,11 @@ segura, recabamos:
   domicilio cuando se solicite.
 - **Datos de las personas autorizadas para recoger al menor**: nombre y,
   cuando aplique, su fotografía/plantilla facial (ver sección 4).
+- **Códigos de acceso**: si usted genera un código QR o alfanumérico desde
+  su propia cuenta para entrar sin rostro o para delegar la entrada o
+  salida en alguien más, guardamos el nombre que usted le asigna a ese
+  código (por ejemplo, el nombre de la persona autorizada) y el registro
+  de cuándo se usó (ver sección 4 bis).
 - **Bitácora diaria**: comidas, siestas, actividades y notas que el
   personal registra sobre el día de su hija o hijo.
 - **Documentos de inscripción** que la guardería solicite (acta de
@@ -81,6 +86,25 @@ finalidad de agilizar y dar seguridad al registro de entradas y salidas.
   entregar a un menor.
 - Si el reconocimiento facial no está disponible o falla, el personal de
   la guardería seguirá su procedimiento alterno de verificación.
+
+### 4 bis. Códigos de acceso (QR) y entrada rápida
+
+Como alternativa al reconocimiento facial, usted puede:
+
+- **Generar su propio código de acceso** (QR o alfanumérico), con nombre,
+  vigencia limitada y revocable en cualquier momento desde su cuenta, para
+  entrar sin rostro o para **delegar** la entrada/salida de su hija o hijo
+  en alguien que usted autorice (por ejemplo, un familiar que no está
+  enrolado biométricamente). Quien use ese código queda identificado ante
+  el personal con el nombre que usted le asignó, nunca de forma anónima.
+- **Usar "Entrada rápida"**: escanear, desde su propio celular ya con
+  sesión iniciada, un código QR anónimo y de un solo uso que la guardería
+  muestra en su tablet de recepción, y confirmar ahí mismo la entrada o
+  salida. Ese código no identifica a nadie por sí mismo -- la identidad
+  sale siempre de su propia sesión, nunca del código.
+
+En ambos casos, la confirmación de entrada/salida queda igual de
+registrada en la bitácora que si se hiciera por reconocimiento facial.
 
 ### 5. ¿Para qué usamos sus datos? (Finalidades)
 

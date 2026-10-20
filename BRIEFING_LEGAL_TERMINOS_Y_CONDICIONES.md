@@ -61,6 +61,22 @@ terminar el contrato, debe reportar incidentes de seguridad, etc.).
 - Dirección, en algunos flujos del expediente del niño.
 - Historial de mensajes de chat con el staff.
 - Historial de pagos de colegiatura.
+- **Códigos de acceso (QR/alfanuméricos)** que el propio tutor genera desde
+  su cuenta: guardan el nombre que el tutor le asigna al código (típicamente
+  el nombre de la persona a quien delega la entrada/salida, que puede NO
+  tener cuenta propia en el sistema), su vigencia y si fue revocado o usado.
+  Distinto del QR anónimo de "Autoservicio" (lo genera el dispositivo de la
+  guardería, no identifica a nadie por sí mismo, caduca en 60 segundos y es
+  de un solo uso).
+- **Token de sesión en el dispositivo del tutor**: además de la cookie
+  `httpOnly`, el JWT de sesión del tutor se guarda también en el
+  almacenamiento local (`localStorage`) del navegador/PWA instalada en su
+  celular, como respaldo para que la app no pida credenciales de nuevo cada
+  vez que se abre. Es un dato técnico (el propio token de sesión, no un
+  dato personal adicional sobre el tutor), pero vale la pena que el abogado
+  lo tenga presente para la cláusula de medidas de seguridad (ver sección
+  4): a diferencia de la cookie `httpOnly`, ese respaldo SÍ es legible por
+  JavaScript en el propio dispositivo del tutor.
 
 ### 2.2 De los niños
 
@@ -131,7 +147,13 @@ salvaguardas hay:
 
 - Contraseñas con hash `bcrypt` (nunca en texto plano).
 - Sesión vía cookie `httpOnly` + JWT, con CSRF token de doble verificación
-  en cada petición que modifica datos.
+  en cada petición que modifica datos. Para la cuenta del tutor
+  específicamente, el mismo JWT también se guarda como respaldo en el
+  almacenamiento local del dispositivo (ver sección 2.1) para que la sesión
+  sobreviva a que la app instalada se cierre del todo; cerrar sesión
+  invalida ese token del lado del servidor (no solo borra la cookie/el
+  respaldo local), así que un token que de todas formas siga circulando no
+  sirve para entrar de nuevo.
 - PIN adicional de 4 dígitos para entrar a secciones administrativas
   sensibles, con expiración a los 30 minutos de inactividad.
 - Permisos por área: una cuenta de staff solo ve/toca lo que el admin le

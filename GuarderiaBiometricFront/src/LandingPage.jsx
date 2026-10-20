@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   ShieldCheck, ArrowUpRight, Check, ScanEye, ClipboardList, BellRing,
   MessageCircle, Megaphone, ClipboardCheck, CalendarDays, CalendarOff,
-  UtensilsCrossed, Wallet, UserCog, BarChart3, Lock, Clock3,
+  UtensilsCrossed, Wallet, UserCog, BarChart3, Lock, Clock3, QrCode,
 } from 'lucide-react';
 import SoporteChat from './SoporteChat';
 import api from './axiosConfig';
@@ -27,6 +27,7 @@ const FUNCIONES = [
     label: 'Día a día',
     items: [
       { Icon: ScanEye, titulo: 'Reconocimiento facial', texto: 'Entradas y salidas del tutor en segundos, sin listas en papel ni tarjetas que se pierden.' },
+      { Icon: QrCode, titulo: 'Código QR o entrada rápida', texto: 'El tutor genera su propio código para entrar sin rostro o delegarlo a quien recoja al niño ese día; o escanea el QR de la tablet y confirma desde su celular, sin hacer fila.' },
       { Icon: ClipboardList, titulo: 'Bitácora digital', texto: 'Comidas, siestas, actividades y notas del día, visibles para la familia al instante.' },
       { Icon: BellRing, titulo: 'Notificaciones push', texto: 'Aviso automático de cada entrada, salida y actualización de bitácora, sin que nadie escriba nada.' },
     ],
@@ -94,7 +95,7 @@ const BENEFICIOS = [
 const LandingPage = () => {
   usePaginaSEO({
     titulo: 'Pasitos · Software de gestión y control de acceso biométrico para guarderías',
-    descripcion: 'Software para guarderías y centros infantiles: control de acceso biométrico, bitácora digital, circulares, encuestas, pagos y chat de soporte con IA. Reemplaza el cuaderno y el grupo de WhatsApp.',
+    descripcion: 'Software para guarderías y centros infantiles: control de acceso biométrico o por código QR, bitácora digital, circulares, encuestas, pagos y chat de soporte con IA. Reemplaza el cuaderno y el grupo de WhatsApp.',
     ruta: '/',
   });
 

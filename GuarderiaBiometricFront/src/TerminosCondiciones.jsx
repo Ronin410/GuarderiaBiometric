@@ -57,8 +57,9 @@ const SECCIONES = [
       'Cuando el Cliente habilite el reconocimiento facial, podrá utilizarse una plantilla facial del adulto/tutor autorizado para facilitar su identificación al recoger a una niña o niño.',
       'Pasitos no procesa el rostro de las niñas o niños para el reconocimiento facial. La funcionalidad está diseñada para el enrolamiento del adulto/tutor autorizado.',
       'La plantilla facial se genera mediante AWS Rekognition. Debido a la naturaleza sensible de los datos biométricos, el Cliente deberá obtener y conservar los consentimientos y autorizaciones legalmente necesarios y proporcionar el aviso de privacidad aplicable.',
+      'El enrolamiento facial del tutor es obligatorio, pero la Plataforma ofrece además mecanismos alternativos de confirmación de entrada/salida que no dependen del reconocimiento facial en el momento del movimiento: (i) un código de acceso (QR o alfanumérico) que el propio tutor genera, nombra, limita en vigencia y puede revocar, útil tanto para su propio acceso como para delegarlo en un tercero no enrolado; y (ii) un código QR anónimo y de un solo uso generado por el dispositivo de recepción del Cliente ("Autoservicio"), que el tutor escanea desde su propia sesión ya iniciada. En ambos casos, la identidad de quien confirma el movimiento proviene de la cuenta o código correspondiente, no de una verificación biométrica, por lo que el Cliente conserva la misma obligación de contar con un procedimiento de verificación humana descrita más abajo.',
       'El Cliente deberá contar con un procedimiento alternativo cuando el reconocimiento falle, el tutor no esté enrolado, exista discrepancia en la autorización, haya una emergencia o la Plataforma no esté disponible.',
-      'El reconocimiento facial no sustituye la obligación del Cliente de verificar que la persona que recoge al menor esté autorizada.',
+      'El reconocimiento facial no sustituye la obligación del Cliente de verificar que la persona que recoge al menor esté autorizada, incluyendo cuando la entrada o salida se confirme mediante un código de acceso en lugar de reconocimiento facial.',
     ],
   },
   {
@@ -124,6 +125,7 @@ const SECCIONES = [
     titulo: 'Seguridad de la información',
     parrafos: [
       'Pasitos implementa medidas técnicas y organizativas destinadas a reducir riesgos, incluyendo: contraseñas protegidas mediante bcrypt; cookies httpOnly y JWT; protección CSRF; PIN adicional; permisos por área; aislamiento entre Clientes; almacenamiento privado; URLs firmadas para determinados archivos; rate limiting; bitácoras de auditoría; HTTPS/TLS; y controles de conexiones a la base de datos.',
+      'Para la cuenta del tutor/padre específicamente, la sesión puede extenderse más allá de la cookie httpOnly: el token de sesión también se conserva en el almacenamiento local del dispositivo del tutor, para que la aplicación instalada no requiera volver a iniciar sesión en cada uso. Cerrar sesión invalida ese token del lado del servidor, no únicamente en el dispositivo.',
       'Estas medidas pueden evolucionar conforme al desarrollo de la Plataforma.',
       'Pasitos no declara contar con certificaciones ISO 27001, SOC 2 u otras certificaciones de seguridad de terceros salvo que se establezca expresamente por escrito.',
       'Ningún sistema conectado a Internet puede garantizar seguridad absoluta.',
@@ -373,7 +375,7 @@ const TerminosCondiciones = () => {
       <h1 className="text-3xl sm:text-4xl font-black tracking-tight mb-3" style={{ fontFamily: 'Lora, serif' }}>
         Términos y Condiciones de Servicio de Pasitos
       </h1>
-      <p className="text-xs text-slate-400 font-bold mb-10">Fecha de versión: 30/08/2026 &nbsp;|&nbsp; Versión: 1.1</p>
+      <p className="text-xs text-slate-400 font-bold mb-10">Fecha de versión: 20/10/2026 &nbsp;|&nbsp; Versión: 1.2</p>
 
       {SECCIONES.map((s) => <Seccion key={s.n} seccion={s} />)}
 

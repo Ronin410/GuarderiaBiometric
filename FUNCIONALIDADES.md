@@ -1,6 +1,6 @@
 # Funcionalidades — Pasitos (Sistema Biométrico para Guarderías)
 
-> Documento de referencia de todo lo que hace la plataforma hoy, organizado por quién lo usa. Última actualización: incluye el módulo de Administración (Perfiles/Pagos/Estadísticas) y las notificaciones push + portal del papá ampliado.
+> Documento de referencia de todo lo que hace la plataforma hoy, organizado por quién lo usa. Última actualización: códigos de acceso QR del papá, "Autoservicio" (entrada rápida por QR desde la tablet) y la sesión del papá persistente en su celular.
 
 ## 1. Identificación biométrica (Kiosco)
 
@@ -9,6 +9,13 @@
 - **Registro de asistencia**: el tutor confirma entrada o salida por niño (puede marcar varios a la vez si tiene más de un hijo), con casillas de "¿aseado?" y "¿trae golpe?" y un campo de observaciones.
 - **Alternancia automática entrada/salida**: el sistema decide solo si el movimiento es entrada o salida según el último registro del día.
 - **Cierre automático nocturno**: a las 11pm, cualquier niño que quedó con "entrada" abierta se marca automáticamente como salida.
+
+## 1.5. Entrada y salida sin pasar por el rostro
+
+Dar entrada o salida ya no depende solo del reconocimiento facial — el papá, una vez con su rostro ya registrado (eso sigue siendo obligatorio al darse de alta), decide cómo confirmar cada movimiento:
+
+- **Código de acceso (lo genera el papá, desde su portal)**: un código QR o alfanumérico corto, con nombre, vigencia de varios días y revocable en cualquier momento. Sirve tanto para que el propio papá entre sin su rostro (p. ej. se le olvidó o trae lentes de sol) como para **delegar** la entrada/salida a alguien que no está enrolado — un abuelo, un chofer, un familiar que recoge al niño ese día. Quien lo usa lo escanea o teclea en la tablet del kiosco; el personal ve el nombre que el papá autorizó para esa persona, nunca un movimiento anónimo.
+- **Autoservicio / "Entrada rápida" (lo genera la tablet del kiosco)**: pensado para cuando llegan varios papás a la vez y no quieren hacer fila. La tablet muestra un QR anónimo que se renueva solo cada 60 segundos (o en cuanto alguien lo usa) y que solo sirve una vez. Cada papá, ya con sesión iniciada en su propio celular, apunta su cámara al QR de la tablet y confirma ahí mismo la entrada o salida de su hijo — con las mismas preguntas de "¿aseado?"/"¿trae golpe?"/observaciones que usa el personal en el kiosco. La identidad nunca sale del código (que es anónimo a propósito): sale de la sesión de quien escanea, así que un papá solo puede mover a sus propios hijos sin importar qué tablet mostró el QR.
 
 ## 2. Bitácora diaria (personal)
 
@@ -51,9 +58,12 @@
 ## 8. Portal del papá
 
 - Login separado del personal; el papá solo ve a sus propios hijos.
+- Es una **PWA instalable**: una vez instalada en el celular, la sesión se queda abierta (ver la sección 10) — no hay que volver a escribir usuario y contraseña cada vez que se abre la app.
 - **Pestaña Bitácora del día**: comida, siesta, esfínter, fotos y observaciones de la maestra, con selector de fecha.
 - **Pestaña Expediente**: fecha de nacimiento, dirección y contacto de emergencia registrados (solo lectura).
 - **Pestaña Pagos**: historial de pagos de sus hijos y si están al corriente (solo lectura).
+- **Código de acceso**: genera, nombra y revoca sus propios códigos QR/alfanuméricos (ver sección 1.5), ya sea para sí mismo o para delegar en alguien más.
+- **Entrada rápida**: escanea el QR de "Autoservicio" de la tablet del kiosco y confirma entrada/salida directo desde su celular, sin esperar turno (ver sección 1.5).
 - Resumen de estado de pago del mes actual visible directo en el inicio del portal.
 - Botón para activar notificaciones push.
 
@@ -69,7 +79,8 @@
 - Las rutas que exponen datos de **todas** las familias (domicilios, contactos de emergencia, pagos) están bloqueadas a nivel de servidor para cualquier cuenta que no sea admin/staff — un papá no puede leerlas ni llamando la API directo.
 - Multi-sede: cada guardería tiene sus propios usuarios, niños, tutores y colección de rostros, completamente aislados de otras guarderías que usen la misma plataforma.
 - Límite de intentos (rate limiting) en login, identificación facial y verificación de PIN para frenar ataques de fuerza bruta.
-- Contraseñas con hash (bcrypt), tokens de sesión firmados (JWT) con expiración de 24 horas.
+- Contraseñas con hash (bcrypt), tokens de sesión firmados (JWT). La duración es distinta según el rol a propósito: **admin/staff** se re-loguean cada 24 horas (manejan datos sensibles de todas las familias); el **papá** tiene una sesión de 90 días que se renueva sola mientras siga abriendo la app de vez en cuando, pensada para quedarse instalada en su celular sin pedirle credenciales a cada rato.
+- La sesión del papá tiene un respaldo en el propio celular (además de la cookie de sesión) para que sobreviva a que la app instalada se cierre del todo y se reabra. "Cerrar sesión" invalida el token de verdad del lado del servidor, no solo borra ese respaldo local.
 
 ## 11. App instalable (PWA)
 
@@ -86,5 +97,5 @@
 | **Kiosco / Staff** | Escanear rostros, registrar entrada/salida, llenar bitácora diaria |
 | **Admin** | Todo lo anterior + Familia (directorio de tutores), Perfiles, Pagos, Estadísticas, Reportes, sin necesidad de PIN |
 | **Staff sin PIN de admin** | Kiosco y Registro libres; el resto de pestañas piden PIN |
-| **Papá / Tutor** | Ver a sus hijos, bitácora diaria, expediente, estado de pagos, activar notificaciones — nada de otras familias |
+| **Papá / Tutor** | Ver a sus hijos, bitácora diaria, expediente, estado de pagos, generar códigos de acceso, entrada rápida por QR, activar notificaciones — nada de otras familias |
 | **Público (sin cuenta)** | Solo el reporte del día de un niño específico, vía enlace compartido |

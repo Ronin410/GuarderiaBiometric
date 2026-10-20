@@ -1,17 +1,18 @@
 # TÉRMINOS Y CONDICIONES DE SERVICIO DE PASITOS
 
-Fecha de versión: 30/08/2026 | Versión: 1.1
+Fecha de versión: 20/10/2026 | Versión: 1.2
 
 > Este documento partió del borrador entregado por el representante legal
 > de Pasitos (v1.0), guardado aquí tal cual para que quede versionado junto
-> con el código. La cláusula **9 Bis** se agregó después, a partir de una
-> función nueva de la Plataforma (el chat de soporte con prospectos), y NO
-> viene del representante legal -- debe revisarse con el mismo cuidado que
-> el resto del documento antes de usarse comercialmente. La misma redacción
-> se publica en la app en `/terminos` (ver
-> `GuarderiaBiometricFront/src/TerminosCondiciones.jsx`) -- si este archivo
-> cambia, esa página debe actualizarse también. Ver la nota de revisión
-> jurídica al final.
+> con el código. La cláusula **9 Bis**, y los párrafos agregados en las
+> cláusulas **5** y **11** sobre códigos de acceso/QR y el respaldo de
+> sesión en el dispositivo del tutor, se agregaron después a partir de
+> funciones nuevas de la Plataforma, y NO vienen del representante legal --
+> deben revisarse con el mismo cuidado que el resto del documento antes de
+> usarse comercialmente. La misma redacción se publica en la app en
+> `/terminos` (ver `GuarderiaBiometricFront/src/TerminosCondiciones.jsx`) --
+> si este archivo cambia, esa página debe actualizarse también. Ver la nota
+> de revisión jurídica al final.
 
 ## 1. Objeto y aceptación
 
@@ -57,9 +58,11 @@ Pasitos no procesa el rostro de las niñas o niños para el reconocimiento facia
 
 La plantilla facial se genera mediante AWS Rekognition. Debido a la naturaleza sensible de los datos biométricos, el Cliente deberá obtener y conservar los consentimientos y autorizaciones legalmente necesarios y proporcionar el aviso de privacidad aplicable.
 
+El enrolamiento facial del tutor es obligatorio, pero la Plataforma ofrece además mecanismos alternativos de confirmación de entrada/salida que no dependen del reconocimiento facial en el momento del movimiento: (i) un **código de acceso** (QR o alfanumérico) que el propio tutor genera, nombra, limita en vigencia y puede revocar, útil tanto para su propio acceso como para delegarlo en un tercero no enrolado; y (ii) un código QR anónimo y de un solo uso generado por el dispositivo de recepción del Cliente ("Autoservicio"), que el tutor escanea desde su propia sesión ya iniciada. En ambos casos, la identidad de quien confirma el movimiento proviene de la cuenta o código correspondiente, no de una verificación biométrica, por lo que el Cliente conserva la misma obligación de contar con un procedimiento de verificación humana descrita más abajo.
+
 El Cliente deberá contar con un procedimiento alternativo cuando el reconocimiento falle, el tutor no esté enrolado, exista discrepancia en la autorización, haya una emergencia o la Plataforma no esté disponible.
 
-El reconocimiento facial no sustituye la obligación del Cliente de verificar que la persona que recoge al menor esté autorizada.
+El reconocimiento facial no sustituye la obligación del Cliente de verificar que la persona que recoge al menor esté autorizada, incluyendo cuando la entrada o salida se confirme mediante un código de acceso en lugar de reconocimiento facial.
 
 ## 6. Responsabilidades del Cliente respecto de niñas, niños y familias
 
@@ -118,6 +121,8 @@ Cuando un proveedor implique una transferencia internacional de datos o comunica
 ## 11. Seguridad de la información
 
 Pasitos implementa medidas técnicas y organizativas destinadas a reducir riesgos, incluyendo: contraseñas protegidas mediante bcrypt; cookies httpOnly y JWT; protección CSRF; PIN adicional; permisos por área; aislamiento entre Clientes; almacenamiento privado; URLs firmadas para determinados archivos; rate limiting; bitácoras de auditoría; HTTPS/TLS; y controles de conexiones a la base de datos.
+
+Para la cuenta del tutor/padre específicamente, la sesión puede extenderse más allá de la cookie httpOnly: el token de sesión también se conserva en el almacenamiento local del dispositivo del tutor, para que la aplicación instalada no requiera volver a iniciar sesión en cada uso. Cerrar sesión invalida ese token del lado del servidor, no únicamente en el dispositivo.
 
 Estas medidas pueden evolucionar conforme al desarrollo de la Plataforma.
 
@@ -327,3 +332,5 @@ Este borrador se estructuró con base en el briefing técnico de Pasitos y en la
 **Antes de uso comercial, un abogado mexicano deberá validar especialmente** la figura Responsable/Encargado, biometría, datos de niñas, niños y adolescentes, consentimiento, transferencias internacionales, subencargados, conservación y eliminación, derechos ARCO, vulneraciones de seguridad, propiedad intelectual, límites de responsabilidad, jurisdicción y contratación electrónica.
 
 La **cláusula 9 Bis** y el documento **AVISO_PRIVACIDAD_PASITOS.md** son una adición posterior (no vienen del representante legal) hecha a partir de una función nueva de la Plataforma: el chat de soporte, donde papás/staff pueden escribirle directo a Pasitos y prospectos sin cuenta pueden hacerlo también. Deben revisarse junto con el resto -- en particular, si la calificación de Pasitos como Responsable (en vez de Encargado) para ESTE dato en particular es la figura correcta, y si el Aviso de Privacidad de Pasitos cumple los requisitos mínimos de la LFPDPPP (identidad y domicilio del responsable, finalidades, transferencias, mecanismo ARCO) para el tipo de datos que efectivamente se recaban.
+
+Los párrafos agregados a la **cláusula 5** (códigos de acceso/QR como alternativa al reconocimiento facial) y a la **cláusula 11** (respaldo del token de sesión del tutor en el almacenamiento local del dispositivo) son también una adición posterior, igualmente sin revisión del representante legal. Deben revisarse en particular: si el tratamiento de los datos del código de acceso (nombre asignado por el tutor a la persona delegada) requiere ajustes a la figura Responsable/Encargado de la cláusula 7, y si guardar el token de sesión fuera de la cookie httpOnly (en almacenamiento local del dispositivo) es una práctica de seguridad adecuada para divulgar tal cual en la cláusula 11, o si conviene matizarla más.
