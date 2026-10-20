@@ -1,29 +1,27 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import api from './axiosConfig'; 
 import { 
   Calendar, User, CheckCircle, ShieldAlert, Clock, 
   Search, RefreshCw, MessageSquare
 } from 'lucide-react';
-import Swal from 'sweetalert2';
-import withReactContent from 'sweetalert2-react-content';
 import FormularioBitacora from './FormularioBitacora';
+import { hoyLocal } from './utils/fecha';
+import { MySwal } from './utils/alertas';
+import { acentoDeTab } from './utils/acentos';
+import DinoDecorativo from './components/DinoDecorativo';
 
-const MySwal = withReactContent(Swal);
+// Color y dino de este apartado -- los define utils/acentos.js para que
+// coincidan con los del menú lateral.
+const acento = acentoDeTab('bitacora');
 
 const VistaBitacora = () => {
-  const getFechaLocalCuliacan = () => {
-    const fecha = new Date();
-    const offset = fecha.getTimezoneOffset() * 60000;
-    return new Date(fecha - offset).toISOString().split('T')[0];
-  };
-
   const [niños, setNiños] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [fechaFiltro, setFechaFiltro] = useState(getFechaLocalCuliacan());
+  const [fechaFiltro, setFechaFiltro] = useState(hoyLocal());
   const [busqueda, setBusqueda] = useState("");
   const [niñoSeleccionado, setNiñoSeleccionado] = useState(null);
 
-  const fetchEstatus = async () => {
+  const fetchEstatus = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get('/bitacora', { params: { fecha: fechaFiltro } });
@@ -33,17 +31,17 @@ const VistaBitacora = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [fechaFiltro]);
 
-  useEffect(() => { fetchEstatus(); }, [fechaFiltro]);
+  useEffect(() => { fetchEstatus(); }, [fetchEstatus]);
 
   const formatearHora = (fechaStr) => {
     if (!fechaStr || fechaStr === '--:--') return '--:--';
     try {
       const isoStr = fechaStr.includes(' ') ? fechaStr.replace(' ', 'T') : fechaStr;
       const date = new Date(isoStr);
-      return isNaN(date.getTime()) ? fechaStr : date.toLocaleTimeString('es-MX', { hour: '2d-digit', minute: '2d-digit', hour12: true });
-    } catch (e) { return fechaStr; }
+      return isNaN(date.getTime()) ? fechaStr : date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
+    } catch { return fechaStr; }
   };
 
   const handleCambiarEstatus = async (niño) => {
@@ -80,15 +78,13 @@ const VistaBitacora = () => {
     return (
       <div className="min-h-screen bg-slate-50/50 p-8">
         <div className="max-w-4xl mx-auto">
-          <button onClick={() => { setNiñoSeleccionado(null); fetchEstatus(); }} className="mb-6 flex items-center gap-2 text-violet-600 font-black uppercase text-xs tracking-widest hover:opacity-70 transition-all">
+          <button onClick={() => { setNiñoSeleccionado(null); fetchEstatus(); }} className="mb-6 flex items-center gap-2 text-brand-600 font-black uppercase text-xs tracking-widest hover:opacity-70 transition-all">
             ← Volver a la lista
           </button>
-          {/* PASAMOS TODA LA DATA DEL NIÑO AL FORMULARIO */}
-          <FormularioBitacora 
-            niñoId={niñoSeleccionado.id} 
-            nombreNiño={niñoSeleccionado.hijo} 
-            datosEntrada={niñoSeleccionado} // Enviamos aseado, golpe y obs_asistencia
-            onCerrar={() => { setNiñoSeleccionado(null); fetchEstatus(); }} 
+          <FormularioBitacora
+            niñoId={niñoSeleccionado.id}
+            nombreNiño={niñoSeleccionado.hijo}
+            onCerrar={() => { setNiñoSeleccionado(null); fetchEstatus(); }}
           />
         </div>
       </div>
@@ -101,9 +97,12 @@ const VistaBitacora = () => {
         
         {/* CABECERA */}
         <div className="flex flex-col md:flex-row gap-6 items-center justify-between bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-200/60">
-          <div className="flex flex-col gap-1">
-            <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Bitácora</h3>
-            <div className="h-1 w-20 bg-violet-600 rounded-full"></div>
+          <div className="flex items-center gap-4">
+            <div className="flex flex-col gap-1">
+              <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Bitácora</h3>
+              <div className={`h-1 w-20 rounded-full ${acento.solido}`}></div>
+            </div>
+            <DinoDecorativo src="/dinos/dino-verde.png" className="hidden sm:block h-16 w-auto shrink-0" />
           </div>
 
           <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
@@ -113,9 +112,9 @@ const VistaBitacora = () => {
             </div>
             <div className="relative flex-1 md:w-80">
               <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20}/>
-              <input type="text" placeholder="Buscar niño..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} className="w-full bg-slate-100 border border-slate-200 pl-14 pr-6 py-4 rounded-2xl outline-none focus:ring-2 focus:ring-violet-500 font-medium" />
+              <input type="text" placeholder="Buscar niño..." value={busqueda} onChange={(e) => setBusqueda(e.target.value)} className="w-full bg-slate-100 border border-slate-200 pl-14 pr-6 py-4 rounded-2xl outline-none focus:ring-2 focus:ring-brand-500 font-medium" />
             </div>
-            <button onClick={fetchEstatus} className="p-4 bg-violet-600 text-white rounded-2xl hover:bg-violet-700 shadow-lg">
+            <button onClick={fetchEstatus} className="p-4 bg-brand-600 text-white rounded-2xl hover:bg-brand-700 shadow-lg">
               <RefreshCw size={24} className={loading ? "animate-spin" : ""} />
             </button>
           </div>
@@ -134,11 +133,11 @@ const VistaBitacora = () => {
                   key={niño.id} 
                   onClick={() => puedeLlenar && setNiñoSeleccionado(niño)}
                   className={`bg-white border border-slate-100 p-6 rounded-[2.5rem] shadow-md transition-all group flex flex-col justify-between border-b-4 
-                    ${puedeLlenar ? 'hover:shadow-xl hover:border-b-violet-500 cursor-pointer active:scale-[0.98]' : 'cursor-default opacity-60'}`}
+                    ${puedeLlenar ? 'hover:shadow-xl hover:border-b-brand-500 cursor-pointer active:scale-[0.98]' : 'cursor-default opacity-60'}`}
                 >
                   <div>
                     <div className="flex items-start gap-4 mb-4">
-                      <div className={`p-4 rounded-2xl transition-all shrink-0 bg-slate-100 text-slate-600 ${puedeLlenar ? 'group-hover:bg-violet-600 group-hover:text-white' : ''}`}>
+                      <div className={`p-4 rounded-2xl transition-all shrink-0 bg-slate-100 text-slate-600 ${puedeLlenar ? 'group-hover:bg-brand-600 group-hover:text-white' : ''}`}>
                         <User size={24} />
                       </div>
                       <div className="flex-1 min-w-0 self-center">
@@ -181,7 +180,7 @@ const VistaBitacora = () => {
                   </div>
 
                   <div className="pt-4 border-t border-slate-100 flex items-center justify-center gap-2 mt-auto">
-                    <Clock size={14} className="text-violet-500"/>
+                    <Clock size={14} className="text-brand-500"/>
                     <span className="text-xs font-bold text-slate-500">{formatearHora(niño.fecha_hora)}</span>
                   </div>
                 </div>

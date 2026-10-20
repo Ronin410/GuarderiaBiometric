@@ -1,0 +1,62 @@
+{
+  "expo": {
+    "name": "Pasitos",
+    "slug": "pasitos-familia",
+    "scheme": "pasitos",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#f8fcfc",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.pasitos.familia",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Pasitos usa la cámara para escanear el código QR de la tablet de recepción y confirmar la entrada o salida de tu hijo (\"Entrada rápida\")."
+      }
+    },
+    "android": {
+      "package": "com.pasitos.familia",
+      "softwareKeyboardLayoutMode": "resize",
+      "googleServicesFile": "./google-services.json",
+      "adaptiveIcon": {
+        "backgroundColor": "#f8fcfc",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "ecc8e4c7-3f35-43bc-9c39-688125a2ed02"
+      }
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#f8fcfc"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-monochrome.png",
+          "color": "#0f9294"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Pasitos usa la cámara para escanear el código QR de la tablet de recepción y confirmar la entrada o salida de tu hijo (\"Entrada rápida\")."
+        }
+      ]
+    ]
+  }
+}

@@ -2,26 +2,80 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/logo192.png" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
     
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    
-    <title>Sistema Biométrico - Guardería</title>
 
-    <meta name="theme-color" content="#7c3aed" /> 
+    <!-- Este es el título/descripción que ve cualquier bot que NO ejecute
+         JavaScript (algunas herramientas de SEO, el primer barrido de un
+         crawler) y lo que se ve en la pestaña una fracción de segundo antes
+         de que cargue React -- por eso ya lleva las palabras que
+         de verdad busca una guardería ("software", "control de acceso
+         biométrico"), no solo la marca. src/hooks/usePaginaSEO.js
+         sobreescribe esto por ruta una vez que React monta (Google sí
+         ejecuta JS antes de indexar, así que alcanza a leer el título que
+         corresponde a cada página) -- si cambias el mensaje de "/" aquí,
+         cambia también el de LandingPage.jsx para que no queden distintos. -->
+    <title>Pasitos · Software de gestión y control de acceso biométrico para guarderías</title>
+
+    <!-- Sin esto Google no tiene con qué decidir que esta página es
+         relevante para una búsqueda -- el <title> solo no basta. También es
+         lo que se muestra en el resultado de búsqueda, debajo del título. -->
+    <meta name="description" content="Software para guarderías y centros infantiles: control de acceso biométrico, bitácora digital, circulares, encuestas, pagos y chat de soporte con IA. Reemplaza el cuaderno y el grupo de WhatsApp." />
+
+    <!-- Open Graph / redes sociales: sin esto, compartir el link en
+         WhatsApp o Facebook muestra solo texto pelón en vez de una tarjeta
+         con imagen, título y descripción. og:image/og:url necesitan ruta
+         absoluta -- quien lee estas etiquetas es el servidor de WhatsApp/
+         Facebook, no el navegador de quien comparte, así que una ruta
+         relativa no resuelve a nada. Si la URL del sitio cambia (ver el
+         comentario sobre el sufijo que le puso Render en ../render.yaml),
+         hay que actualizar las dos de aquí abajo también. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Pasitos" />
+    <meta property="og:description" content="Portal para guarderías, papás y personal: registro, control de acceso biométrico, bitácora, circulares, encuestas y chat de soporte con IA." />
+    <meta property="og:image" content="https://pasitos-frontend.onrender.com/logo512.png" />
+    <meta property="og:url" content="https://pasitos-frontend.onrender.com/" />
+    <meta property="og:locale" content="es_MX" />
+    <link rel="canonical" href="https://pasitos-frontend.onrender.com/" />
+
+    <meta name="theme-color" content="#084850" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    
+
     <link rel="manifest" href="/manifest.json" />
-    
-    <link rel="apple-touch-icon" href="/logo192.png" />
+
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- Datos estructurados (schema.org): le dan a Google una descripción
+         del producto en un formato que puede leer sin adivinar a partir
+         del texto de la página -- de dónde puede salir, por ejemplo, un
+         resultado de búsqueda más rico (con nombre y descripción propios
+         en vez de solo el título/snippet genérico). Es información fija de
+         marca, así que vive aquí (una sola vez) y no por ruta. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Pasitos",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web",
+        "description": "Plataforma de gestión para guarderías y centros infantiles: control de acceso biométrico, bitácora digital, circulares, encuestas, pagos y chat de soporte con IA.",
+        "url": "https://pasitos-frontend.onrender.com/",
+        "inLanguage": "es-MX",
+        "audience": {
+          "@type": "BusinessAudience",
+          "audienceType": "Guarderías y centros de cuidado infantil"
+        }
+      }
+    </script>
 
     <style>
       html, body {
         height: 100%;
         margin: 0;
         padding: 0;
-        background-color: #ffffff;
+        background-color: #f8fcfc;
         overscroll-behavior-y: contain;
         font-family: system-ui, -apple-system, sans-serif;
       }
@@ -35,16 +89,9 @@
   <body>
     <div id="root"></div>
 
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('SW registrado', reg))
-            .catch(err => console.error('Error al registrar SW', err));
-        });
-      }
-    </script>
-
+    <!-- El registro del Service Worker lo hace src/components/ActualizarApp.jsx
+         (useRegisterSW, virtual:pwa-register/react) -- injectRegister: false
+         en vite.config.js, para que esta sea la única fuente de registro. -->
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
