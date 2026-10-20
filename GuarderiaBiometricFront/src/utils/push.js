@@ -43,42 +43,70 @@ export async function suscripcionActiva() {
 }
 
 // suscribirseAPush pide permiso de notificaciones y, si se concede, registra la
-// suscripción en el backend. Devuelve true si quedó activa. ruta es
-// opcional -- por defecto es la de un papá/staff con sesión normal
+// suscripción en el backend. Devuelve { ok, mensaje }: mensaje viene listo
+// para mostrar cuando ok es false -- antes se regresaba solo un booleano y
+// cada pantalla mostraba el MISMO mensaje genérico ("revisa los permisos de
+// tu navegador") sin importar la causa real, que es justo el caso más común
+// de "antes sí podía activarlas, ahora no me deja": el navegador recuerda un
+// rechazo anterior y, pasado cierto número de veces, deja de mostrar el
+// cuadro de permiso por completo -- Notification.requestPermission()
+// entonces resuelve 'denied' en silencio, sin volver a preguntar nada, y no
+// hay forma de "reactivarlo" desde JavaScript. Detectarlo ANTES de llamar a
+// requestPermission() es lo único que permite distinguirlo de un rechazo
+// nuevo y decirle a la persona exactamente qué hacer (entrar a los ajustes
+// del sitio en el navegador), en vez de un mensaje que suena a que la app
+// está rota.
+//
+// ruta es opcional -- por defecto es la de un papá/staff con sesión normal
 // (/push/suscribir); /plataforma la manda como '/plataforma/push/suscribir'
 // porque esa sesión se autentica con X-Platform-Key, no con el JWT normal
 // (ver PanelPlataforma.jsx).
 export async function suscribirseAPush(api, ruta = '/push/suscribir') {
-  if (!pushSoportado()) return false;
+  if (!pushSoportado()) {
+    return { ok: false, mensaje: 'Este navegador no soporta notificaciones push.' };
+  }
+
+  if (Notification.permission === 'denied') {
+    return {
+      ok: false,
+      mensaje: 'Ya habías bloqueado las notificaciones para esta app en tu navegador, así que no se puede volver a pedir el permiso desde aquí. Entra a los ajustes del sitio de tu navegador (el candado o los tres puntos junto a la dirección), busca "Notificaciones" y cámbialo a "Permitir".',
+    };
+  }
 
   const permiso = await Notification.requestPermission();
-  if (permiso !== 'granted') return false;
+  if (permiso !== 'granted') {
+    return { ok: false, mensaje: 'No se concedió el permiso de notificaciones.' };
+  }
 
   const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
   if (!vapidKey) {
     console.warn('VITE_VAPID_PUBLIC_KEY no configurada; no se puede suscribir a push.');
-    return false;
+    return { ok: false, mensaje: 'Las notificaciones no están configuradas en el servidor todavía.' };
   }
 
-  const registration = await conTimeout(
-    navigator.serviceWorker.ready,
-    10000,
-    'No hay un Service Worker activo todavía (recarga la página e inténtalo de nuevo).'
-  );
-  let subscription = await registration.pushManager.getSubscription();
-  if (!subscription) {
-    subscription = await conTimeout(
-      registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidKey),
-      }),
-      15000,
-      'El navegador tardó demasiado en registrar la suscripción (revisa tu conexión).'
+  try {
+    const registration = await conTimeout(
+      navigator.serviceWorker.ready,
+      10000,
+      'No hay un Service Worker activo todavía (recarga la página e inténtalo de nuevo).'
     );
-  }
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await conTimeout(
+        registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidKey),
+        }),
+        15000,
+        'El navegador tardó demasiado en registrar la suscripción (revisa tu conexión).'
+      );
+    }
 
-  await api.post(ruta, subscription.toJSON());
-  return true;
+    await api.post(ruta, subscription.toJSON());
+    return { ok: true, mensaje: '' };
+  } catch (err) {
+    return { ok: false, mensaje: err.message || 'No se pudieron activar las notificaciones. Inténtalo de nuevo.' };
+  }
 }
 
 // desuscribirseDePush cancela la suscripción push de este navegador --

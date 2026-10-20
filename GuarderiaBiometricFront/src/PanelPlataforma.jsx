@@ -129,9 +129,9 @@ const PanelPlataforma = () => {
   const handleActivarNotificaciones = async () => {
     setNotifEstado('activando');
     try {
-      const ok = await suscribirseAPush(apiPlataforma, RUTA_PUSH_PLATAFORMA);
-      setNotifEstado(ok ? 'granted' : 'default');
-      if (!ok) mostrarError('No se pudieron activar las notificaciones. Revisa los permisos de notificaciones de tu navegador.');
+      const resultado = await suscribirseAPush(apiPlataforma, RUTA_PUSH_PLATAFORMA);
+      setNotifEstado(resultado.ok ? 'granted' : 'default');
+      if (!resultado.ok) mostrarError(resultado.mensaje);
     } catch (err) {
       console.error('Error al activar notificaciones', err);
       setNotifEstado('default');
