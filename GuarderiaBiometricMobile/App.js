@@ -16,6 +16,8 @@ import CircularesScreen from './src/screens/CircularesScreen';
 import EventosScreen from './src/screens/EventosScreen';
 import MenuSemanalScreen from './src/screens/MenuSemanalScreen';
 import ProximamenteScreen from './src/screens/ProximamenteScreen';
+import CodigoAccesoScreen from './src/screens/CodigoAccesoScreen';
+import EscanearQRScreen from './src/screens/EscanearQRScreen';
 import { color } from './src/theme';
 
 const Stack = createNativeStackNavigator();
@@ -59,6 +61,8 @@ function Root() {
       <Stack.Screen name="Circulares" component={CircularesScreen} options={{ title: 'Avisos' }} />
       <Stack.Screen name="Eventos" component={EventosScreen} options={{ title: 'Eventos' }} />
       <Stack.Screen name="MenuSemanal" component={MenuSemanalScreen} options={{ title: 'Menú de la semana' }} />
+      <Stack.Screen name="CodigoAcceso" component={CodigoAccesoScreen} options={{ title: 'Código de acceso' }} />
+      <Stack.Screen name="EscanearQR" component={EscanearQRScreen} options={{ title: 'Entrada rápida' }} />
       <Stack.Screen name="Proximamente" component={ProximamenteScreen} options={{ title: '' }} />
     </Stack.Navigator>
   );

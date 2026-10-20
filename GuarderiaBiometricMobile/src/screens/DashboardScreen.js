@@ -16,6 +16,8 @@ import { color, radius, sombra } from '../theme';
 // tarjeta manda a "Proximamente" (ver API_MOVIL.md para el orden en que
 // se van agregando).
 const ENTRADAS = [
+  { key: 'escanear-qr', icon: 'qr-code', titulo: 'Entrada rápida', subtitulo: 'Escanea el QR de recepción', pantalla: 'EscanearQR' },
+  { key: 'codigo-acceso', icon: 'key', titulo: 'Código de acceso', subtitulo: 'Genera o delega tu entrada/salida', pantalla: 'CodigoAcceso' },
   { key: 'encuestas', icon: 'clipboard', titulo: 'Encuestas', subtitulo: 'Comparte tu opinión con la guardería', pantalla: 'Encuestas' },
   { key: 'eventos', icon: 'calendar', titulo: 'Eventos', subtitulo: 'Calendario escolar de la guardería', pantalla: 'Eventos' },
   { key: 'menu', icon: 'restaurant', titulo: 'Menú semanal', subtitulo: 'Días anteriores y posteriores', pantalla: 'MenuSemanal' },

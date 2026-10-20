@@ -12,7 +12,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.pasitos.familia",
       "infoPlist": {
-        "NSCameraUsageDescription": "Pasitos podría pedir la cámara más adelante para el reconocimiento facial."
+        "NSCameraUsageDescription": "Pasitos usa la cámara para escanear el código QR de la tablet de recepción y confirmar la entrada o salida de tu hijo (\"Entrada rápida\")."
       }
     },
     "android": {
@@ -49,6 +49,12 @@
         {
           "icon": "./assets/android-icon-monochrome.png",
           "color": "#0f9294"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Pasitos usa la cámara para escanear el código QR de la tablet de recepción y confirmar la entrada o salida de tu hijo (\"Entrada rápida\")."
         }
       ]
     ]

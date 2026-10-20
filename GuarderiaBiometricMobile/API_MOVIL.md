@@ -79,6 +79,23 @@ Personal/admin sigue usándose por navegador, como hasta ahora.
   guarda automáticamente el cliente HTTP nativo (no hay que leerla ni
   gestionarla a mano). El token CSRF viaja en memoria, igual que en
   `axiosConfig.js` de la web (`src/api/client.js` es el equivalente aquí).
+  A diferencia de la PWA, esta app NO guarda un respaldo del JWT en
+  almacenamiento local: el cliente HTTP nativo (no un WebView) ya persiste
+  la cookie de forma confiable contra ese mismo dominio, así que no hace
+  falta el mismo respaldo que sí necesita un navegador cross-site.
+- **Código de acceso** (`src/screens/CodigoAccesoScreen.js`) -- equivalente
+  de `CodigosAccesoPadre.jsx` en la web: el papá genera un código QR/
+  alfanumérico (nombre de quién lo va a usar, qué niños, vigencia de 1/3/7
+  días), lo ve con `react-native-qrcode-svg`, y puede revocarlo antes de
+  que venza. Contra los mismos endpoints `/padre/codigos-acceso` de
+  siempre.
+- **Entrada rápida / Autoservicio** (`src/screens/EscanearQRScreen.js`) --
+  equivalente de `EscanearQRKioscoPadre.jsx` en la web: usa la cámara
+  (`expo-camera`, `CameraView`/`useCameraPermissions`) para escanear el QR
+  anónimo y de un solo uso que muestra la tablet de Recepción, y confirma
+  entrada/salida (con ¿aseado?/¿golpes?/observaciones) directo contra
+  `/padre/codigo-kiosco/canjear` y `/padre/confirmar-asistencia`, sin pasar
+  por el kiosco.
 
 ## Diferencia importante con el intento de Capacitor: no hace falta tocar CORS
 
@@ -158,12 +175,12 @@ Android Studio ni una Mac física. Lo dejamos para cuando ya estés
 conforme con las pantallas, para no gastar builds de más mientras se sigue
 ajustando la app.
 
-Con esto ya están portadas todas las entradas fijas del inicio (Chat,
-Encuestas, Eventos, Menú semanal) y las 6 pestañas del detalle de cada
-niño -- ya no queda ninguna pantalla en "Próximamente"
-(`ProximamenteScreen.js` se deja en el código por si hace falta un
-placeholder para algo nuevo más adelante). Con esto la app ya cubre
-prácticamente todo lo que un papá usa día a día en la web.
+Con esto ya están portadas todas las entradas fijas del inicio (Entrada
+rápida, Código de acceso, Chat, Encuestas, Eventos, Menú semanal) y las 6
+pestañas del detalle de cada niño -- ya no queda ninguna pantalla en
+"Próximamente" (`ProximamenteScreen.js` se deja en el código por si hace
+falta un placeholder para algo nuevo más adelante). Con esto la app ya
+cubre prácticamente todo lo que un papá usa día a día en la web.
 
 ## Lo que sigue
 
@@ -203,5 +220,7 @@ GuarderiaBiometricMobile/
       CircularesScreen.js         -- listado completo de avisos
       EventosScreen.js            -- calendario escolar completo
       MenuSemanalScreen.js        -- menú de la semana completo
+      CodigoAccesoScreen.js       -- generar/revocar códigos de acceso QR
+      EscanearQRScreen.js         -- escanear el QR de "Autoservicio" del kiosco
       ProximamenteScreen.js      -- placeholder para lo que falta portar
 ```
